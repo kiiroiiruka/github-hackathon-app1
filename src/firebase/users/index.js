@@ -3,8 +3,8 @@ import { db } from "../firebaseConfig";
 
 /**
  * ログイン時にユーザーコレクションを作成/更新する
- * - public: 他ユーザーに表示可能な最小限の情報
- * - private: 本人のみ参照可能な情報
+ * - userPublic: 他ユーザーに表示可能な最小限の情報
+ * - userPrivate: 本人のみ参照可能な情報
  */
 export const createOrUpdateUser = async (user) => {
 	const uid = user.uid;
@@ -13,6 +13,7 @@ export const createOrUpdateUser = async (user) => {
 	const photoURL = user.photoURL || "";
 
 	const publicData = {
+		uid,
 		displayName,
 		photoURL,
 		createdAt: serverTimestamp(),
@@ -30,16 +31,16 @@ export const createOrUpdateUser = async (user) => {
 
 	const batch = [];
 
-	// public コレクション（他ユーザーに表示）
+	// userPublic コレクション（他ユーザーに表示）
 	batch.push(
-		setDoc(doc(db, "users", uid, "public", "profile"), publicData, {
+		setDoc(doc(db, "userPublic", uid), publicData, {
 			merge: true,
 		}),
 	);
 
-	// private コレクション（本人のみ）
+	// userPrivate コレクション（本人のみ）
 	batch.push(
-		setDoc(doc(db, "users", uid, "private", "profile"), privateData, {
+		setDoc(doc(db, "userPrivate", uid), privateData, {
 			merge: true,
 		}),
 	);
