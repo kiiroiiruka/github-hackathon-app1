@@ -1,49 +1,82 @@
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "../firebaseConfig";
 
 /**
- * ログイン時にユーザーコレクションを作成/更新する
- * - userPublic: 他ユーザーに表示可能な最小限の情報
- * - userPrivate: 本人のみ参照可能な情報
+ * ログイン時にユーザーコレクションとサブコレクションを作成/更新する
+ * - users: ユーザー情報全体（公開情報 + プライベート情報）
+ * - users/{uid}/friends: 友達リスト（オプション）
  */
-export const createOrUpdateUser = async (user) => {
-	const uid = user.uid;
-	const displayName = user.displayName || "";
-	const email = user.email || "";
-	const photoURL = user.photoURL || "";
+export const createOrUpdateUser = async (user, friendsData = []) => {
+	// 分割代入でユーザー情報を取得（デフォルト値付き）
+	const {
+		uid,
+		displayName = "",
+		email = "",
+		photoURL = "",
+		userShortMessage = "",
+	} = user;
 
-	const publicData = {
+	// ユーザー情報全体
+	const userData = {
 		uid,
 		displayName,
 		photoURL,
+		userShortMessage,
+		email, // プライベート情報
 		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp(),
 	};
 
-	const privateData = {
-		uid,
-		email,
-		displayName,
-		photoURL,
-		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp(),
-	};
+	// バッチ書き込みを作成
+	const batch = writeBatch(db);
 
-	const batch = [];
+	// 1. ユーザー情報を保存
+	batch.set(doc(db, "users", uid), userData, { merge: true });
 
-	// userPublic コレクション（他ユーザーに表示）
-	batch.push(
-		setDoc(doc(db, "userPublic", uid), publicData, {
-			merge: true,
-		}),
-	);
+	// 2. 友達データがある場合、サブコレクションも更新
+	if (friendsData?.length > 0) {
+		friendsData.forEach((friend) => {
+			const {
+				uid: friendUid,
+				displayName: friendName = "",
+				photoURL: friendPhotoURL = "",
+			} = friend;
 
-	// userPrivate コレクション（本人のみ）
-	batch.push(
-		setDoc(doc(db, "userPrivate", uid), privateData, {
-			merge: true,
-		}),
-	);
+			const friendData = {
+				friendUid,
+				friendName,
+				friendPhotoURL,
+				addedAt: serverTimestamp(),
+				status: "accepted",
+			};
 
-	await Promise.all(batch);
+			batch.set(doc(db, "users", uid, "friends", friendUid), friendData, {
+				merge: true,
+			});
+		});
+	}
+
+	// バッチを実行
+	await batch.commit();
+};
+
+/**
+ * ユーザーの一言メッセージを更新する
+ * @param {string} userId - ユーザーID
+ * @param {string} message - 新しい一言メッセージ
+ */
+export const updateUserMessage = async (userId, message) => {
+	try {
+		await setDoc(
+			doc(db, "users", userId),
+			{
+				userShortMessage: message,
+				updatedAt: serverTimestamp(),
+			},
+			{ merge: true },
+		);
+	} catch (error) {
+		console.error("一言メッセージ更新エラー:", error);
+		throw error;
+	}
 };

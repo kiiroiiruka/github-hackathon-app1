@@ -1,2 +1,2 @@
 // atomのエクスポートをまとめるファイル
-export { isLoggedInAtom, userUidAtom } from "./userAtom";
+export { isLoggedInAtom, userDataAtom, userUidAtom } from "./userAtom";

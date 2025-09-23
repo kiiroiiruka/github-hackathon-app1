@@ -1,4 +1,4 @@
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, signOut } from "firebase/auth";
 import { auth, provider } from "../firebaseConfig";
 import { createOrUpdateUser } from "../users";
 
@@ -11,6 +11,17 @@ export const loginWithGoogle = async () => {
 		return result;
 	} catch (error) {
 		console.error("Google sign-in failed", error);
+		throw error;
+	}
+};
+
+export const logout = async () => {
+	try {
+		await signOut(auth);
+		// ログアウト成功時、onAuthStateChangedで自動的にatomがクリアされる
+		console.log("ログアウトしました");
+	} catch (error) {
+		console.error("ログアウトに失敗しました", error);
 		throw error;
 	}
 };
