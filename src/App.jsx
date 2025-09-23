@@ -2,12 +2,16 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useCallback, useEffect } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { auth } from "./firebase/firebaseConfig";
+import { useAuthState } from "./hooks/useAuthState";
 import Dashboard from "./pages/Dashboard";
 import LoginScreen from "./pages/LoginScreen";
 
 function App() {
 	const navigate = useNavigate(); //遷移先を指定
 	const location = useLocation(); //現在のURLを取得
+
+	// 認証状態を監視し、atomに反映
+	useAuthState();
 
 	//ログイン状態の変化に応じて遷移先が変わる関数
 	const routeChange = useCallback(
