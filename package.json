@@ -13,9 +13,12 @@
     "clsx": "^2.1.1",
     "firebase": "^12.3.0",
     "jotai": "^2.14.0",
+    "leaflet": "^1.9.4",
+    "leaflet-routing-machine": "^3.2.12",
     "prop-types": "^15.8.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.9.1"
   },
   "devDependencies": {
