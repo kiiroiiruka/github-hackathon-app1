@@ -7,6 +7,7 @@ import FriendsAddScreen from "./dashboard/friends";
 import HomeScreen from "./dashboard/home";
 import MemoScreen from "./dashboard/memo";
 import NaviCreateScreen from "./dashboard/navi";
+import RoomCreat from "./dashboard/navi/RoomCreat";
 import TryPage from "./dashboard/navi/TryPage";
 import ParkingScreen from "./dashboard/parking";
 import ParkingDetail from "./dashboard/parking/Detail";
@@ -153,6 +154,7 @@ const Dashboard = () => {
 					<Route path="home" element={<HomeScreen />} />
 					<Route path="navi" element={<NaviCreateScreen />} />
 					<Route path="navi/try" element={<TryPage />} />
+					<Route path="navi/room" element={<RoomCreat />} />
 					<Route path="friends" element={<FriendsAddScreen />} />
 					<Route path="parking" element={<ParkingScreen />} />
 					<Route path="parking/:id" element={<ParkingDetail />} />
