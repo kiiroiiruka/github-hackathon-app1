@@ -9,6 +9,10 @@ import MemoScreen from "./dashboard/memo";
 import NaviCreateScreen from "./dashboard/navi";
 import RoomCreat from "./dashboard/navi/RoomCreat";
 import TryPage from "./dashboard/navi/TryPage";
+import RouteSelect from "./dashboard/navi/RouteSelect";
+import PurlieuLocation from "./dashboard/navi/PurlieuLocation";
+import InviterPreference from "./dashboard/navi/InviterPreference";
+import RouteScreen from "./dashboard/navi/RouteScreen";
 import ParkingScreen from "./dashboard/parking";
 import ParkingDetail from "./dashboard/parking/Detail";
 
@@ -154,6 +158,10 @@ const Dashboard = () => {
 					<Route path="home" element={<HomeScreen />} />
 					<Route path="navi" element={<NaviCreateScreen />} />
 					<Route path="navi/try" element={<TryPage />} />
+					<Route path="navi/inviter" element={<InviterPreference />} />
+					<Route path="navi/route" element={<RouteSelect />} />
+					<Route path="navi/route-screen" element={<RouteScreen />} />
+					<Route path="navi/purlieu-location" element={<PurlieuLocation />} />
 					<Route path="navi/room" element={<RoomCreat />} />
 					<Route path="friends" element={<FriendsAddScreen />} />
 					<Route path="parking" element={<ParkingScreen />} />
