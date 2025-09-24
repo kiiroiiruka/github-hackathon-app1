@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import FooterTab from "../components/layout/FooterTab";
+import { useIsLoggedIn } from "../hooks/useUser";
+import { useUserUid } from "../hooks/useUserUid";
 import FriendsAddScreen from "./dashboard/friends";
 import HomeScreen from "./dashboard/home";
 import MemoScreen from "./dashboard/memo";
@@ -96,6 +98,18 @@ const TABS = [
 const Dashboard = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
+
+	// ユーザーUIDを取得（グローバルに利用可能）
+	const userUid = useUserUid();
+	const isLoggedIn = useIsLoggedIn();
+
+	// デバッグ用：ユーザー情報をコンソールに出力
+	useEffect(() => {
+		if (userUid) {
+			console.log("Current User UID:", userUid);
+			console.log("Is Logged In:", isLoggedIn);
+		}
+	}, [userUid, isLoggedIn]);
 
 	// URLから現在のタブを判定する関数
 	const getCurrentTab = useCallback((pathname) => {
