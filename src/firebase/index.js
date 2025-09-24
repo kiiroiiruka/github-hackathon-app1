@@ -31,4 +31,9 @@ export {
 // Firebase設定
 // ================================
 
-export { auth, db, provider } from "./firebaseConfig";
+export { auth, db, provider, rtdb } from "./firebaseConfig";
+
+// ================================
+// ルーム関連 (Realtime Database)
+// ================================
+export { createRoomWithInvites } from "./room";

@@ -1,0 +1,55 @@
+import { push, ref, serverTimestamp, set } from "firebase/database";
+import { auth, rtdb } from "../firebaseConfig";
+
+/**
+ * ルームを作成し、選択されたユーザーを招待メンバーとして保存する（Realtime Database）
+ * rooms/{roomId}
+ *  - name: ルーム名
+ *  - createdAt: タイムスタンプ
+ *  - ownerUid: 作成者UID
+ *  - members: { [uid]: { uid, name, photoURL, invited: true, accepted: false } }
+ * @param {string} roomName
+ * @param {Array<{uid:string,name:string,photoURL?:string}>} selectedFriends
+ * @returns {Promise<string>} 新規roomId
+ */
+export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
+	const currentUser = auth.currentUser;
+	if (!currentUser) throw new Error("ログインが必要です");
+
+	// ルームID作成
+	const roomRef = push(ref(rtdb, "rooms"));
+	const roomId = roomRef.key;
+
+	// メンバー一覧: 作成者も含める（デフォルトaccepted: true）
+	const members = {
+		[currentUser.uid]: {
+			uid: currentUser.uid,
+			name: currentUser.displayName || "",
+			photoURL: currentUser.photoURL || "",
+			invited: true,
+			accepted: true,
+		},
+	};
+
+	for (const friend of selectedFriends) {
+		members[friend.uid] = {
+			uid: friend.uid,
+			name: friend.name || friend.displayName || "",
+			photoURL: friend.photoURL || "",
+			invited: true,
+			accepted: false, // 初期状態: 未参加
+		};
+	}
+
+	const roomData = {
+		name: roomName,
+		createdAt: serverTimestamp(),
+		ownerUid: currentUser.uid,
+		ownerName: currentUser.displayName || "",
+		ownerPhotoURL: currentUser.photoURL || "",
+		members,
+	};
+
+	await set(roomRef, roomData);
+	return roomId;
+};

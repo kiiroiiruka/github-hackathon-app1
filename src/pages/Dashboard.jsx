@@ -3,16 +3,18 @@ import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import FooterTab from "../components/layout/FooterTab";
 import { useIsLoggedIn } from "../hooks/useUser";
 import { useUserUid } from "../hooks/useUserUid";
+import CarNavigation from "./CarNavigation";
 import FriendsAddScreen from "./dashboard/friends";
 import HomeScreen from "./dashboard/home";
+import InvitingRoom from "./dashboard/home/InvitingRoom";
 import MemoScreen from "./dashboard/memo";
 import NaviCreateScreen from "./dashboard/navi";
-import RoomCreat from "./dashboard/navi/RoomCreat";
-import TryPage from "./dashboard/navi/TryPage";
-import RouteSelect from "./dashboard/navi/RouteSelect";
-import PurlieuLocation from "./dashboard/navi/PurlieuLocation";
 import InviterPreference from "./dashboard/navi/InviterPreference";
+import PurlieuLocation from "./dashboard/navi/PurlieuLocation";
+import RoomCreat from "./dashboard/navi/RoomCreat";
 import RouteScreen from "./dashboard/navi/RouteScreen";
+import RouteSelect from "./dashboard/navi/RouteSelect";
+import TryPage from "./dashboard/navi/TryPage";
 import ParkingScreen from "./dashboard/parking";
 import ParkingDetail from "./dashboard/parking/Detail";
 
@@ -156,6 +158,7 @@ const Dashboard = () => {
 				<Routes>
 					<Route index element={<HomeScreen />} />
 					<Route path="home" element={<HomeScreen />} />
+					<Route path="home/inviting" element={<InvitingRoom />} />
 					<Route path="navi" element={<NaviCreateScreen />} />
 					<Route path="navi/try" element={<TryPage />} />
 					<Route path="navi/inviter" element={<InviterPreference />} />
@@ -166,6 +169,7 @@ const Dashboard = () => {
 					<Route path="friends" element={<FriendsAddScreen />} />
 					<Route path="parking" element={<ParkingScreen />} />
 					<Route path="parking/:id" element={<ParkingDetail />} />
+					<Route path="car/:roomId" element={<CarNavigation />} />
 					<Route path="memo" element={<MemoScreen />} />
 				</Routes>
 			</main>

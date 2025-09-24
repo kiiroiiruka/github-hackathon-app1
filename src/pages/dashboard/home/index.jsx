@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
 	acceptFriendRequest,
 	getFriendRequests,
@@ -12,6 +13,7 @@ import { useUserUid } from "@/hooks/useUserUid";
 import HeaderComponent2 from "../../../components/Header/Header2";
 
 const HomeScreen = () => {
+	const navigate = useNavigate();
 	const [friendRequests, setFriendRequests] = useState([]);
 	const [sentFriendRequests, setSentFriendRequests] = useState([]);
 	const [userMessage, setUserMessage] = useState("");
@@ -162,6 +164,15 @@ const HomeScreen = () => {
 				{/* 送信した友達リクエストセクション */}
 				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
 					<h2 className="text-lg font-semibold mb-3">送信した友達リクエスト</h2>
+					<div className="mb-3">
+						<button
+							type="button"
+							onClick={() => navigate("/dashboard/home/inviting")}
+							className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+						>
+							招待中のルームを見る
+						</button>
+					</div>
 					{sentFriendRequests.length === 0 ? (
 						<p className="text-gray-500">送信中の友達リクエストはありません</p>
 					) : (
