@@ -1,11 +1,12 @@
 import { useNavigate } from "react-router-dom";
+import HeaderComponent2 from "../../../components/Header/Header2";
 
 const PurlieuLocation = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex justify-center items-center p-5 h-screen bg-gray-100">
-      <div className="flex flex-col justify-center items-center gap-4 w-[90%] max-w-[900px] h-[90%] bg-white rounded-2xl shadow-lg overflow-hidden p-5">
+    <div className="flex flex-col justify-center items-center p-5 h-screen bg-gray-100">
+        <HeaderComponent2 title="通信" />
         <h1 className="text-2xl font-bold">お気に入り登録画面</h1>
         <p className="text-gray-600">お気に入りの場所を登録できます</p>
         <button
@@ -15,7 +16,6 @@ const PurlieuLocation = () => {
         >
           戻る
         </button>
-      </div>
     </div>
   );
 };
