@@ -1,7 +1,26 @@
 import clsx from "clsx";
 import PropTypes from "prop-types";
+import { useLocation } from "react-router-dom";
 
 function FooterTab({ value, onChange, tabs }) {
+	const location = useLocation();
+
+	// メインページのみでフッターを表示
+	const mainPages = [
+		"/dashboard",
+		"/dashboard/home",
+		"/dashboard/navi",
+		"/dashboard/friends",
+		"/dashboard/parking",
+		"/dashboard/memo",
+	];
+
+	const shouldShowFooter = mainPages.includes(location.pathname);
+
+	if (!shouldShowFooter) {
+		return null;
+	}
+
 	return (
 		<nav className="fixed bottom-0 inset-x-0 h-16 border-t border-gray-200 bg-white shadow-sm">
 			<ul className="grid grid-cols-5 h-full">
