@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { GoogleAuthProvider, getAuth } from "firebase/auth";
+import { getDatabase } from "firebase/database";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -17,5 +18,6 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 //データベース機能実装の為のオブジェクトを取得
 const db = getFirestore(app);
+const rtdb = getDatabase(app);
 
-export { auth, db, provider };
+export { auth, db, provider, rtdb };
