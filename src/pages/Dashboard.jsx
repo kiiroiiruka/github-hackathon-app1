@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import FooterTab from "../components/layout/FooterTab";
+import { useIsLoggedIn } from "../hooks/useUser";
+import { useUserUid } from "../hooks/useUserUid";
 import FriendsAddScreen from "./dashboard/friends";
 import HomeScreen from "./dashboard/home";
 import MemoScreen from "./dashboard/memo";
 import NaviCreateScreen from "./dashboard/navi";
+import RoomCreat from "./dashboard/navi/RoomCreat";
+import TryPage from "./dashboard/navi/TryPage";
 import ParkingScreen from "./dashboard/parking";
 import ParkingDetail from "./dashboard/parking/Detail";
 
@@ -96,6 +100,18 @@ const Dashboard = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
 
+	// ユーザーUIDを取得（グローバルに利用可能）
+	const userUid = useUserUid();
+	const isLoggedIn = useIsLoggedIn();
+
+	// デバッグ用：ユーザー情報をコンソールに出力
+	useEffect(() => {
+		if (userUid) {
+			console.log("Current User UID:", userUid);
+			console.log("Is Logged In:", isLoggedIn);
+		}
+	}, [userUid, isLoggedIn]);
+
 	// URLから現在のタブを判定する関数
 	const getCurrentTab = useCallback((pathname) => {
 		// /dashboard を除去してパスを取得
@@ -137,6 +153,8 @@ const Dashboard = () => {
 					<Route index element={<HomeScreen />} />
 					<Route path="home" element={<HomeScreen />} />
 					<Route path="navi" element={<NaviCreateScreen />} />
+					<Route path="navi/try" element={<TryPage />} />
+					<Route path="navi/room" element={<RoomCreat />} />
 					<Route path="friends" element={<FriendsAddScreen />} />
 					<Route path="parking" element={<ParkingScreen />} />
 					<Route path="parking/:id" element={<ParkingDetail />} />
