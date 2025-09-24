@@ -1,19 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import { logout } from "@/firebase/auth/login";
 import {
 	acceptFriendRequest,
 	getFriendRequests,
+	getSentFriendRequests,
+	getUser,
+	logout,
 	rejectFriendRequest,
-	sendFriendRequest,
-} from "@/firebase/friendRequests";
-import { updateUserMessage } from "@/firebase/users";
-import { getUser } from "@/firebase/users/getUser";
+	updateUserMessage,
+} from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
 
 const HomeScreen = () => {
-	const [friendIdInput, setFriendIdInput] = useState("");
 	const [friendRequests, setFriendRequests] = useState([]);
-	const [loading, setLoading] = useState(false);
+	const [sentFriendRequests, setSentFriendRequests] = useState([]);
 	const [userMessage, setUserMessage] = useState("");
 	const [currentUser, setCurrentUser] = useState(null);
 	const currentUserId = useUserUid();
@@ -31,7 +30,7 @@ const HomeScreen = () => {
 		}
 	}, [currentUserId]);
 
-	// 友達リクエストを取得
+	// 受信した友達リクエストを取得
 	const loadFriendRequests = useCallback(async () => {
 		if (!currentUserId) return;
 
@@ -43,63 +42,38 @@ const HomeScreen = () => {
 		}
 	}, [currentUserId]);
 
+	// 送信した友達リクエストを取得
+	const loadSentFriendRequests = useCallback(async () => {
+		if (!currentUserId) return;
+
+		try {
+			const sentRequests = await getSentFriendRequests(currentUserId);
+			setSentFriendRequests(sentRequests);
+		} catch (error) {
+			console.error("送信した友達リクエスト取得エラー:", error);
+		}
+	}, [currentUserId]);
+
 	// コンポーネントマウント時にデータを取得
 	useEffect(() => {
 		if (currentUserId) {
 			loadCurrentUser();
 			loadFriendRequests();
+			loadSentFriendRequests();
 		}
-	}, [currentUserId, loadCurrentUser, loadFriendRequests]);
-
-	// 友達リクエスト送信
-	const handleSendFriendRequest = async () => {
-		if (!friendIdInput.trim() || !currentUserId) return;
-
-		setLoading(true);
-		try {
-			// 相手のユーザー情報を取得
-			const targetUser = await getUser(friendIdInput.trim());
-
-			if (!targetUser) {
-				alert("指定されたユーザーIDが見つかりません");
-				return;
-			}
-
-			if (!currentUser) {
-				alert("ユーザー情報の取得に失敗しました");
-				return;
-			}
-
-			const senderData = {
-				displayName: currentUser.displayName || "ユーザー",
-				photoURL: currentUser.photoURL || "",
-				userShortMessage: currentUser.userShortMessage || "",
-				createdAt: currentUser.createdAt || null, // アカウント作成日も含める
-			};
-
-			await sendFriendRequest(currentUserId, friendIdInput.trim(), senderData);
-			setFriendIdInput("");
-			alert(`${targetUser.displayName}さんに友達リクエストを送信しました！`);
-		} catch (error) {
-			console.error("友達リクエスト送信エラー:", error);
-			if (
-				error.message.includes("not found") ||
-				error.message.includes("見つかりません")
-			) {
-				alert("指定されたユーザーIDが見つかりません");
-			} else {
-				alert("友達リクエストの送信に失敗しました");
-			}
-		} finally {
-			setLoading(false);
-		}
-	};
+	}, [
+		currentUserId,
+		loadCurrentUser,
+		loadFriendRequests,
+		loadSentFriendRequests,
+	]);
 
 	// 友達リクエスト承認
 	const handleAcceptRequest = async (requestId, fromUserId) => {
 		try {
 			await acceptFriendRequest(requestId, fromUserId, currentUserId);
-			await loadFriendRequests(); // リストを更新
+			await loadFriendRequests(); // 受信リストを更新
+			await loadSentFriendRequests(); // 送信リストも更新
 			alert("友達リクエストを承認しました！");
 		} catch (error) {
 			console.error("友達リクエスト承認エラー:", error);
@@ -111,7 +85,8 @@ const HomeScreen = () => {
 	const handleRejectRequest = async (requestId) => {
 		try {
 			await rejectFriendRequest(requestId);
-			await loadFriendRequests(); // リストを更新
+			await loadFriendRequests(); // 受信リストを更新
+			await loadSentFriendRequests(); // 送信リストも更新
 			alert("友達リクエストを拒否しました");
 		} catch (error) {
 			console.error("友達リクエスト拒否エラー:", error);
@@ -183,31 +158,56 @@ const HomeScreen = () => {
 				)}
 			</div>
 
-			{/* 友達リクエスト送信セクション */}
+			{/* 送信した友達リクエストセクション */}
 			<div className="bg-white rounded-lg shadow-md p-4 mb-6">
-				<h2 className="text-lg font-semibold mb-3">友達を追加</h2>
-				<div className="flex gap-2">
-					<input
-						type="text"
-						value={friendIdInput}
-						onChange={(e) => setFriendIdInput(e.target.value)}
-						placeholder="ユーザーIDを入力"
-						className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-					/>
-					<button
-						type="button"
-						onClick={handleSendFriendRequest}
-						disabled={loading || !friendIdInput.trim()}
-						className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded transition-colors"
-					>
-						{loading ? "送信中..." : "送信"}
-					</button>
-				</div>
+				<h2 className="text-lg font-semibold mb-3">送信した友達リクエスト</h2>
+				{sentFriendRequests.length === 0 ? (
+					<p className="text-gray-500">送信中の友達リクエストはありません</p>
+				) : (
+					<div className="space-y-3">
+						{sentFriendRequests.map((request) => (
+							<div
+								key={request.id}
+								className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-yellow-50"
+							>
+								<div className="flex items-center gap-3">
+									<div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+										{request.recipientPhotoURL ? (
+											<img
+												src={request.recipientPhotoURL}
+												alt={request.recipientName}
+												className="w-10 h-10 rounded-full object-cover"
+											/>
+										) : (
+											<span className="text-gray-600 text-sm">?</span>
+										)}
+									</div>
+									<div>
+										<p className="font-medium">{request.recipientName}</p>
+										<p className="text-sm text-gray-500">
+											ID: {request.recipientUid}
+										</p>
+										{request.senderMessage && (
+											<p className="text-sm text-blue-600 mt-1 italic">
+												あなたのメッセージ: "{request.senderMessage}"
+											</p>
+										)}
+									</div>
+								</div>
+								<div className="flex items-center">
+									<span className="text-sm text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
+										承認待ち
+									</span>
+								</div>
+							</div>
+						))}
+					</div>
+				)}
 			</div>
 
 			{/* 友達リクエスト受信セクション */}
 			<div className="bg-white rounded-lg shadow-md p-4 mb-6">
-				<h2 className="text-lg font-semibold mb-3">友達リクエスト</h2>
+				<h2 className="text-lg font-semibold mb-3">受信した友達リクエスト</h2>
 				{friendRequests.length === 0 ? (
 					<p className="text-gray-500">友達リクエストはありません</p>
 				) : (

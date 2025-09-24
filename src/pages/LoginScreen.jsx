@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { useState } from "react";
+import { loginWithGoogle } from "@/firebase";
 import reactLogo from "../assets/react.svg";
-import { loginWithGoogle } from "../firebase/auth/login";
 
 function LoginScreen() {
 	const [isLoading, setIsLoading] = useState(false);

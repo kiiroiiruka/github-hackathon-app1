@@ -1,7 +1,7 @@
 import { onAuthStateChanged } from "firebase/auth";
 import { useCallback, useEffect } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { auth } from "./firebase/firebaseConfig";
+import { auth } from "@/firebase";
 import { useAuthState } from "./hooks/useAuthState";
 import Dashboard from "./pages/Dashboard";
 import LoginScreen from "./pages/LoginScreen";

@@ -1,6 +1,6 @@
 import { signInWithPopup, signOut } from "firebase/auth";
-import { auth, provider } from "../firebaseConfig";
-import { createOrUpdateUser } from "../users";
+import { auth, provider } from "./firebaseConfig";
+import { createOrUpdateUser } from "./users";
 
 export const loginWithGoogle = async () => {
 	try {

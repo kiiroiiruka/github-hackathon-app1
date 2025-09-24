@@ -1,8 +1,8 @@
 import { onAuthStateChanged } from "firebase/auth";
 import { useAtom } from "jotai";
 import { useEffect } from "react";
+import { auth } from "@/firebase";
 import { isLoggedInAtom, userUidAtom } from "../atom/userAtom";
-import { auth } from "../firebase/firebaseConfig";
 
 /**
  * Firebase認証状態を監視し、atomに反映するカスタムフック

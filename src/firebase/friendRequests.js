@@ -9,8 +9,8 @@ import {
 	where,
 	writeBatch,
 } from "firebase/firestore";
-import { db } from "../firebaseConfig";
-import { getUser } from "../users/getUser";
+import { db } from "./firebaseConfig";
+import { getUser } from "./users";
 
 /**
  * 友達リクエストを送信する
@@ -107,10 +107,42 @@ export const acceptFriendRequest = async (requestId, fromUserId, toUserId) => {
 };
 
 /**
+ * 送信した友達リクエストを取得する（送信者用）
+ * @param {string} userId - ユーザーID
+ */
+export const getSentFriendRequests = async (userId) => {
+	const q = query(
+		collection(db, "friendRequests"),
+		where("fromUserId", "==", userId),
+		where("status", "==", "pending"),
+	);
+
+	const querySnapshot = await getDocs(q);
+
+	// 各リクエストの受信者情報を取得
+	const requestsWithUserData = await Promise.all(
+		querySnapshot.docs.map(async (doc) => {
+			const requestData = doc.data();
+			const recipientInfo = await getUser(requestData.toUserId);
+
+			return {
+				id: doc.id,
+				...requestData,
+				// 受信者の最新情報で上書き
+				recipientName: recipientInfo?.displayName || "ユーザー",
+				recipientPhotoURL: recipientInfo?.photoURL || "",
+				recipientUid: requestData.toUserId,
+			};
+		}),
+	);
+
+	return requestsWithUserData;
+};
+
+/**
  * 友達リクエストを拒否する
  * @param {string} requestId - リクエストID
  */
-
 export const rejectFriendRequest = async (requestId) => {
 	await setDoc(
 		doc(db, "friendRequests", requestId),
