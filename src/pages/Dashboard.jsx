@@ -7,6 +7,7 @@ import FriendsAddScreen from "./dashboard/friends";
 import HomeScreen from "./dashboard/home";
 import MemoScreen from "./dashboard/memo";
 import NaviCreateScreen from "./dashboard/navi";
+import UserInformation from "./dashboard/UserInformation";
 import RoomCreat from "./dashboard/navi/RoomCreat";
 import TryPage from "./dashboard/navi/TryPage";
 import RouteSelect from "./dashboard/navi/RouteSelect";
@@ -164,6 +165,7 @@ const Dashboard = () => {
 					<Route path="navi/purlieu-location" element={<PurlieuLocation />} />
 					<Route path="navi/room" element={<RoomCreat />} />
 					<Route path="friends" element={<FriendsAddScreen />} />
+					<Route path="UserInformation" element={<UserInformation />} />
 					<Route path="parking" element={<ParkingScreen />} />
 					<Route path="parking/:id" element={<ParkingDetail />} />
 					<Route path="memo" element={<MemoScreen />} />
