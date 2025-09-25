@@ -1,30 +1,52 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import HeaderComponent from "../../../components/Header/Header";
-import { getUser } from "../../../firebase";
+import { getUser, logout } from "../../../firebase";
 import { useUserUid } from "../../../hooks/useUserUid";
 
 function UserInformation() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const currentUserId = useUserUid();
   const [user, setUser] = useState(null);
+  
+  // URLパラメータから対象ユーザーIDを取得（なければ現在のユーザー）
+  const targetUserId = searchParams.get('userId') || currentUserId;
 
   useEffect(() => {
     const load = async () => {
-      if (!currentUserId) return;
+      if (!targetUserId) return;
       try {
-        const u = await getUser(currentUserId);
+        const u = await getUser(targetUserId);
         setUser(u);
       } catch (e) {
         console.error(e);
       }
     };
     load();
-  }, [currentUserId]);
+  }, [targetUserId]);
 
   const handleBack = () => {
     navigate("/dashboard");
   };
+
+  // ログアウト処理
+  const handleLogout = async () => {
+    if (window.confirm("ログアウトしますか？")) {
+      try {
+        await logout();
+        console.log("ログアウトしました");
+        // ログアウト後はログイン画面に遷移（必要に応じて調整）
+        navigate("/");
+      } catch (error) {
+        console.error("ログアウトエラー:", error);
+        alert("ログアウトに失敗しました");
+      }
+    }
+  };
+
+  // 自分のアカウントかどうかを判定
+  const isOwnAccount = targetUserId === currentUserId;
 
   return (
     <div>
@@ -50,7 +72,7 @@ function UserInformation() {
           {/* ユーザー情報 */}
           <div className="w-full space-y-4">
             <InfoRow label="ユーザー名" value={user?.displayName || "○○○○○○○○"} />
-            <InfoRow label="ユーザーID" value={currentUserId || "○○○○○○○○"} />
+            <InfoRow label="ユーザーID" value={targetUserId || "○○○○○○○○"} />
             <InfoRow
               label="アカウント作成日"
               value={formatCreatedAt(user?.createdAt) || "2025/10/04/13:11"}
@@ -60,10 +82,23 @@ function UserInformation() {
             <div>
               <div className="font-bold text-lg mb-1">一言メッセージ</div>
               <p className="text-sm text-gray-700 whitespace-pre-line">
-                {user?.message ||
-                  "わわっわあああああ"}
+                {user?.userShortMessage ||
+                  "よろしくお願いします!"}
               </p>
             </div>
+
+            {/* ログアウトボタン（自分のアカウントのみ） */}
+            {isOwnAccount && (
+              <div className="pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md hover:shadow-lg"
+                >
+                  ログアウト
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

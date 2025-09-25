@@ -8,6 +8,7 @@ import FriendsAddScreen from "./dashboard/friends";
 import HomeScreen from "./dashboard/home";
 import InvitingRoom from "./dashboard/home/InvitingRoom";
 import MemoScreen from "./dashboard/memo";
+import CreateMemo from "./dashboard/memo/creatememo";
 import NaviCreateScreen from "./dashboard/navi";
 import InviterPreference from "./dashboard/navi/InviterPreference";
 import PurlieuLocation from "./dashboard/navi/PurlieuLocation";
@@ -173,6 +174,7 @@ const Dashboard = () => {
 					<Route path="parking/:id" element={<ParkingDetail />} />
 					<Route path="car/:roomId" element={<CarNavigation />} />
 					<Route path="memo" element={<MemoScreen />} />
+					<Route path="memo/creatememo" element={<CreateMemo />} />
 				</Routes>
 			</main>
 			<FooterTab value={tab} onChange={handleTabChange} tabs={TABS} />

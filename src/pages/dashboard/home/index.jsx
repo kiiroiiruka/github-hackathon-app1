@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HeaderComponent2 from "@/components/Header/Header2";
+import FriendList from "@/components/FriendList/FriendList";
 import {
 	acceptFriendRequest,
 	getFriendRequests,
@@ -11,6 +12,7 @@ import {
 	updateUserMessage,
 } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
+import { useFriends } from "@/hooks/useFriends";
 
 const HomeScreen = () => {
 	const navigate = useNavigate();
@@ -19,6 +21,7 @@ const HomeScreen = () => {
 	const [userMessage, setUserMessage] = useState("");
 	const [currentUser, setCurrentUser] = useState(null);
 	const currentUserId = useUserUid();
+	const { friends, loading: friendsLoading, fetchFriends } = useFriends();
 
 	// ユーザー情報を取得
 	const loadCurrentUser = useCallback(async () => {
@@ -63,12 +66,14 @@ const HomeScreen = () => {
 			loadCurrentUser();
 			loadFriendRequests();
 			loadSentFriendRequests();
+			fetchFriends();
 		}
 	}, [
 		currentUserId,
 		loadCurrentUser,
 		loadFriendRequests,
 		loadSentFriendRequests,
+		fetchFriends,
 	]);
 
 	// 友達リクエスト承認
@@ -126,13 +131,27 @@ const HomeScreen = () => {
 		navigate("/dashboard/UserInformation");
 	};
 
+	// フレンドをクリックしたときの処理
+	const handleFriendClick = (friend) => {
+		navigate(`/dashboard/UserInformation?userId=${friend.uid}`);
+	};
+
 	return (
 		<div>
 			<HeaderComponent2 title="ホーム" onUserIconClick={handleUserIconClick} />
 			<div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
 				{/* 一言メッセージ編集セクション */}
 				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
-					<h2 className="text-lg font-semibold mb-3">一言メッセージ</h2>
+					<div className="flex items-center justify-between mb-3">
+						<h2 className="text-lg font-semibold">一言メッセージ</h2>
+						<button
+							type="button"
+							onClick={() => navigate("/dashboard/home/inviting")}
+							className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
+						>
+							招待連絡
+						</button>
+					</div>
 					<div className="flex gap-2">
 						<input
 							type="text"
@@ -169,15 +188,6 @@ const HomeScreen = () => {
 				{/* 送信した友達リクエスト */}
 				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
 					<h2 className="text-lg font-semibold mb-3">送信した友達リクエスト</h2>
-					<div className="mb-3">
-						<button
-							type="button"
-							onClick={() => navigate("/dashboard/home/inviting")}
-							className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-						>
-							招待中のルームを見る
-						</button>
-					</div>
 					{sentFriendRequests.length === 0 ? (
 						<p className="text-gray-500">送信中の友達リクエストはありません</p>
 					) : (
@@ -289,6 +299,26 @@ const HomeScreen = () => {
 						</div>
 					)}
 				</div>
+
+				{/* フレンド一覧セクション */}
+				{friendsLoading ? (
+					<div className="bg-white rounded-lg shadow-md p-6 mb-6">
+						<div className="flex items-center justify-center py-8">
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+							<span className="ml-3 text-gray-600">読み込み中...</span>
+						</div>
+					</div>
+				) : (
+					<div className="mb-6">
+						<FriendList
+							friends={friends}
+							maxVisible={4}
+							title="フレンド"
+							emptyMessage="フレンドがいません"
+							onFriendClick={handleFriendClick}
+						/>
+					</div>
+				)}
 
 				{/* ログアウトボタン */}
 				<button

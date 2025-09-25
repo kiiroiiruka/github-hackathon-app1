@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import carIcon from "../../assets/carIcon.png";
 import { getUser } from "../../firebase";
 import { useUserUid } from "../../hooks/useUserUid";
 
 function HeaderComponent2({ title, onUserIconClick }) {
+	const navigate = useNavigate();
 	const [userInfo, setUserInfo] = useState(null);
 	const currentUserId = useUserUid();
 
@@ -22,6 +24,17 @@ function HeaderComponent2({ title, onUserIconClick }) {
 
 		loadUserInfo();
 	}, [currentUserId]);
+
+	// ユーザーアイコンクリック処理
+	const handleUserIconClick = () => {
+		if (onUserIconClick) {
+			// カスタムハンドラーが提供されている場合はそれを使用
+			onUserIconClick();
+		} else {
+			// デフォルトの動作：UserInformationページに遷移
+			navigate("/dashboard/UserInformation");
+		}
+	};
 
 	return (
 		<header style={styles.header}>
@@ -44,7 +57,7 @@ function HeaderComponent2({ title, onUserIconClick }) {
 							? { ...styles.userIcon, ...styles.buttonReset }
 							: { ...styles.userIconPlaceholder, ...styles.buttonReset }
 					}
-					onClick={onUserIconClick}
+					onClick={handleUserIconClick}
 				>
 					{userInfo?.photoURL ? (
 						<img
