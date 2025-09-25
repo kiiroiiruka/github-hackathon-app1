@@ -11,7 +11,7 @@ import RoomCreat from "./dashboard/navi/RoomCreat";
 import TryPage from "./dashboard/navi/TryPage";
 import ParkingScreen from "./dashboard/parking";
 import ParkingDetail from "./dashboard/parking/Detail";
-
+import Parkinginput from "./dashboard/parking/input";
 const TABS = [
 	{
 		key: "home",
@@ -158,6 +158,7 @@ const Dashboard = () => {
 					<Route path="friends" element={<FriendsAddScreen />} />
 					<Route path="parking" element={<ParkingScreen />} />
 					<Route path="parking/:id" element={<ParkingDetail />} />
+					<Route path="parking/input" element={<Parkinginput />} />
 					<Route path="memo" element={<MemoScreen />} />
 				</Routes>
 			</main>
