@@ -8,6 +8,47 @@ const FriendsAddScreen = () => {
 	const [loading, setLoading] = useState(false);
 	const [currentUser, setCurrentUser] = useState(null);
 	const currentUserId = useUserUid();
+	const [targetUser, setTargetUser] = useState(null); // 追加
+	// 入力した友達IDからユーザー情報を取得
+	// 入力が変わったら自動で検索（デバウンスあり）
+	useEffect(() => {
+		if (!friendIdInput.trim()) {
+			setTargetUser(null);
+			return;
+		}
+
+		const timer = setTimeout(async () => {
+			try {
+				const user = await getUser(friendIdInput.trim());
+				if (user) {
+					setTargetUser(user);
+				} else {
+					setTargetUser(null);
+				}
+			} catch (error) {
+				console.error("友達検索エラー:", error);
+				setTargetUser(null);
+			}
+		}, 500); // 入力が止まって0.5秒後に検索
+
+		return () => clearTimeout(timer); // 入力中に前の検索はキャンセル
+	}, [friendIdInput]);
+
+	const handleSearchFriend = async () => {
+		if (!friendIdInput.trim()) return;
+		try {
+			const user = await getUser(friendIdInput.trim());
+			if (user) {
+				setTargetUser(user);
+			} else {
+				setTargetUser(null);
+				alert("指定されたユーザーIDが見つかりません");
+			}
+		} catch (error) {
+			console.error("友達検索エラー:", error);
+			alert("ユーザー検索に失敗しました");
+		}
+	};
 
 	// ユーザー情報を取得
 	const loadCurrentUser = useCallback(async () => {
@@ -143,25 +184,57 @@ const FriendsAddScreen = () => {
 				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
 					<h2 className="text-lg font-semibold mb-3">友達を追加</h2>
 					<p className="text-sm text-gray-600 mb-4">
-						友達のユーザーIDを入力して、友達リクエストを送信してください。
+						友達のユーザーIDを入力すると、相手が表示されます。
 					</p>
 					<div className="flex gap-2">
 						<input
 							type="text"
 							value={friendIdInput}
-							onChange={(e) => setFriendIdInput(e.target.value)}
+							onChange={(e) => setFriendIdInput(e.target.value)} // 入力時に検索トリガー
 							placeholder="ユーザーIDを入力"
 							className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 						/>
+					</div>
+
+					{/* 🔹 相手が見つかったら表示 */}
+					{targetUser && (
+						<div className="mt-3 p-3 bg-blue-50 rounded-md flex items-center gap-3">
+							<div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+								{targetUser.photoURL ? (
+									<img
+										src={targetUser.photoURL}
+										alt={targetUser.displayName}
+										className="w-12 h-12 rounded-full object-cover"
+									/>
+								) : (
+									<span className="text-gray-600 text-lg">
+										{targetUser.displayName?.charAt(0) || "?"}
+									</span>
+								)}
+							</div>
+							<div>
+								<p className="font-medium">{targetUser.displayName}</p>
+								{targetUser.userShortMessage && (
+									<p className="text-sm text-gray-600">
+										"{targetUser.userShortMessage}"
+									</p>
+								)}
+							</div>
+						</div>
+					)}
+
+					{/* 🔹 リクエスト送信ボタンは分ける */}
+					{targetUser && (
 						<button
 							type="button"
 							onClick={handleSendFriendRequest}
-							disabled={loading || !friendIdInput.trim()}
-							className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded transition-colors"
+							disabled={loading}
+							className="mt-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded transition-colors"
 						>
-							{loading ? "送信中..." : "送信"}
+							{loading ? "送信中..." : "リクエスト送信"}
 						</button>
-					</div>
+					)}
+
 					{currentUser?.userShortMessage && (
 						<div className="mt-3 p-3 bg-blue-50 rounded-md">
 							<p className="text-sm text-blue-800">
