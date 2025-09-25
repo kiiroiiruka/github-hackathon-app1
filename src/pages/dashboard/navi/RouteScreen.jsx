@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import RoutingControl from "../../../components/ui/RoutingControl";
 import MapSearch from "../../../components/ui/MapSearch";
 
+
 const RecenterMap = ({ position }) => {
     const map = useMap();
     useEffect(() => {
@@ -39,19 +40,22 @@ const RouteScreen = () => {
 
   return (
     <div className="flex flex-col justify-center items-center p-5 h-screen bg-gray-100">
-      <HeaderComponent2 title="通信" />
+
+        <HeaderComponent2 title="通信" />
       <p className="text-gray-600">ルート情報を表示します</p>
       <div className="flex flex-col gap-4 w-[90%] max-w-[900px] h-[90%] bg-white rounded-2xl shadow-lg overflow-hidden">
         
         {/* 地図エリア */}
         <div className="relative flex-1">
-          {/* ★ 検索窓 */}
-          <MapSearch
-            onSelectDestination={(dest, name) => {
-              setDestination(dest);
-              console.log("選択された目的地:", name, dest);
-            }}
-          />
+          {/* 地図内の検索窓 */}
+          <div className="absolute top-4 left-4 right-4 z-[1000] flex justify-center">
+            <MapSearch
+              onSelectDestination={(dest, name) => {
+                setDestination(dest);
+                console.log("選択された目的地:", name, dest);
+              }}
+            />
+          </div>
 
           <MapContainer
             center={position}

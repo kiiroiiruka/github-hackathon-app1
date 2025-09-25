@@ -22,7 +22,7 @@ const MapSearch = ({ onSelectDestination }) => {
   };
 
   return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[70%] max-w-[500px] z-[1000]">
+    <div className="w-full max-w-[500px]">
       <div className="relative w-full bg-white rounded-lg shadow-md p-2 flex gap-2 items-center">
         <input
           type="text"
