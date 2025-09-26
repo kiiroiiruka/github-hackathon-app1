@@ -20,6 +20,8 @@ const InviterPreference = () => {
       alert("招待するフレンドを選択してください。");
       return;
     }
+    console.log("InviterPreference - 確定時のselectedFriends:", selectedFriends);
+    console.log("InviterPreference - selectedFriendsの各要素:", selectedFriends.map(f => ({ uid: f.uid, displayName: f.displayName, email: f.email })));
     navigate("/dashboard/navi/room", { state: { selectedFriends } });
   }, [selectedFriends, navigate]);
 

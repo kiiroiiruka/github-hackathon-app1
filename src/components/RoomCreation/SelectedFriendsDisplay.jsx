@@ -5,7 +5,10 @@ import FriendAvatar from "../FriendAvatar/FriendAvatar";
  * 選択済みフレンド表示コンポーネント
  */
 const SelectedFriendsDisplay = ({ selectedFriends, onRemoveFriend }) => {
-  if (selectedFriends.length === 0) return null;
+  console.log("SelectedFriendsDisplay - selectedFriends:", selectedFriends);
+  console.log("SelectedFriendsDisplay - selectedFriends.length:", selectedFriends?.length);
+  
+  if (!selectedFriends || selectedFriends.length === 0) return null;
 
   return (
     <div className="mb-4">

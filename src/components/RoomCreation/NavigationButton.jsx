@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 /**
  * ナビゲーションボタンコンポーネント
  */
-const NavigationButton = ({ icon, title, description, onClick, hoverColor = "blue", dashed = false }) => {
+const NavigationButton = ({ icon, title, description, onClick, hoverColor = "blue", dashed = false, disabled = false }) => {
   const getHoverClasses = () => {
     switch (hoverColor) {
       case "blue":
@@ -27,8 +27,15 @@ const NavigationButton = ({ icon, title, description, onClick, hoverColor = "blu
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`flex items-center justify-between p-4 border-2 ${borderStyle} border-gray-300 rounded-xl transition-all duration-200 group ${hoverClasses.split(' ').slice(0, 2).join(' ')}`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      className={`flex items-center justify-between p-4 border-2 ${borderStyle} ${
+        disabled 
+          ? "border-gray-200 bg-gray-50 cursor-not-allowed opacity-50" 
+          : "border-gray-300"
+      } rounded-xl transition-all duration-200 group ${
+        disabled ? "" : hoverClasses.split(' ').slice(0, 2).join(' ')
+      }`}
     >
       <div className="flex items-center">
         <span className="text-2xl mr-3">{icon}</span>
@@ -37,7 +44,7 @@ const NavigationButton = ({ icon, title, description, onClick, hoverColor = "blu
           <div className="text-sm text-gray-500">{description}</div>
         </div>
       </div>
-      <span className={`text-gray-400 transition-colors ${arrowColor}`}>→</span>
+      <span className={`${disabled ? "text-gray-300" : "text-gray-400"} transition-colors ${disabled ? "" : arrowColor}`}>→</span>
     </button>
   );
 };
@@ -48,7 +55,8 @@ NavigationButton.propTypes = {
   description: PropTypes.string.isRequired,
   onClick: PropTypes.func.isRequired,
   hoverColor: PropTypes.oneOf(['blue', 'green', 'purple']),
-  dashed: PropTypes.bool
+  dashed: PropTypes.bool,
+  disabled: PropTypes.bool
 };
 
 export default NavigationButton;

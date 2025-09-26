@@ -22,7 +22,7 @@ const MapSearch = ({ onSelectDestination }) => {
   };
 
   return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[70%] max-w-[500px] z-[1000]">
+    <div className="w-full max-w-[500px] mx-auto">
       <div className="relative w-full bg-white rounded-lg shadow-md p-2 flex gap-2 items-center">
         <input
           type="text"
@@ -41,7 +41,7 @@ const MapSearch = ({ onSelectDestination }) => {
       </div>
 
       {candidates.length > 0 && (
-        <div className="mt-6 border border-gray-200 rounded-md bg-white shadow-md max-h-[200px] overflow-y-auto">
+        <div className="mt-2 border border-gray-200 rounded-md bg-white shadow-md max-h-[200px] overflow-y-auto">
           {candidates.map((c) => {
             const handleSelect = () => {
               const dest = [parseFloat(c.lat), parseFloat(c.lon)];

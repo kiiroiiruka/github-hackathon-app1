@@ -1,5 +1,5 @@
-import { useNavigate } from "react-router-dom";
-import HeaderComponent2 from "../../../components/Header/Header2";
+import { useNavigate, useLocation } from "react-router-dom";
+import HeaderComponent from "../../../components/Header/Header";
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import RoutingControl from "../../../components/ui/RoutingControl";
@@ -17,8 +17,23 @@ const RecenterMap = ({ position }) => {
 
 const RouteScreen = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [position, setPosition] = useState([35.6812, 139.7671]); // 初期は東京駅
   const [destination, setDestination] = useState(null);
+  const [destinationName, setDestinationName] = useState("");
+
+  // RoomCreatから渡された目的地を受け取る
+  useEffect(() => {
+    if (location.state?.destination) {
+      setDestination(location.state.destination);
+      setDestinationName(location.state.destinationName || "");
+    }
+    // selectedLocationオブジェクトから値を取得する場合の対応
+    else if (location.state?.selectedLocation) {
+      setDestination(location.state.selectedLocation.coordinates);
+      setDestinationName(location.state.selectedLocation.name || "");
+    }
+  }, [location.state]);
 
   // ★ 現在地を追跡
   useEffect(() => {
@@ -39,8 +54,15 @@ const RouteScreen = () => {
 
   return (
     <div className="flex flex-col justify-center items-center p-5 h-screen bg-gray-100">
-      <HeaderComponent2 title="通信" />
-      <p className="text-gray-600">ルート情報を表示します</p>
+      <HeaderComponent title="通信" />
+      <div className="text-center mb-4">
+        <p className="text-gray-600">ルート情報を表示します</p>
+        {destinationName && (
+          <p className="text-blue-600 font-semibold mt-1">
+            目的地: {destinationName}
+          </p>
+        )}
+      </div>
       <div className="flex flex-col gap-4 w-[90%] max-w-[900px] h-[90%] bg-white rounded-2xl shadow-lg overflow-hidden">
         
         {/* 地図エリア */}
@@ -49,6 +71,7 @@ const RouteScreen = () => {
           <MapSearch
             onSelectDestination={(dest, name) => {
               setDestination(dest);
+              setDestinationName(name);
               console.log("選択された目的地:", name, dest);
             }}
           />
@@ -68,7 +91,7 @@ const RouteScreen = () => {
             {/* 目的地マーカー */}
             {destination && (
               <Marker position={destination}>
-                <Popup>目的地</Popup>
+                <Popup>{destinationName || "目的地"}</Popup>
               </Marker>
             )}
 
