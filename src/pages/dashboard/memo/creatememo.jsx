@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HeaderComponent from "../../../components/Header/Header";
+import { addMemo } from "@/firebase";
+import { useUserUid } from "@/hooks/useUserUid";
 
 const CreateMemo = () => {
   const navigate = useNavigate();
   const [memoTitle, setMemoTitle] = useState("");
   const [memoContent, setMemoContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const userUid = useUserUid();
 
   const handleBack = () => {
     navigate("/dashboard/memo");
@@ -18,10 +21,14 @@ const CreateMemo = () => {
       return;
     }
 
+    if (!userUid) {
+      alert("ログインが必要です");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // TODO: メモをFirebaseに保存する処理を実装
-      console.log("メモ保存:", { title: memoTitle, content: memoContent });
+      await addMemo(userUid, { title: memoTitle, content: memoContent });
       
       // 保存成功後、メモ一覧に戻る
       alert("メモを保存しました！");
@@ -122,3 +129,5 @@ const CreateMemo = () => {
 };
 
 export default CreateMemo;
+
+

@@ -19,6 +19,7 @@ import TryPage from "./dashboard/navi/TryPage";
 import ParkingScreen from "./dashboard/parking";
 import ParkingDetail from "./dashboard/parking/Detail";
 import UserInformation from "./dashboard/UserInformation";
+import UserPolicy from "./dashboard/policy/UserPolicy";
 
 const TABS = [
 	{
@@ -175,6 +176,7 @@ const Dashboard = () => {
 					<Route path="car/:roomId" element={<CarNavigation />} />
 					<Route path="memo" element={<MemoScreen />} />
 					<Route path="memo/creatememo" element={<CreateMemo />} />
+					<Route path="policy" element={<UserPolicy />} />
 				</Routes>
 			</main>
 			<FooterTab value={tab} onChange={handleTabChange} tabs={TABS} />

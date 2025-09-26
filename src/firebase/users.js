@@ -1,9 +1,10 @@
 import {
-	doc,
-	getDoc,
-	serverTimestamp,
-	setDoc,
-	writeBatch,
+    doc,
+    getDoc,
+    serverTimestamp,
+    setDoc,
+    writeBatch,
+    deleteDoc,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
@@ -108,4 +109,23 @@ export const updateUserMessage = async (userId, message) => {
 		console.error("一言メッセージ更新エラー:", error);
 		throw error;
 	}
+};
+
+/**
+ * フレンドを相互に解除する
+ * users/{uid}/friends/{targetUid} と users/{targetUid}/friends/{uid} を削除
+ * @param {string} userId - 自分のユーザーID
+ * @param {string} targetUserId - 相手のユーザーID
+ */
+export const removeFriend = async (userId, targetUserId) => {
+    if (!userId || !targetUserId) throw new Error("ユーザーIDが不足しています");
+    try {
+        const batch = writeBatch(db);
+        batch.delete(doc(db, "users", userId, "friends", targetUserId));
+        batch.delete(doc(db, "users", targetUserId, "friends", userId));
+        await batch.commit();
+    } catch (error) {
+        console.error("フレンド解除エラー:", error);
+        throw error;
+    }
 };

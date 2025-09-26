@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import HeaderComponent from "../../../components/Header/Header";
-import { getUser, logout } from "../../../firebase";
+import { getUser, logout, removeFriend } from "../../../firebase";
 import { useUserUid } from "../../../hooks/useUserUid";
 
 function UserInformation() {
@@ -87,8 +87,8 @@ function UserInformation() {
               </p>
             </div>
 
-            {/* ログアウトボタン（自分のアカウントのみ） */}
-            {isOwnAccount && (
+          {/* 操作ボタン */}
+          {isOwnAccount ? (
               <div className="pt-4 border-t border-gray-200">
                 <button
                   type="button"
@@ -98,7 +98,30 @@ function UserInformation() {
                   ログアウト
                 </button>
               </div>
-            )}
+          ) : (
+            <div className="pt-4 border-t border-gray-200 w-full">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!currentUserId || !targetUserId) return;
+                  const ok = window.confirm("フレンドを解除しますか？この操作は元に戻せません。");
+                  if (!ok) return;
+                  try {
+                    await removeFriend(currentUserId, targetUserId);
+                    alert("フレンドを解除しました");
+                    navigate("/dashboard");
+                  } catch (e) {
+                    console.error(e);
+                    alert("フレンド解除に失敗しました");
+                  }
+                }}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-red-600 font-bold py-3 px-4 rounded-lg transition-colors border border-gray-300"
+                aria-label="フレンドを解除"
+              >
+                フレンドを解除
+              </button>
+            </div>
+          )}
           </div>
         </div>
       </div>

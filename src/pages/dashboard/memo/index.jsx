@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import HeaderComponent2 from "../../../components/Header/Header2";
+import { getMemosByUser, deleteMemo } from "@/firebase";
+import { useUserUid } from "@/hooks/useUserUid";
 
 const MemoScreen = () => {
   const navigate = useNavigate();
   const [memos, setMemos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const userUid = useUserUid();
+  const [deletingId, setDeletingId] = useState(null);
 
   // ヘッダーのユーザーアイコンを押したときの処理
   const handleUserIconClick = () => {
@@ -16,11 +20,11 @@ const MemoScreen = () => {
   // メモデータを取得
   useEffect(() => {
     const loadMemos = async () => {
+      if (!userUid) return;
       setLoading(true);
       try {
-        // TODO: Firebaseからメモデータを取得
-        // 現在は空の配列で開始
-        setMemos([]);
+        const list = await getMemosByUser(userUid);
+        setMemos(list);
       } catch (error) {
         console.error("メモ取得エラー:", error);
       } finally {
@@ -29,7 +33,7 @@ const MemoScreen = () => {
     };
 
     loadMemos();
-  }, []);
+  }, [userUid]);
 
   const handleCreateMemo = () => {
     navigate("/dashboard/memo/creatememo");
@@ -38,6 +42,23 @@ const MemoScreen = () => {
   const handleMemoClick = (memoId) => {
     // TODO: メモ詳細ページに遷移
     console.log("メモを開く:", memoId);
+  };
+
+  const handleDelete = async (e, memoId) => {
+    e.stopPropagation();
+    if (!userUid) return;
+    const ok = window.confirm("このメモを削除しますか？");
+    if (!ok) return;
+    try {
+      setDeletingId(memoId);
+      await deleteMemo(userUid, memoId);
+      setMemos((prev) => prev.filter((m) => m.id !== memoId));
+    } catch (error) {
+      console.error("メモ削除エラー:", error);
+      alert("メモの削除に失敗しました");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   // 検索フィルタリング
@@ -112,9 +133,19 @@ const MemoScreen = () => {
                   <h3 className="font-semibold text-lg text-gray-800 truncate flex-1">
                     {memo.title}
                   </h3>
-                  <span className="text-xs text-gray-500 ml-2">
-                    {formatDate(memo.updatedAt)}
-                  </span>
+                  <div className="flex items-center gap-2 ml-2">
+                    <span className="text-xs text-gray-500">
+                      {formatDate(memo.updatedAt)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDelete(e, memo.id)}
+                      disabled={deletingId === memo.id}
+                      className="text-xs px-2 py-1 rounded bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {deletingId === memo.id ? "削除中..." : "削除"}
+                    </button>
+                  </div>
                 </div>
                 
                 <p className="text-gray-600 text-sm mb-3 line-clamp-3">

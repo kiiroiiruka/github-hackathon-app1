@@ -1,10 +1,12 @@
 import clsx from "clsx";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { loginWithGoogle } from "@/firebase";
 import reactLogo from "../assets/react.svg";
 
 function LoginScreen() {
 	const [isLoading, setIsLoading] = useState(false);
+	const navigate = useNavigate();
 	const handleLogin = async () => {
 		try {
 			setIsLoading(true);
@@ -100,6 +102,19 @@ function LoginScreen() {
 							/>
 						</svg>
 					</span>
+				</button>
+
+				{/* Policy button */}
+				<button
+					onClick={() => navigate("/policy")}
+					type="button"
+					className={clsx(
+						"mt-2",
+						"text-sm text-gray-600 underline underline-offset-2 hover:text-gray-800",
+					)}
+					aria-label="利用規約を開く"
+				>
+					利用規約
 				</button>
 			</div>
 		</div>

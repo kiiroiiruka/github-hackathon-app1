@@ -26,7 +26,6 @@ const HomeScreen = () => {
 	// ユーザー情報を取得
 	const loadCurrentUser = useCallback(async () => {
 		if (!currentUserId) return;
-
 		try {
 			const user = await getUser(currentUserId);
 			setCurrentUser(user);
@@ -39,7 +38,6 @@ const HomeScreen = () => {
 	// 受信した友達リクエストを取得
 	const loadFriendRequests = useCallback(async () => {
 		if (!currentUserId) return;
-
 		try {
 			const requests = await getFriendRequests(currentUserId);
 			setFriendRequests(requests);
@@ -51,7 +49,6 @@ const HomeScreen = () => {
 	// 送信した友達リクエストを取得
 	const loadSentFriendRequests = useCallback(async () => {
 		if (!currentUserId) return;
-
 		try {
 			const sentRequests = await getSentFriendRequests(currentUserId);
 			setSentFriendRequests(sentRequests);
@@ -105,7 +102,6 @@ const HomeScreen = () => {
 	// 一言メッセージ更新
 	const handleUpdateMessage = async () => {
 		if (!currentUserId) return;
-
 		try {
 			await updateUserMessage(currentUserId, userMessage);
 			await loadCurrentUser();
@@ -142,33 +138,54 @@ const HomeScreen = () => {
 			<div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
 				{/* 一言メッセージ編集セクション */}
 				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
-					<div className="flex items-center justify-between mb-3">
+					<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
 						<h2 className="text-lg font-semibold">一言メッセージ</h2>
+						{/* PC版 招待連絡ボタン */}
 						<button
 							type="button"
 							onClick={() => navigate("/dashboard/home/inviting")}
-							className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
+							className="hidden sm:block bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
 						>
 							招待連絡
 						</button>
 					</div>
-					<div className="flex gap-2">
+					<div className="flex flex-col sm:flex-row gap-2">
 						<input
 							type="text"
 							value={userMessage}
 							onChange={(e) => setUserMessage(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" && userMessage.trim()) {
+									e.preventDefault();
+									handleUpdateMessage();
+								}
+							}}
 							placeholder="一言メッセージを入力（例：よろしくお願いします！）"
 							className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
 							maxLength={50}
 						/>
-						<button
-							type="button"
-							onClick={handleUpdateMessage}
-							disabled={!userMessage.trim()}
-							className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded transition-colors"
-						>
-							更新
-						</button>
+						<div className="flex gap-2 w-full sm:w-auto">
+							{/* スマホ版 招待連絡ボタン（更新ボタンの左隣） */}
+							<button
+								type="button"
+								onClick={() => navigate("/dashboard/home/inviting")}
+								className="block sm:hidden bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors flex-1"
+							>
+								招待連絡
+							</button>
+							<button
+								type="button"
+								onClick={handleUpdateMessage}
+								disabled={!userMessage.trim()}
+								aria-label="一言メッセージを更新"
+								className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded transition-colors flex-1 sm:flex-none"
+							>
+								更新
+							</button>
+						</div>
+					</div>
+					<div className="mt-1 text-right text-xs text-gray-500" aria-live="polite">
+						{50 - (userMessage?.length || 0)} / 50 文字
 					</div>
 					{currentUser?.userShortMessage && (
 						<p className="text-sm text-gray-600 mt-2">
@@ -178,127 +195,89 @@ const HomeScreen = () => {
 					{currentUser?.createdAt && (
 						<p className="text-xs text-gray-500 mt-1">
 							アカウント作成日:{" "}
-							{new Date(currentUser.createdAt.toDate()).toLocaleDateString(
-								"ja-JP",
-							)}
+							{new Date(currentUser.createdAt.toDate()).toLocaleDateString("ja-JP")}
 						</p>
 					)}
 				</div>
 
-				{/* 送信した友達リクエスト */}
-				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
-					<h2 className="text-lg font-semibold mb-3">送信した友達リクエスト</h2>
-					{sentFriendRequests.length === 0 ? (
-						<p className="text-gray-500">送信中の友達リクエストはありません</p>
-					) : (
-						<div className="space-y-3">
-							{sentFriendRequests.map((request) => (
-								<div
-									key={request.id}
-									className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-yellow-50"
-								>
-									<div className="flex items-center gap-3">
-										<div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-											{request.recipientPhotoURL ? (
-												<img
-													src={request.recipientPhotoURL}
-													alt={request.recipientName}
-													className="w-10 h-10 rounded-full object-cover"
-												/>
-											) : (
-												<span className="text-gray-600 text-sm">?</span>
-											)}
-										</div>
-										<div>
-											<p className="font-medium">{request.recipientName}</p>
-											<p className="text-sm text-gray-500">
-												ID: {request.recipientUid}
-											</p>
-											{request.senderMessage && (
-												<p className="text-sm text-blue-600 mt-1 italic">
-													あなたのメッセージ: "{request.senderMessage}"
-												</p>
-											)}
-										</div>
-									</div>
-									<div className="flex items-center">
-										<span className="text-sm text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
-											承認待ち
-										</span>
-									</div>
-								</div>
-							))}
-						</div>
-					)}
-				</div>
+				   {/* 送信した友達リクエスト FriendListで表示 */}
+				   <div className="mb-6">
+					   <FriendList
+						   friends={sentFriendRequests.map(r => ({
+							   uid: r.recipientUid,
+							   name: r.recipientName,
+							   photoURL: r.recipientPhotoURL,
+							   message: r.senderMessage,
+						   }))}
+						   maxVisible={4}
+						   title="送信した友達リクエスト"
+						   emptyMessage="送信中の友達リクエストはありません"
+						   renderItem={(friend, idx) => (
+							   <div key={friend.uid || idx} className="flex flex-col items-center w-24">
+								   <img
+									   src={friend.photoURL || "/vite.svg"}
+									   alt={friend.name}
+									   className="w-10 h-10 rounded-full object-cover mb-1 border"
+									   onError={e => { e.target.src = "/vite.svg"; }}
+								   />
+								   <p className="font-medium truncate text-xs">{friend.name}</p>
+								   {friend.message && (
+									   <p className="text-xs text-blue-600 mt-1 italic truncate">あなたのメッセージ: "{friend.message}"</p>
+								   )}
+								   <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded mt-1">承認待ち</span>
+							   </div>
+						   )}
+					   />
+				   </div>
 
-				{/* 受信した友達リクエスト */}
-				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
-					<h2 className="text-lg font-semibold mb-3">受信した友達リクエスト</h2>
-					{friendRequests.length === 0 ? (
-						<p className="text-gray-500">友達リクエストはありません</p>
-					) : (
-						<div className="space-y-3">
-							{friendRequests.map((request) => (
-								<div
-									key={request.id}
-									className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
-								>
-									<div className="flex items-center gap-3">
-										<div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-											{request.senderPhotoURL ? (
-												<img
-													src={request.senderPhotoURL}
-													alt={request.senderName}
-													className="w-10 h-10 rounded-full object-cover"
-												/>
-											) : (
-												<span className="text-gray-600 text-sm">?</span>
-											)}
-										</div>
-										<div>
-											<p className="font-medium">{request.senderName}</p>
-											<p className="text-sm text-gray-500">
-												ID: {request.senderUid}
-											</p>
-											{request.senderMessage && (
-												<p className="text-sm text-blue-600 mt-1 italic">
-													"{request.senderMessage}"
-												</p>
-											)}
-											{request.senderCreatedAt && (
-												<p className="text-xs text-gray-400 mt-1">
-													アカウント作成日:{" "}
-													{new Date(
-														request.senderCreatedAt.toDate(),
-													).toLocaleDateString("ja-JP")}
-												</p>
-											)}
-										</div>
-									</div>
-									<div className="flex gap-2">
-										<button
-											type="button"
-											onClick={() =>
-												handleAcceptRequest(request.id, request.fromUserId)
-											}
-											className="bg-green-500 hover:bg-green-600 text-white text-sm py-1 px-3 rounded transition-colors"
-										>
-											承認
-										</button>
-										<button
-											type="button"
-											onClick={() => handleRejectRequest(request.id)}
-											className="bg-red-500 hover:bg-red-600 text-white text-sm py-1 px-3 rounded transition-colors"
-										>
-											拒否
-										</button>
-									</div>
-								</div>
-							))}
-						</div>
-					)}
-				</div>
+				   {/* 受信した友達リクエスト FriendListで表示 */}
+				   <div className="mb-6">
+					   <FriendList
+						   friends={friendRequests.map(r => ({
+							   uid: r.senderUid,
+							   name: r.senderName,
+							   photoURL: r.senderPhotoURL,
+							   message: r.senderMessage,
+							   createdAt: r.senderCreatedAt,
+							   id: r.id,
+							   fromUserId: r.fromUserId,
+						   }))}
+						   maxVisible={4}
+						   title="受信した友達リクエスト"
+						   emptyMessage="友達リクエストはありません"
+						   renderItem={(friend, idx) => (
+							   <div key={friend.uid || idx} className="flex flex-col items-center w-24">
+								   <img
+									   src={friend.photoURL || "/vite.svg"}
+									   alt={friend.name}
+									   className="w-10 h-10 rounded-full object-cover mb-1 border"
+									   onError={e => { e.target.src = "/vite.svg"; }}
+								   />
+								   <p className="font-medium truncate text-xs">{friend.name}</p>
+								   {friend.message && (
+									   <p className="text-xs text-blue-600 mt-1 italic truncate">"{friend.message}"</p>
+								   )}
+								   {friend.createdAt && (
+									   <p className="text-xs text-gray-400 mt-1">アカウント作成日: {new Date(friend.createdAt.toDate()).toLocaleDateString("ja-JP")}</p>
+								   )}
+								   <div className="flex gap-1 mt-1">
+									   <button
+										   type="button"
+										   onClick={() => handleAcceptRequest(friend.id, friend.fromUserId)}
+										   aria-label={`友達リクエストを承認: ${friend.name}`}
+										   className="bg-green-500 hover:bg-green-600 text-white text-xs py-1 px-2 rounded"
+									   >承認</button>
+									   <button
+										   type="button"
+										   onClick={() => handleRejectRequest(friend.id)}
+										   aria-label={`友達リクエストを拒否: ${friend.name}`}
+										   className="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-2 rounded"
+									   >拒否</button>
+								   </div>
+							   </div>
+						   )}
+					   />
+				   </div>
 
 				{/* フレンド一覧セクション */}
 				{friendsLoading ? (
@@ -321,13 +300,23 @@ const HomeScreen = () => {
 				)}
 
 				{/* ログアウトボタン */}
-				<button
-					type="button"
-					onClick={handleLogout}
-					className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors"
-				>
-					ログアウト
-				</button>
+				<div className="flex flex-col sm:flex-row gap-2">
+					<button
+						type="button"
+						onClick={handleLogout}
+						className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors w-full sm:w-auto"
+					>
+						ログアウト
+					</button>
+					<button
+						type="button"
+						onClick={() => navigate("/dashboard/policy")}
+						className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded transition-colors border border-gray-300 w-full sm:w-auto"
+						aria-label="利用規約を開く"
+					>
+						利用規約
+					</button>
+				</div>
 			</div>
 		</div>
 	);
