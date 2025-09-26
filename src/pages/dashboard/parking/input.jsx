@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import HeaderComponent from "../../../components/Header/Header"; // パスは配置場所に合わせて変更
+import HeaderComponent from "../../../components/Header/Header";
+import { saveParkingInfo } from "../../../firebase/parkinginfo"; // 追加: 保存関数をインポート
 
 const Parkinginput = () => {
     const [arrivalTime, setArrivalTime] = useState(null);
@@ -28,6 +29,20 @@ const Parkinginput = () => {
             );
         }
     }, []);
+
+    // ホームに戻るボタン押下時に保存
+    const handleGoHome = async () => {
+        try {
+            await saveParkingInfo({
+                position,
+                arrivalTime,
+                departureTime,
+            });
+            navigate("/dashboard/home");
+        } catch (e) {
+            alert("データの保存に失敗しました");
+        }
+    };
 
     return (
         <div>
@@ -88,7 +103,7 @@ const Parkinginput = () => {
                     {/* ホームに戻るボタン */}
                     <button
                         type="button"
-                        onClick={() => navigate("/dashboard/home")}
+                        onClick={handleGoHome}
                         className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors mt-4"
                     >
                         ホームに戻る
