@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import carIcon from "../../assets/carIcon.png";
 import { getUser } from "../../firebase";
 import { useUserUid } from "../../hooks/useUserUid";
 
-function HeaderComponent2({ title }) {
+function HeaderComponent2({ title, onUserIconClick }) {
+	const navigate = useNavigate();
 	const [userInfo, setUserInfo] = useState(null);
 	const currentUserId = useUserUid();
 
@@ -23,23 +25,22 @@ function HeaderComponent2({ title }) {
 		loadUserInfo();
 	}, [currentUserId]);
 
+	// ユーザーアイコンクリック処理
+	const handleUserIconClick = () => {
+		if (onUserIconClick) {
+			// カスタムハンドラーが提供されている場合はそれを使用
+			onUserIconClick();
+		} else {
+			// デフォルトの動作：UserInformationページに遷移
+			navigate("/dashboard/UserInformation");
+		}
+	};
+
 	return (
 		<header style={styles.header}>
 			{/* 左側: 車アイコン */}
 			<div style={styles.left}>
-				<img
-					src={carIcon}
-					alt="Car Icon"
-					style={styles.icon}
-					onMouseEnter={(e) => {
-						e.target.style.transform = "scale(1.1)";
-						e.target.style.boxShadow = "0 4px 16px rgba(0, 0, 0, 0.3)";
-					}}
-					onMouseLeave={(e) => {
-						e.target.style.transform = "scale(1)";
-						e.target.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
-					}}
-				/>
+				<img src={carIcon} alt="Car Icon" style={styles.icon} />
 			</div>
 
 			{/* 中央: タイトル */}
@@ -47,38 +48,27 @@ function HeaderComponent2({ title }) {
 				<h1 style={styles.title}>{title}</h1>
 			</div>
 
-			{/* 右側: ユーザーアイコン */}
+			{/* 右側: ユーザーアイコン（常に button） */}
 			<div style={styles.right}>
-				{userInfo?.photoURL ? (
-					<img
-						src={userInfo.photoURL}
-						alt={userInfo.displayName || "User"}
-						style={styles.userIcon}
-						onMouseEnter={(e) => {
-							e.target.style.transform = "scale(1.1)";
-							e.target.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.4)";
-						}}
-						onMouseLeave={(e) => {
-							e.target.style.transform = "scale(1)";
-							e.target.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.25)";
-						}}
-					/>
-				) : (
-					<button
-						type="button"
-						style={styles.userIconPlaceholder}
-						onMouseEnter={(e) => {
-							e.target.style.transform = "scale(1.1)";
-							e.target.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.4)";
-						}}
-						onMouseLeave={(e) => {
-							e.target.style.transform = "scale(1)";
-							e.target.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.25)";
-						}}
-					>
-						{userInfo?.displayName?.charAt(0) || "?"}
-					</button>
-				)}
+				<button
+					type="button"
+					style={
+						userInfo?.photoURL
+							? { ...styles.userIcon, ...styles.buttonReset }
+							: { ...styles.userIconPlaceholder, ...styles.buttonReset }
+					}
+					onClick={handleUserIconClick}
+				>
+					{userInfo?.photoURL ? (
+						<img
+							src={userInfo.photoURL}
+							alt={userInfo.displayName || "User"}
+							style={styles.userIconImg}
+						/>
+					) : (
+						userInfo?.displayName?.charAt(0) || "?"
+					)}
+				</button>
 			</div>
 		</header>
 	);
@@ -126,15 +116,28 @@ const styles = {
 		transition: "transform 0.2s ease, box-shadow 0.2s ease",
 		filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
 	},
+	// button のデフォルトリセット
+	buttonReset: {
+		background: "none",
+		border: "none",
+		padding: 0,
+		cursor: "pointer",
+	},
 	userIcon: {
 		width: "40px",
 		height: "40px",
 		borderRadius: "50%",
-		cursor: "pointer",
-		objectFit: "cover",
+		overflow: "hidden",
 		border: "3px solid rgba(102, 126, 234, 0.3)",
 		boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
 		transition: "transform 0.2s ease, box-shadow 0.2s ease",
+	},
+	userIconImg: {
+		width: "100%",
+		height: "100%",
+		objectFit: "cover",
+		borderRadius: "50%",
+		display: "block",
 	},
 	userIconPlaceholder: {
 		width: "40px",
@@ -148,12 +151,9 @@ const styles = {
 		fontSize: "18px",
 		fontWeight: "700",
 		color: "#ffffff",
-		cursor: "pointer",
 		boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
 		transition: "transform 0.2s ease, box-shadow 0.2s ease",
 		textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
-		outline: "none",
-		padding: 0,
 	},
 	title: {
 		margin: 0,
