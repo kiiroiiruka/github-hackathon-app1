@@ -1,4 +1,11 @@
-import { push, ref, serverTimestamp, set } from "firebase/database";
+import {
+	get,
+	onValue,
+	push,
+	ref,
+	serverTimestamp,
+	set,
+} from "firebase/database";
 import { auth, rtdb } from "../firebaseConfig";
 
 /**
@@ -52,4 +59,88 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 
 	await set(roomRef, roomData);
 	return roomId;
+};
+
+/**
+ * 招待中（invited === true かつ accepted === false）のメンバー一覧を購読
+ * @param {string} roomId
+ * @param {(members: Array<{uid:string,name?:string,photoURL?:string,invited:boolean,accepted:boolean}>) => void} callback
+ * @returns {() => void} unsubscribe function
+ */
+export const subscribeInvitedMembers = (roomId, callback) => {
+	const membersRef = ref(rtdb, `rooms/${roomId}/members`);
+	const unsubscribe = onValue(membersRef, (snapshot) => {
+		const value = snapshot.val() || {};
+		const list = Object.values(value).filter((m) => m?.invited && !m?.accepted);
+		callback(list);
+	});
+	return unsubscribe;
+};
+
+/**
+ * 招待中（invited === true かつ accepted === false）のメンバー一覧を単発取得
+ * @param {string} roomId
+ * @returns {Promise<Array<{uid:string,name?:string,photoURL?:string,invited:boolean,accepted:boolean}>>}
+ */
+export const getInvitedMembersOnce = async (roomId) => {
+	const membersRef = ref(rtdb, `rooms/${roomId}/members`);
+	const snapshot = await get(membersRef);
+	const value = snapshot.val() || {};
+	return Object.values(value).filter((m) => m?.invited && !m?.accepted);
+};
+
+/**
+ * 参加中（accepted === true）のメンバー一覧を購読
+ * @param {string} roomId
+ * @param {(members: Array<{uid:string,name?:string,photoURL?:string,invited:boolean,accepted:boolean}>) => void} callback
+ * @returns {() => void} unsubscribe function
+ */
+export const subscribeAcceptedMembers = (roomId, callback) => {
+	const membersRef = ref(rtdb, `rooms/${roomId}/members`);
+	const unsubscribe = onValue(membersRef, (snapshot) => {
+		const value = snapshot.val() || {};
+		const list = Object.values(value).filter((m) => m?.accepted);
+		callback(list);
+	});
+	return unsubscribe;
+};
+
+/**
+ * 不参加（accepted === false）のメンバー一覧を購読（招待済み/未参加の両方を含む）
+ * @param {string} roomId
+ * @param {(members: Array<{uid:string,name?:string,photoURL?:string,invited:boolean,accepted:boolean}>) => void} callback
+ * @returns {() => void} unsubscribe function
+ */
+export const subscribeAbsentMembers = (roomId, callback) => {
+	const membersRef = ref(rtdb, `rooms/${roomId}/members`);
+	const unsubscribe = onValue(membersRef, (snapshot) => {
+		const value = snapshot.val() || {};
+		const list = Object.values(value).filter((m) => m && m.accepted === false);
+		callback(list);
+	});
+	return unsubscribe;
+};
+
+/**
+ * 参加中（accepted === true）のメンバー一覧を単発取得
+ * @param {string} roomId
+ * @returns {Promise<Array<{uid:string,name?:string,photoURL?:string,invited:boolean,accepted:boolean}>>}
+ */
+export const getAcceptedMembersOnce = async (roomId) => {
+	const membersRef = ref(rtdb, `rooms/${roomId}/members`);
+	const snapshot = await get(membersRef);
+	const value = snapshot.val() || {};
+	return Object.values(value).filter((m) => m?.accepted);
+};
+
+/**
+ * 不参加（accepted === false）のメンバー一覧を単発取得
+ * @param {string} roomId
+ * @returns {Promise<Array<{uid:string,name?:string,photoURL?:string,invited:boolean,accepted:boolean}>>}
+ */
+export const getAbsentMembersOnce = async (roomId) => {
+	const membersRef = ref(rtdb, `rooms/${roomId}/members`);
+	const snapshot = await get(membersRef);
+	const value = snapshot.val() || {};
+	return Object.values(value).filter((m) => m && m.accepted === false);
 };
