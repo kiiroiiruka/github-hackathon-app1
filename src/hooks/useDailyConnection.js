@@ -52,29 +52,31 @@ export const useDailyConnection = (
 
 		try {
 			const dailyInstance = DailyIframe.createCallObject({
-				startAudioOff: false, // 音声を有効で開始（マイク許可を取得）
-				startVideoOff: true, // ビデオは無効
+				// 音声とビデオの初期設定
+				audioSource: true, // 音声ソースを有効
+				videoSource: false, // ビデオソースを無効
+				// UI設定
 				showLeaveButton: false,
 				showFullscreenButton: false,
 				showLocalVideo: false, // ローカルビデオは非表示
 				showParticipantsBar: false, // 参加者バーは非表示
-				// マイク許可の取得を確実にするための追加設定
-				audioConfig: {
-					enableMic: true,
-					enableCam: false,
-				},
+				// 事前設定
+				prejoin: false, // 事前参加UIを無効（カスタムUI使用）
 			});
 
 			console.log("✅ Dailyインスタンスが作成されました:", !!dailyInstance);
 
 			// イベントリスナーの設定
 			dailyInstance
-				.on("joined-meeting", async (event) => {
-					console.log("Joined meeting:", event);
-					setIsJoined(true);
-					setIsConnecting(false);
-					setError(null);
-					startDurationTimer();
+			.on("joined-meeting", async (event) => {
+				console.log("🎉 Joined meeting:", event);
+				setIsJoined(true);
+				setIsConnecting(false);
+				setError(null);
+				startDurationTimer();
+				
+				// 参加成功をログに記録
+				console.log("✅ Daily.coルームに正常に参加しました");
 
 					// 音声を確実に有効にする
 					try {
@@ -187,17 +189,23 @@ export const useDailyConnection = (
 				// カメラエラーは音声のみモードでは無視
 			})
 			.on("error", (event) => {
+				console.error("❌ Daily.co エラー:", event);
+				
 				if (
 					event.error?.includes("microphone") ||
-					event.error?.includes("audio")
+					event.error?.includes("audio") ||
+					event.error?.includes("NotAllowedError")
 				) {
-					console.error("マイクエラー:", event.error);
+					console.error("🎤 マイクエラー:", event.error);
 					setError(
 						"マイクのアクセス許可が必要です。ブラウザの設定でマイクを許可してください。",
 					);
+				} else if (event.error?.includes("network") || event.error?.includes("connection")) {
+					console.error("🌐 ネットワークエラー:", event.error);
+					setError("ネットワーク接続に問題があります。インターネット接続を確認してください。");
 				} else {
-					console.error("Daily error:", event);
-					setError(event.error);
+					console.error("🔧 Daily.co エラー:", event.error);
+					setError(`通話エラー: ${event.error}`);
 				}
 				setIsConnecting(false);
 				stopDurationTimer();
@@ -289,8 +297,6 @@ export const useDailyConnection = (
 				await dailyInstance.join({
 					url: urlToUse,
 					token: token,
-					startAudioOff: false, // 音声を有効で開始（マイク許可を取得）
-					startVideoOff: true, // ビデオは無効
 				});
 			} catch (err) {
 				console.error("❌ Failed to join room:", err);
