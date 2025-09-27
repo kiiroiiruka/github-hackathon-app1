@@ -45,6 +45,8 @@ export const useDailyConnection = (
 	const initializeDaily = useCallback(async () => {
 		if (daily) return daily;
 
+		console.log("🚀 Daily.coインスタンスを初期化中...");
+
 		const dailyInstance = DailyIframe.createCallObject({
 			startAudioOff: false, // 音声を有効で開始（マイク許可を取得）
 			startVideoOff: true, // ビデオは無効
@@ -52,6 +54,11 @@ export const useDailyConnection = (
 			showFullscreenButton: false,
 			showLocalVideo: false, // ローカルビデオは非表示
 			showParticipantsBar: false, // 参加者バーは非表示
+			// マイク許可の取得を確実にするための追加設定
+			audioConfig: {
+				enableMic: true,
+				enableCam: false,
+			},
 		});
 
 		// イベントリスナーの設定
@@ -67,8 +74,18 @@ export const useDailyConnection = (
 				try {
 					await dailyInstance.setLocalAudio(true);
 					console.log("🎤 音声を有効にしました");
+					
+					// マイクの状態を確認
+					const audioState = dailyInstance.localAudio();
+					console.log("🎤 マイク状態:", audioState ? "ON" : "OFF");
+					
+					if (!audioState) {
+						console.warn("⚠️ マイクが無効になっています");
+						setError("マイクが無効になっています。ブラウザの設定でマイクを許可してください。");
+					}
 				} catch (audioError) {
 					console.warn("音声の有効化に失敗:", audioError);
+					setError("マイクの初期化に失敗しました。ブラウザの設定を確認してください。");
 				}
 
 				// 現在の参加者リストを更新
@@ -163,6 +180,40 @@ export const useDailyConnection = (
 		currentUserUid,
 	]);
 
+	// マイク許可を要求
+	const requestMicrophonePermission = useCallback(async () => {
+		try {
+			console.log("🎤 マイクの許可を要求しています...");
+			
+			// getUserMediaを使って明示的にマイク許可を要求
+			const stream = await navigator.mediaDevices.getUserMedia({
+				audio: true,
+				video: false
+			});
+			
+			console.log("✅ マイクの許可が得られました");
+			
+			// ストリームを停止（許可を得るためだけに使用）
+			stream.getTracks().forEach(track => track.stop());
+			
+			return true;
+		} catch (error) {
+			console.error("❌ マイクの許可が得られませんでした:", error);
+			
+			if (error.name === 'NotAllowedError') {
+				setError("マイクのアクセスが拒否されました。ブラウザの設定でマイクを許可してください。");
+			} else if (error.name === 'NotFoundError') {
+				setError("マイクが見つかりません。マイクが接続されているか確認してください。");
+			} else if (error.name === 'NotReadableError') {
+				setError("マイクが他のアプリケーションで使用中です。他のアプリケーションを閉じてから再試行してください。");
+			} else {
+				setError(`マイクエラー: ${error.message}`);
+			}
+			
+			return false;
+		}
+	}, []);
+
 	// ルームに参加
 	const joinRoom = useCallback(
 		async (token) => {
@@ -171,6 +222,13 @@ export const useDailyConnection = (
 			try {
 				setIsConnecting(true);
 				setError(null);
+
+				// まず明示的にマイクの許可を要求
+				const micPermissionGranted = await requestMicrophonePermission();
+				if (!micPermissionGranted) {
+					setIsConnecting(false);
+					return;
+				}
 
 				const dailyInstance = await initializeDaily();
 
@@ -186,7 +244,7 @@ export const useDailyConnection = (
 				setIsConnecting(false);
 			}
 		},
-		[dailyRoomUrl, isConnecting, isJoined, initializeDaily],
+		[dailyRoomUrl, isConnecting, isJoined, initializeDaily, requestMicrophonePermission],
 	);
 
 	// ルームから退出

@@ -154,22 +154,81 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 		onCallEnd?.();
 	};
 
+	// マイク許可を再試行する関数
+	const retryMicrophonePermission = async () => {
+		try {
+			setError(null);
+			setIsLoading(true);
+			
+			// 現在のユーザー情報を取得
+			const currentUser = auth.currentUser;
+			if (!currentUser) {
+				throw new Error("ユーザーが認証されていません");
+			}
+
+			// Dailyトークンを再取得
+			const token = await getDailyToken(
+				roomId,
+				currentUser.uid,
+				currentUser.displayName || "Anonymous",
+				currentUser.photoURL || "",
+			);
+
+			// 再度ルームに参加を試行
+			await joinRoom(token);
+		} catch (err) {
+			console.error("マイク許可の再試行に失敗:", err);
+			setError(err.message);
+		}
+	};
+
 	// エラー表示の統合
 	const displayError = error || dailyError;
 
 	if (displayError) {
+		const isMicrophoneError = displayError.includes("マイク") || 
+								  displayError.includes("microphone") || 
+								  displayError.includes("audio");
+
 		return (
 			<div className="flex flex-col items-center justify-center h-96 bg-gray-100 rounded-lg">
-				<div className="text-red-600 text-center">
-					<p className="text-lg font-semibold mb-2">通話エラー</p>
-					<p className="text-sm">{displayError}</p>
-					<button
-						type="button"
-						onClick={handleLeaveCall}
-						className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-					>
-						閉じる
-					</button>
+				<div className="text-red-600 text-center max-w-md">
+					<p className="text-lg font-semibold mb-4">
+						{isMicrophoneError ? "🎤 マイクエラー" : "通話エラー"}
+					</p>
+					<p className="text-sm mb-4">{displayError}</p>
+					
+					{isMicrophoneError && (
+						<div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+							<p className="text-sm text-yellow-800 mb-2">
+								<strong>解決方法:</strong>
+							</p>
+							<ol className="text-xs text-yellow-700 text-left list-decimal list-inside space-y-1">
+								<li>ブラウザのアドレスバーの左側にある🔒マークをクリック</li>
+								<li>「マイク」の設定を「許可」に変更</li>
+								<li>ページを再読み込みしてから再度試行</li>
+							</ol>
+						</div>
+					)}
+					
+					<div className="flex gap-2 justify-center">
+						{isMicrophoneError && (
+							<button
+								type="button"
+								onClick={retryMicrophonePermission}
+								className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+							>
+								再試行
+							</button>
+						)}
+						<button
+							type="button"
+							onClick={handleLeaveCall}
+							className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+						>
+							閉じる
+						</button>
+					</div>
 				</div>
 			</div>
 		);
@@ -180,9 +239,18 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			<div className="flex flex-col items-center justify-center h-96 bg-gray-100 rounded-lg">
 				<div className="text-center">
 					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-					<p className="text-gray-600">
+					<p className="text-gray-600 mb-2">
 						{isLoading ? "通話を開始しています..." : "接続中..."}
 					</p>
+					{isConnecting && (
+						<div className="text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-lg">
+							🎤 マイクの許可を求めています...
+							<br />
+							<span className="text-xs text-gray-500">
+								ブラウザの許可ダイアログが表示されたら「許可」をクリックしてください
+							</span>
+						</div>
+					)}
 				</div>
 			</div>
 		);
