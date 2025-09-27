@@ -199,6 +199,7 @@ const FriendsAddScreen = () => {
 					{/* 🔹 相手が見つかったら表示 */}
 					{targetUser && (
 						<div className="mt-3 p-3 bg-blue-50 rounded-md flex items-center gap-3">
+							{/* アイコン */}
 							<div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
 								{targetUser.photoURL ? (
 									<img
@@ -212,11 +213,35 @@ const FriendsAddScreen = () => {
 									</span>
 								)}
 							</div>
+
+							{/* ユーザー情報 */}
 							<div>
-								<p className="font-medium">{targetUser.displayName}</p>
+								<p className="font-medium">
+									{targetUser.displayName || "ユーザー"}
+								</p>
+
+								{/* ✅ ユーザーID */}
+								<p className="text-xs text-gray-500">
+									ユーザーID:{" "}
+									<span className="font-mono bg-gray-100 px-1 rounded">
+										{friendIdInput.trim()}
+									</span>
+								</p>
+
+								{/* ✅ 一言メッセージ */}
 								{targetUser.userShortMessage && (
 									<p className="text-sm text-gray-600">
 										"{targetUser.userShortMessage}"
+									</p>
+								)}
+
+								{/* ✅ アカウント作成日 */}
+								{targetUser.createdAt && (
+									<p className="text-xs text-gray-500">
+										アカウント作成日:{" "}
+										{new Date(targetUser.createdAt.toDate()).toLocaleDateString(
+											"ja-JP",
+										)}
 									</p>
 								)}
 							</div>
