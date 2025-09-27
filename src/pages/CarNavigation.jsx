@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import VideoCallRoom from "@/components/VideoCall/VideoCallRoom";
 import { auth, rtdb } from "@/firebase";
+import { useUserUid } from "@/hooks/useUserUid";
 
 const CarNavigation = () => {
 	const { roomId } = useParams();
@@ -11,17 +12,17 @@ const CarNavigation = () => {
 	const [loading, setLoading] = useState(true);
 	const [roomData, setRoomData] = useState(null);
 	const [showVideoCall, setShowVideoCall] = useState(false);
+	const currentUserUid = useUserUid();
 
 	useEffect(() => {
-		if (!roomId) {
+		if (!roomId || !currentUserUid) {
 			setLoading(false);
 			return;
 		}
 
 		// 画面入室時に自分の参加状態を true にする（作成者/参加者どちらも）
-		const currentUser = auth.currentUser;
-		if (currentUser) {
-			void update(ref(rtdb, `rooms/${roomId}/members/${currentUser.uid}`), {
+		if (currentUserUid) {
+			void update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
 				accepted: true,
 			});
 		}
@@ -44,16 +45,15 @@ const CarNavigation = () => {
 		);
 
 		return () => unsubscribe();
-	}, [roomId]);
+	}, [roomId, currentUserUid]);
 
 	// 離脱時に自分の参加状態を false に戻す
 	useEffect(() => {
-		const currentUser = auth.currentUser;
-		if (!roomId || !currentUser) return;
+		if (!roomId || !currentUserUid) return;
 
 		const setAcceptedFalse = () => {
 			try {
-				return update(ref(rtdb, `rooms/${roomId}/members/${currentUser.uid}`), {
+				return update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
 					accepted: false,
 				});
 			} catch {
@@ -71,7 +71,7 @@ const CarNavigation = () => {
 			window.removeEventListener("beforeunload", handleBeforeUnload);
 			void setAcceptedFalse();
 		};
-	}, [roomId]);
+	}, [roomId, currentUserUid]);
 
 	const handleCallEnd = () => {
 		setShowVideoCall(false);
@@ -135,7 +135,7 @@ const CarNavigation = () => {
 					<div className="bg-white rounded-lg shadow-md p-4">
 						<div className="flex items-center justify-between mb-4">
 							<h2 className="text-lg font-semibold">音声・ビデオ通話</h2>
-							{!showVideoCall && (
+							{!showVideoCall && roomData?.dailyRoom && (
 								<button
 									type="button"
 									onClick={() => setShowVideoCall(true)}
@@ -144,9 +144,14 @@ const CarNavigation = () => {
 									通話を開始
 								</button>
 							)}
+							{!roomData?.dailyRoom && (
+								<p className="text-gray-500 text-sm">
+									Daily.coルームが準備されていません
+								</p>
+							)}
 						</div>
 
-						{showVideoCall && (
+						{showVideoCall && roomData?.dailyRoom && (
 							<VideoCallRoom
 								roomId={roomId}
 								roomName={roomData?.name || "カーナビルーム"}

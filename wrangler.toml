@@ -2,18 +2,13 @@ name = "github-hackathon-app1"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
+# Development environment
+[env.development]
+vars = { NODE_ENV = "development" }
+
+# Production environment
 [env.production]
 vars = { NODE_ENV = "production" }
 
-[env.production.vars]
-DAILY_DOMAIN = "your-daily-domain.daily.co"
-FIREBASE_PROJECT_ID = "your-firebase-project-id"
-
-[[env.production.secrets]]
-DAILY_API_KEY = "your-daily-api-key"
-
-[[env.production.secrets]]
-FIREBASE_CLIENT_EMAIL = "your-firebase-client-email"
-
-[[env.production.secrets]]
-FIREBASE_PRIVATE_KEY = "your-firebase-private-key"
+# Secrets are managed via Cloudflare Dashboard or wrangler commands
+# wrangler pages secret put DAILY_API_KEY --project-name github-hackathon-app1

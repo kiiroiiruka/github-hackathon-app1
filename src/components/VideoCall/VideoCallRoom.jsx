@@ -1,11 +1,14 @@
 import DailyIframe from "@daily-co/daily-js";
 import { useEffect, useRef, useState } from "react";
+import { get, ref } from "firebase/database";
 import {
 	auth,
+	rtdb,
 	endDailyRoomSession,
 	syncDailyRoomState,
 	updateMemberDailyStatus,
 } from "@/firebase";
+import { useUserUid } from "@/hooks/useUserUid";
 
 const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	const iframeRef = useRef(null);
@@ -14,6 +17,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	const [participants, setParticipants] = useState([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState(null);
+	const currentUserUid = useUserUid();
 
 	useEffect(() => {
 		const initializeCall = async () => {
@@ -21,24 +25,26 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 				setIsLoading(true);
 				setError(null);
 
-				// Create Daily room first
-				const roomResponse = await fetch("/api/daily-room", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						roomId,
-						roomName,
-						ownerUid,
-					}),
-				});
-
-				const roomData = await roomResponse.json();
-
-				if (!roomData.success) {
-					throw new Error(roomData.error || "Failed to create room");
+				// Get current user info
+				if (!currentUserUid) {
+					throw new Error("User not authenticated");
 				}
+
+				const currentUser = auth.currentUser;
+				if (!currentUser) {
+					throw new Error("User not authenticated");
+				}
+
+				// FirebaseからDaily.coルーム情報を取得
+				const roomRef = ref(rtdb, `rooms/${roomId}`);
+				const roomSnapshot = await get(roomRef);
+				const firebaseRoomData = roomSnapshot.val();
+
+				if (!firebaseRoomData || !firebaseRoomData.dailyRoom) {
+					throw new Error("Daily room not found in Firebase");
+				}
+
+				const dailyRoomInfo = firebaseRoomData.dailyRoom;
 
 				// Get user token
 				const tokenResponse = await fetch("/api/daily-token", {
@@ -48,9 +54,9 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 					},
 					body: JSON.stringify({
 						roomId,
-						userId: ownerUid, // Current user ID
-						userName: "User", // Get from user context
-						userPhotoURL: "", // Get from user context
+						userId: currentUser.uid,
+						userName: currentUser.displayName || "Anonymous",
+						userPhotoURL: currentUser.photoURL || "",
 					}),
 				});
 
@@ -84,18 +90,16 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 						setIsJoined(true);
 						setIsLoading(false);
 						// Sync with Firebase
-						syncDailyRoomState(roomId, roomData.dailyRoom);
-						const currentUser = auth.currentUser;
-						if (currentUser) {
-							updateMemberDailyStatus(roomId, currentUser.uid, true);
+						syncDailyRoomState(roomId, dailyRoomInfo);
+						if (currentUserUid) {
+							updateMemberDailyStatus(roomId, currentUserUid, true);
 						}
 					})
 					.on("left-meeting", () => {
 						setIsJoined(false);
 						// Update Firebase status
-						const currentUser = auth.currentUser;
-						if (currentUser) {
-							updateMemberDailyStatus(roomId, currentUser.uid, false);
+						if (currentUserUid) {
+							updateMemberDailyStatus(roomId, currentUserUid, false);
 						}
 						onCallEnd?.();
 					})
@@ -124,7 +128,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 
 				// Join the meeting
 				await dailyRef.current.join({
-					url: roomData.dailyRoom.url,
+					url: dailyRoomInfo.url,
 					token: tokenData.token,
 				});
 			} catch (err) {
@@ -144,16 +148,15 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			// End Daily room session in Firebase
 			endDailyRoomSession(roomId);
 		};
-	}, [roomId, roomName, ownerUid, onCallEnd]);
+	}, [roomId, roomName, ownerUid, onCallEnd, currentUserUid]);
 
 	const handleLeaveCall = () => {
 		if (dailyRef.current) {
 			dailyRef.current.leave();
 		}
 		// Update Firebase status when manually leaving
-		const currentUser = auth.currentUser;
-		if (currentUser) {
-			updateMemberDailyStatus(roomId, currentUser.uid, false);
+		if (currentUserUid) {
+			updateMemberDailyStatus(roomId, currentUserUid, false);
 		}
 	};
 
