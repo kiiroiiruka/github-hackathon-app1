@@ -2,6 +2,7 @@ import { onValue, ref, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, rtdb } from "@/firebase";
+import { useUserUid } from "@/hooks/useUserUid";
 
 const InvitingRoom = () => {
 	const navigate = useNavigate();
@@ -9,11 +10,12 @@ const InvitingRoom = () => {
 	const [ownedRooms, setOwnedRooms] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [updatingId, setUpdatingId] = useState("");
+	const currentUserUid = useUserUid();
 
 	useEffect(() => {
-		const currentUser = auth.currentUser;
-		if (!currentUser) {
-			setRooms([]);
+		if (!currentUserUid) {
+			setInvitedRooms([]);
+			setOwnedRooms([]);
 			setLoading(false);
 			return;
 		}
@@ -29,11 +31,11 @@ const InvitingRoom = () => {
 				}));
 				const invited = list.filter(
 					(room) =>
-						room?.members?.[currentUser.uid] &&
-						room.members[currentUser.uid].invited &&
-						!room.members[currentUser.uid].accepted,
+						room?.members?.[currentUserUid] &&
+						room.members[currentUserUid].invited &&
+						!room.members[currentUserUid].accepted,
 				);
-				const owned = list.filter((room) => room?.ownerUid === currentUser.uid);
+				const owned = list.filter((room) => room?.ownerUid === currentUserUid);
 				setInvitedRooms(invited);
 				setOwnedRooms(owned);
 				setLoading(false);
@@ -42,14 +44,13 @@ const InvitingRoom = () => {
 		);
 
 		return () => unsubscribe();
-	}, []);
+	}, [currentUserUid]);
 
 	const handleAccept = async (roomId) => {
-		const currentUser = auth.currentUser;
-		if (!currentUser) return;
+		if (!currentUserUid) return;
 		try {
 			setUpdatingId(roomId);
-			await update(ref(rtdb, `rooms/${roomId}/members/${currentUser.uid}`), {
+			await update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
 				accepted: true,
 			});
 			navigate(`/dashboard/car/${roomId}`);

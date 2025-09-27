@@ -1,4 +1,4 @@
-import { push, ref, serverTimestamp, set } from "firebase/database";
+import { push, ref, serverTimestamp, set, get } from "firebase/database";
 import { auth, rtdb } from "../firebaseConfig";
 
 /**
@@ -16,7 +16,15 @@ import { auth, rtdb } from "../firebaseConfig";
  */
 export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 	const currentUser = auth.currentUser;
-	if (!currentUser) throw new Error("ログインが必要です");
+	if (!currentUser || !currentUser.uid) {
+		throw new Error("ログインが必要です。ユーザー情報を取得できません。");
+	}
+
+	console.log("Room creation - Current User:", {
+		uid: currentUser.uid,
+		displayName: currentUser.displayName,
+		email: currentUser.email
+	});
 
 	try {
 		// ルームID作成
@@ -24,7 +32,9 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 		const roomId = roomRef.key;
 
 		// Daily.coのビデオルームを作成
-		const dailyResponse = await fetch("/api/daily-room", {
+		// 開発環境ではCloudflare Functionsサーバー、本番では相対パス
+		const apiBaseUrl = import.meta.env.DEV ? 'http://localhost:8788' : '';
+		const dailyResponse = await fetch(`${apiBaseUrl}/api/daily-room`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -52,6 +62,8 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 			},
 		};
 
+		console.log("Room creation - Owner member data:", members[currentUser.uid]);
+
 		for (const friend of selectedFriends) {
 			members[friend.uid] = {
 				uid: friend.uid,
@@ -61,6 +73,8 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 				accepted: false, // 初期状態: 未参加
 			};
 		}
+
+		console.log("Room creation - All members:", members);
 
 		const roomData = {
 			name: roomName,
@@ -73,7 +87,13 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 		};
 
 		await set(roomRef, roomData);
-		console.log("Room created with Daily integration:", { roomId, dailyRoom: dailyResult.dailyRoom });
+		console.log("Room created with Daily integration:", { 
+			roomId, 
+			dailyRoom: dailyResult.dailyRoom,
+			ownerUid: currentUser.uid,
+			membersCount: Object.keys(roomData.members).length
+		});
+		console.log("Room data saved:", roomData);
 		return roomId;
 	} catch (error) {
 		console.error("Room creation error:", error);
@@ -91,7 +111,9 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
  */
 export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 	try {
-		const response = await fetch("/api/daily-token", {
+		// 開発環境ではCloudflare Functionsサーバー、本番では相対パス
+		const apiBaseUrl = import.meta.env.DEV ? 'http://localhost:8788' : '';
+		const response = await fetch(`${apiBaseUrl}/api/daily-token`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -113,5 +135,90 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 	} catch (error) {
 		console.error("Daily token generation error:", error);
 		throw error;
+	}
+};
+
+/**
+ * 通話セッションを開始する
+ * @param {string} roomId Firebase room ID
+ * @param {string} userId User ID
+ * @param {Object} participantInfo 参加者情報
+ */
+export const startCallSession = async (roomId, userId, participantInfo = {}) => {
+	try {
+		const sessionData = {
+			joinedAt: serverTimestamp(),
+			isActive: true,
+			participantInfo: {
+				name: participantInfo.name || 'Anonymous',
+				photoURL: participantInfo.photoURL || '',
+				sessionId: participantInfo.sessionId || '',
+			},
+			callDuration: 0,
+		};
+
+		// セッションデータを保存
+		const sessionRef = ref(rtdb, `rooms/${roomId}/sessions/${userId}`);
+		await set(sessionRef, sessionData);
+
+		// 参加者の通話状態を更新
+		const memberRef = ref(rtdb, `rooms/${roomId}/members/${userId}/inCall`);
+		await set(memberRef, true);
+
+		console.log('Call session started:', { roomId, userId });
+	} catch (error) {
+		console.error('Failed to start call session:', error);
+		throw error;
+	}
+};
+
+/**
+ * 通話セッションを終了する
+ * @param {string} roomId Firebase room ID
+ * @param {string} userId User ID
+ * @param {number} callDuration 通話時間（秒）
+ */
+export const endCallSession = async (roomId, userId, callDuration = 0) => {
+	try {
+		// セッションデータを更新
+		const sessionRef = ref(rtdb, `rooms/${roomId}/sessions/${userId}`);
+		const sessionData = {
+			leftAt: serverTimestamp(),
+			isActive: false,
+			callDuration: callDuration,
+		};
+
+		await set(sessionRef, sessionData);
+
+		// 参加者の通話状態を更新
+		const memberRef = ref(rtdb, `rooms/${roomId}/members/${userId}/inCall`);
+		await set(memberRef, false);
+
+		// 通話履歴を保存
+		const historyRef = ref(rtdb, `rooms/${roomId}/callHistory/${userId}/${Date.now()}`);
+		await set(historyRef, {
+			duration: callDuration,
+			endedAt: serverTimestamp(),
+		});
+
+		console.log('Call session ended:', { roomId, userId, callDuration });
+	} catch (error) {
+		console.error('Failed to end call session:', error);
+		throw error;
+	}
+};
+
+/**
+ * 通話時間を更新する
+ * @param {string} roomId Firebase room ID
+ * @param {string} userId User ID
+ * @param {number} duration 通話時間（秒）
+ */
+export const updateCallDuration = async (roomId, userId, duration) => {
+	try {
+		const sessionRef = ref(rtdb, `rooms/${roomId}/sessions/${userId}/callDuration`);
+		await set(sessionRef, duration);
+	} catch (error) {
+		console.error('Failed to update call duration:', error);
 	}
 };

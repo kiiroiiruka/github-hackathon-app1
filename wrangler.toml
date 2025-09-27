@@ -2,8 +2,8 @@ name = "github-hackathon-app1"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
-# Development environment
-[env.development]
+# Preview environment (for development/testing)
+[env.preview]
 vars = { NODE_ENV = "development" }
 
 # Production environment
@@ -11,4 +11,5 @@ vars = { NODE_ENV = "development" }
 vars = { NODE_ENV = "production" }
 
 # Secrets are managed via Cloudflare Dashboard or wrangler commands
-# wrangler pages secret put DAILY_API_KEY --project-name github-hackathon-app1
+# For production: wrangler pages secret put DAILY_API_KEY --project-name github-hackathon-app1
+# For local development: use .dev.vars file
