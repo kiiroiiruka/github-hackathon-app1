@@ -55,6 +55,19 @@ export const useDailyConnection = (
 				// 音声とビデオの初期設定
 				audioSource: true, // 音声ソースを有効
 				videoSource: false, // ビデオソースを無効
+				// 音声品質と安定性の設定
+				audioConfig: {
+					enableMic: true,
+					enableCam: false,
+					// 音声品質の向上
+					audioQuality: 'high',
+					// 音声の自動調整を有効
+					audioProcessing: {
+						noiseSuppression: true,
+						echoCancellation: true,
+						autoGainControl: true
+					}
+				}
 			});
 
 			console.log("✅ Dailyインスタンスが作成されました:", !!dailyInstance);
@@ -246,6 +259,20 @@ export const useDailyConnection = (
 					track: event.track?.kind || "Unknown",
 					local: event.participant?.local || false
 				});
+				
+				// 音声トラックが停止した場合の詳細情報
+				if (event.track?.kind === 'audio') {
+					console.warn("⚠️ 音声トラックが停止しました:", {
+						participant: event.participant?.user_name,
+						trackId: event.track.id,
+						reason: event.track.readyState,
+						local: event.participant?.local
+					});
+					
+					if (!event.participant?.local) {
+						console.warn("💡 リモート参加者の音声が停止しました。ネットワーク接続を確認してください。");
+					}
+				}
 			})
 			.on("error", (event) => {
 				console.error("❌ Daily.co エラー:", event);
