@@ -18,6 +18,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	const [dailyRoomUrl, setDailyRoomUrl] = useState(null);
 	const [isInitialized, setIsInitialized] = useState(false);
 	const [sessionStarted, setSessionStarted] = useState(false);
+	const [retryCount, setRetryCount] = useState(0);
 	const currentUserUid = useUserUid();
 
 	// 参加者管理フック
@@ -66,6 +67,14 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	useEffect(() => {
 		// 初期化済みの場合は実行しない
 		if (isInitialized) return;
+		
+		// リトライ制限（最大3回まで）
+		if (retryCount >= 3) {
+			console.error("❌ 最大リトライ回数に達しました。初期化を停止します。");
+			setError("通話の初期化に失敗しました。ページを再読み込みしてください。");
+			setIsLoading(false);
+			return;
+		}
 
 		let isMounted = true; // コンポーネントがマウントされているかチェック
 
@@ -143,6 +152,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			} catch (err) {
 				console.error("Video call initialization error:", err);
 				if (isMounted) {
+					setRetryCount(prev => prev + 1);
 					setError(err.message);
 					setIsLoading(false);
 					setIsInitialized(false); // エラー時は初期化フラグをリセット
@@ -160,7 +170,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			}
 			destroyDaily();
 		};
-	}, [roomId, currentUserUid, joinRoom, destroyDaily, isInitialized]); // isInitialized を依存配列に追加
+	}, [roomId, currentUserUid, isInitialized, retryCount]); // joinRoom, destroyDailyを依存配列から削除
 
 	const handleLeaveCall = async () => {
 		if (currentUserUid && callDuration > 0) {

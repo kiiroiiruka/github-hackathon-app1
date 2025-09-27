@@ -174,8 +174,9 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 		
 		// 開発環境でのフォールバック
 		const isDevelopment = import.meta.env.DEV;
-		if (isDevelopment && (error.message.includes('Failed to fetch') || error.message.includes('404'))) {
+		if (isDevelopment && (error.message.includes('Failed to fetch') || error.message.includes('404') || error.message.includes('ERR_CONNECTION_REFUSED'))) {
 			console.warn("⚠️ APIエンドポイントにアクセスできません。フォールバックトークンを使用します。");
+			console.warn("💡 Cloudflare Workersの開発サーバーを起動してください: cd functions && npx wrangler dev --port 8787");
 			return `fallback-token-${roomId}-${userId}-${Date.now()}`;
 		}
 		
