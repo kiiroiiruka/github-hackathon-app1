@@ -11,12 +11,14 @@ import { useDailyConnection } from "@/hooks/useDailyConnection";
 import { useParticipantManager } from "@/hooks/useParticipantManager";
 import { useUserUid } from "@/hooks/useUserUid";
 
-const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
-	const iframeRef = useRef(null);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState(null);
-	const [dailyRoomUrl, setDailyRoomUrl] = useState(null);
-	const currentUserUid = useUserUid();
+	const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
+		const iframeRef = useRef(null);
+		const [isLoading, setIsLoading] = useState(true);
+		const [error, setError] = useState(null);
+		const [dailyRoomUrl, setDailyRoomUrl] = useState(null);
+		const [isInitialized, setIsInitialized] = useState(false);
+		const [sessionStarted, setSessionStarted] = useState(false);
+		const currentUserUid = useUserUid();
 
 	// 参加者管理フック
 	const { handleParticipantUpdate, getActiveParticipants } =
@@ -54,10 +56,14 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	}, [daily]);
 
 	useEffect(() => {
+		// 初期化済みの場合は実行しない
+		if (isInitialized) return;
+
 		const initializeCall = async () => {
 			try {
 				setIsLoading(true);
 				setError(null);
+				setIsInitialized(true); // 初期化開始フラグを設定
 
 				// Get current user info
 				if (!currentUserUid) {
@@ -89,19 +95,25 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 					currentUser.photoURL || "",
 				);
 
-				// 通話セッション開始
-				await startCallSession(roomId, currentUser.uid, {
-					name: currentUser.displayName || "Anonymous",
-					photoURL: currentUser.photoURL || "",
-				});
+				// 通話セッション開始（既に開始済みでない場合のみ）
+				if (!sessionStarted) {
+					await startCallSession(roomId, currentUser.uid, {
+						name: currentUser.displayName || "Anonymous",
+						photoURL: currentUser.photoURL || "",
+					});
+					setSessionStarted(true);
+				}
 
-				// Join the room
-				await joinRoom(token);
+				// Join the room (既に接続中でない場合のみ)
+				if (!isJoined && !isConnecting) {
+					await joinRoom(token);
+				}
 				setIsLoading(false);
 			} catch (err) {
 				console.error("Video call initialization error:", err);
 				setError(err.message);
 				setIsLoading(false);
+				setIsInitialized(false); // エラー時は初期化フラグをリセット
 			}
 		};
 
@@ -114,7 +126,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			}
 			destroyDaily();
 		};
-	}, [roomId, currentUserUid, joinRoom, destroyDaily]); // callDuration を依存配列から削除
+	}, [roomId, currentUserUid, joinRoom, destroyDaily, isInitialized]); // isInitialized を依存配列に追加
 
 	const handleLeaveCall = async () => {
 		if (currentUserUid && callDuration > 0) {
