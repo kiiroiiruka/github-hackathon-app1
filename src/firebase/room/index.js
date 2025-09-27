@@ -1,4 +1,4 @@
-import { push, ref, serverTimestamp, set, get } from "firebase/database";
+import { get, push, ref, serverTimestamp, set } from "firebase/database";
 import { auth, rtdb } from "../firebaseConfig";
 
 /**
@@ -23,7 +23,7 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 	console.log("Room creation - Current User:", {
 		uid: currentUser.uid,
 		displayName: currentUser.displayName,
-		email: currentUser.email
+		email: currentUser.email,
 	});
 
 	try {
@@ -33,7 +33,7 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 
 		// Daily.coのビデオルームを作成
 		// 開発環境ではCloudflare Functionsサーバー、本番では相対パス
-		const apiBaseUrl = import.meta.env.DEV ? 'http://localhost:8788' : '';
+		const apiBaseUrl = import.meta.env.DEV ? "http://localhost:8788" : "/";
 		const dailyResponse = await fetch(`${apiBaseUrl}/api/daily-room`, {
 			method: "POST",
 			headers: {
@@ -87,11 +87,11 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 		};
 
 		await set(roomRef, roomData);
-		console.log("Room created with Daily integration:", { 
-			roomId, 
+		console.log("Room created with Daily integration:", {
+			roomId,
 			dailyRoom: dailyResult.dailyRoom,
 			ownerUid: currentUser.uid,
-			membersCount: Object.keys(roomData.members).length
+			membersCount: Object.keys(roomData.members).length,
 		});
 		console.log("Room data saved:", roomData);
 		return roomId;
@@ -112,7 +112,7 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 	try {
 		// 開発環境ではCloudflare Functionsサーバー、本番では相対パス
-		const apiBaseUrl = import.meta.env.DEV ? 'http://localhost:8788' : '';
+		const apiBaseUrl = import.meta.env.DEV ? "http://localhost:8788" : "/";
 		const response = await fetch(`${apiBaseUrl}/api/daily-token`, {
 			method: "POST",
 			headers: {
@@ -144,15 +144,19 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
  * @param {string} userId User ID
  * @param {Object} participantInfo 参加者情報
  */
-export const startCallSession = async (roomId, userId, participantInfo = {}) => {
+export const startCallSession = async (
+	roomId,
+	userId,
+	participantInfo = {},
+) => {
 	try {
 		const sessionData = {
 			joinedAt: serverTimestamp(),
 			isActive: true,
 			participantInfo: {
-				name: participantInfo.name || 'Anonymous',
-				photoURL: participantInfo.photoURL || '',
-				sessionId: participantInfo.sessionId || '',
+				name: participantInfo.name || "Anonymous",
+				photoURL: participantInfo.photoURL || "",
+				sessionId: participantInfo.sessionId || "",
 			},
 			callDuration: 0,
 		};
@@ -165,9 +169,9 @@ export const startCallSession = async (roomId, userId, participantInfo = {}) => 
 		const memberRef = ref(rtdb, `rooms/${roomId}/members/${userId}/inCall`);
 		await set(memberRef, true);
 
-		console.log('Call session started:', { roomId, userId });
+		console.log("Call session started:", { roomId, userId });
 	} catch (error) {
-		console.error('Failed to start call session:', error);
+		console.error("Failed to start call session:", error);
 		throw error;
 	}
 };
@@ -195,15 +199,18 @@ export const endCallSession = async (roomId, userId, callDuration = 0) => {
 		await set(memberRef, false);
 
 		// 通話履歴を保存
-		const historyRef = ref(rtdb, `rooms/${roomId}/callHistory/${userId}/${Date.now()}`);
+		const historyRef = ref(
+			rtdb,
+			`rooms/${roomId}/callHistory/${userId}/${Date.now()}`,
+		);
 		await set(historyRef, {
 			duration: callDuration,
 			endedAt: serverTimestamp(),
 		});
 
-		console.log('Call session ended:', { roomId, userId, callDuration });
+		console.log("Call session ended:", { roomId, userId, callDuration });
 	} catch (error) {
-		console.error('Failed to end call session:', error);
+		console.error("Failed to end call session:", error);
 		throw error;
 	}
 };
@@ -216,9 +223,12 @@ export const endCallSession = async (roomId, userId, callDuration = 0) => {
  */
 export const updateCallDuration = async (roomId, userId, duration) => {
 	try {
-		const sessionRef = ref(rtdb, `rooms/${roomId}/sessions/${userId}/callDuration`);
+		const sessionRef = ref(
+			rtdb,
+			`rooms/${roomId}/sessions/${userId}/callDuration`,
+		);
 		await set(sessionRef, duration);
 	} catch (error) {
-		console.error('Failed to update call duration:', error);
+		console.error("Failed to update call duration:", error);
 	}
 };
