@@ -18,28 +18,23 @@ const RoutingControl = ({ from, to }) => {
   useEffect(() => {
     if (!from || !to) return;
 
-    // 既存のルート削除
+    // 既存ルート削除
     map.eachLayer((layer) => {
-      if (layer._router) {
-        map.removeControl(layer);
-      }
+      if (layer._router) map.removeControl(layer);
     });
 
-    // ルートのみ描画（案内パネルを非表示）
+    // ルートのみ表示
     const control = L.Routing.control({
-      waypoints: [
-        L.latLng(from.lat, from.lng),
-        L.latLng(to.lat, to.lng),
-      ],
+      waypoints: [L.latLng(from.lat, from.lng), L.latLng(to.lat, to.lng)],
       routeWhileDragging: false,
       showAlternatives: false,
       addWaypoints: false,
       draggableWaypoints: false,
       createMarker: (i, wp) => L.marker(wp.latLng),
-      show: false, // ← 案内パネルを表示しない
+      show: false, // 案内パネルを表示しない
     }).addTo(map);
 
-    // 念のため案内パネルDOMを非表示
+    // 案内パネルDOMを非表示
     const panels = document.getElementsByClassName("leaflet-routing-container");
     Array.from(panels).forEach((panel) => (panel.style.display = "none"));
 
@@ -74,12 +69,26 @@ const ParkingInfoDisplay = () => {
     fetchParkingInfo();
   }, []);
 
-  // 現在地を北越谷駅に固定
+  // ⭐ 現在地を取得（ブラウザのGeolocation API）
   useEffect(() => {
-    setNowPosition({
-      lat: 35.89004,      // 北越谷駅 緯度
-      lng: 139.79042,     // 北越谷駅 経度
-    });
+    if (!navigator.geolocation) {
+      alert("このブラウザでは位置情報がサポートされていません。");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setNowPosition({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+      },
+      (err) => {
+        console.error("位置情報の取得に失敗しました:", err);
+        alert("現在地を取得できませんでした。");
+      },
+      { enableHighAccuracy: true } // 高精度を有効に
+    );
   }, []);
 
   // 出発までの時間を計算
@@ -100,7 +109,7 @@ const ParkingInfoDisplay = () => {
     }
   }, [parkingInfo]);
 
-  // 徒歩時間を計算
+  // 徒歩時間を計算（簡易計算）
   useEffect(() => {
     if (nowPosition && parkingInfo?.position) {
       const R = 6371e3; // 地球の半径(m)
@@ -117,7 +126,7 @@ const ParkingInfoDisplay = () => {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distance = R * c; // m
 
-      const walkSpeed = 83; // m/分
+      const walkSpeed = 83; // m/分（約5km/h）
       const minutes = Math.round(distance / walkSpeed);
       setWalkingTime(`徒歩 約${minutes}分`);
     } else {
@@ -168,7 +177,7 @@ const ParkingInfoDisplay = () => {
           )}
         </div>
 
-        {/* 地図（ルートのみ表示） */}
+        {/* 地図（ルート表示） */}
         {nowPosition && parkingInfo?.position && (
           <div className="mb-6 w-full max-w-xs h-64">
             <MapContainer
@@ -182,10 +191,7 @@ const ParkingInfoDisplay = () => {
               />
               <Marker position={nowPosition} />
               <Marker position={parkingInfo.position} />
-              <RoutingControl
-                from={nowPosition}
-                to={parkingInfo.position}
-              />
+              <RoutingControl from={nowPosition} to={parkingInfo.position} />
             </MapContainer>
           </div>
         )}
