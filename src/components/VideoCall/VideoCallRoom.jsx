@@ -53,7 +53,12 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 
 	// Daily iframeの設定
 	useEffect(() => {
-		if (daily && iframeRef.current && !daily.iframe) {
+		if (daily && iframeRef.current) {
+			console.log("Setting up Daily iframe:", {
+				daily: !!daily,
+				iframe: !!iframeRef.current,
+				iframeElement: iframeRef.current,
+			});
 			daily.setCustomIntegrations({ iframe: iframeRef.current });
 		}
 	}, [daily]);
@@ -110,6 +115,16 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 				// Join the room (既に接続中でない場合のみ)
 				if (!isJoined && !isConnecting) {
 					await joinRoom(token);
+
+					// iframe の状態を確認
+					setTimeout(() => {
+						console.log("After joinRoom - iframe state:", {
+							daily: !!daily,
+							iframe: !!iframeRef.current,
+							isJoined,
+							isConnecting,
+						});
+					}, 1000);
 				}
 				setIsLoading(false);
 			} catch (err) {
@@ -198,6 +213,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 				<div
 					ref={iframeRef}
 					className="w-full h-96 rounded-lg overflow-hidden bg-gray-900"
+					style={{ minHeight: "384px", minWidth: "100%" }}
 				/>
 
 				{/* Call controls overlay */}

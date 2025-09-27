@@ -48,9 +48,8 @@ export const useDailyConnection = (
 		const dailyInstance = DailyIframe.createCallObject({
 			showLeaveButton: true,
 			showFullscreenButton: true,
-			// call object mode では使用できないオプションを削除
-			// showLocalVideo: true,
-			// showParticipantsBar: true,
+			showLocalVideo: true,
+			showParticipantsBar: true,
 			theme: {
 				colors: {
 					accent: "#005fff",
