@@ -150,7 +150,6 @@ export const useDailyConnection = (
 		stopDurationTimer,
 		onParticipantUpdate,
 		currentUserUid,
-		callDuration,
 	]);
 
 	// ルームに参加

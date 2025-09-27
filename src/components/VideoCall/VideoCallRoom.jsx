@@ -114,7 +114,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			}
 			destroyDaily();
 		};
-	}, [roomId, currentUserUid, joinRoom, destroyDaily, callDuration]);
+	}, [roomId, currentUserUid, joinRoom, destroyDaily]); // callDuration を依存配列から削除
 
 	const handleLeaveCall = async () => {
 		if (currentUserUid && callDuration > 0) {
