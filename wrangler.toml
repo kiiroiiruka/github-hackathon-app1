@@ -2,9 +2,9 @@ name = "github-hackathon-app1"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
-# Preview environment (for development/testing)
+# Preview environment (for testing)
 [env.preview]
-vars = { NODE_ENV = "development" }
+vars = { NODE_ENV = "preview" }
 
 # Production environment
 [env.production]
