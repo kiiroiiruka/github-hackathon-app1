@@ -46,6 +46,9 @@ export const createOrUpdateUser = async (user, friendsData = []) => {
 		userShortMessage = "",
 	} = user;
 
+	// 既存ユーザーかどうかを確認
+	const existingUser = await getUser(uid);
+
 	// ユーザー情報全体
 	const userData = {
 		uid,
@@ -53,9 +56,13 @@ export const createOrUpdateUser = async (user, friendsData = []) => {
 		photoURL,
 		userShortMessage,
 		email, // プライベート情報
-		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp(),
 	};
+
+	// 新規ユーザーの場合のみcreatedAtを設定
+	if (!existingUser) {
+		userData.createdAt = serverTimestamp();
+	}
 
 	// バッチ書き込みを作成
 	const batch = writeBatch(db);

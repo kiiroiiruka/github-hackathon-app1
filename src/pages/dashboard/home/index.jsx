@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, rtdb } from "@/firebase";
 import HeaderComponent2 from "@/components/Header/Header2";
+import ProfileImage from "@/components/ui/ProfileImage";
 
 const HomeScreen = () => {
 	const navigate = useNavigate();
@@ -71,6 +72,11 @@ const HomeScreen = () => {
 		navigate("/dashboard/UserInformation");
 	};
 
+	// フレンドページへの遷移処理
+	const handleFriendClick = () => {
+		navigate("/dashboard/home/friend-page");
+	};
+
 	// ルーム選択処理
 	const handleRoomSelect = (room) => {
 		setSelectedRoom(room);
@@ -81,9 +87,21 @@ const HomeScreen = () => {
 		<div>
 			<HeaderComponent2 title="ホーム" onUserIconClick={handleUserIconClick} />
 			<div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
+				{/* フレンドボタン */}
+				<div className="mb-6">
+					<button
+						type="button"
+						onClick={handleFriendClick}
+						className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
+					>
+						<span className="text-2xl">👥</span>
+						<span className="text-lg">フレンド</span>
+					</button>
+				</div>
+
 				{/* 作成・招待されたルーム */}
-				<div className="bg-white rounded-lg shadow-md p-6 mb-6">
-					<h2 className="text-xl font-semibold mb-4 text-gray-800">作成・招待されたルーム</h2>
+				<div className="bg-white rounded-lg shadow-md p-3 mb-4">
+					<h2 className="text-lg font-semibold mb-3 text-gray-800">作成・招待されたルーム</h2>
 					{loading ? (
 						<div className="flex items-center justify-center py-8">
 							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -96,32 +114,37 @@ const HomeScreen = () => {
 							<p className="text-gray-500 text-sm mt-2">ルームを作成するか、招待を待ちましょう</p>
 						</div>
 					) : (
-						<div className="max-h-80 overflow-y-auto space-y-4">
+						<div className="max-h-60 overflow-y-auto space-y-2">
 							{/* 招待されたルーム */}
 							{invitedRooms.map((room) => (
 								<button
 									key={room.roomId}
 									type="button"
 									onClick={() => handleRoomSelect(room)}
-									className={`w-full text-left border border-gray-200 rounded-lg p-2 sm:p-4 transition-all duration-200 hover:shadow-md ${
+									className={`w-full text-left border border-gray-200 rounded-lg p-2 transition-all duration-200 hover:shadow-md ${
 										selectedRoom?.roomId === room.roomId 
 											? 'bg-blue-100 border-blue-300 shadow-md' 
 											: 'bg-gradient-to-r from-blue-50 to-indigo-50'
 									}`}
 								>
-									<div className="flex items-start gap-2 sm:gap-4">
-										<div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-white shadow-md flex-shrink-0">
-											<img src={room.ownerPhotoURL || "/vite.svg"} alt={room.ownerName || "owner"} className="w-full h-full object-cover" />
+									<div className="flex items-start gap-2">
+										<div className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm flex-shrink-0">
+											<ProfileImage 
+												src={room.ownerPhotoURL} 
+												alt={room.ownerName || "owner"} 
+												className="w-8 h-8 rounded-full" 
+												fallbackText={room.ownerName?.charAt(0) || "?"} 
+											/>
 										</div>
 										<div className="flex-1 min-w-0">
-											<div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
-												<h3 className="font-semibold text-sm sm:text-lg text-gray-800 break-words"><span className="font-medium">ルーム名:</span> {room.name || "(名称未設定)"}</h3>
-												<span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium self-start">
+											<div className="flex items-center gap-2 mb-1">
+												<h3 className="font-medium text-sm text-gray-800 break-words">{room.name || "(名称未設定)"}</h3>
+												<span className="inline-block bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs font-medium">
 													招待中
 												</span>
 											</div>
-											<div className="text-xs sm:text-sm text-gray-600">
-												<p><span className="font-medium">作成者:</span> {room.ownerName || "(名称未設定)"}</p>
+											<div className="text-xs text-gray-600">
+												<p>作成者: {room.ownerName || "(名称未設定)"}</p>
 											</div>
 										</div>
 									</div>
@@ -134,20 +157,25 @@ const HomeScreen = () => {
 									key={room.roomId}
 									type="button"
 									onClick={() => handleRoomSelect(room)}
-									className={`w-full text-left border border-gray-200 rounded-lg p-2 sm:p-4 transition-all duration-200 hover:shadow-md ${
+									className={`w-full text-left border border-gray-200 rounded-lg p-2 transition-all duration-200 hover:shadow-md ${
 										selectedRoom?.roomId === room.roomId 
 											? 'bg-green-100 border-green-300 shadow-md' 
 											: 'bg-gradient-to-r from-green-50 to-emerald-50'
 									}`}
 								>
-									<div className="flex items-start gap-2 sm:gap-4">
-										<div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-white shadow-md flex-shrink-0">
-											<img src={room.ownerPhotoURL || "/vite.svg"} alt={room.ownerName || "owner"} className="w-full h-full object-cover" />
+									<div className="flex items-start gap-2">
+										<div className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm flex-shrink-0">
+											<ProfileImage 
+												src={room.ownerPhotoURL} 
+												alt={room.ownerName || "owner"} 
+												className="w-8 h-8 rounded-full" 
+												fallbackText={room.ownerName?.charAt(0) || "?"} 
+											/>
 										</div>
 										<div className="flex-1 min-w-0">
-											<div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
-												<h3 className="font-semibold text-sm sm:text-lg text-gray-800 break-words"><span className="font-medium">ルーム名:</span> {room.name || "(名称未設定)"}</h3>
-												<span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium self-start">
+											<div className="flex items-center gap-2 mb-1">
+												<h3 className="font-medium text-sm text-gray-800 break-words">{room.name || "(名称未設定)"}</h3>
+												<span className="inline-block bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-xs font-medium">
 													あなたが作成
 												</span>
 											</div>
@@ -166,10 +194,11 @@ const HomeScreen = () => {
 						<div className="bg-gray-50 rounded-lg p-3 sm:p-4">
 							<div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
 								<div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-white shadow-md flex-shrink-0">
-									<img 
-										src={selectedRoom.ownerPhotoURL || "/vite.svg"} 
+									<ProfileImage 
+										src={selectedRoom.ownerPhotoURL} 
 										alt={selectedRoom.ownerName || "owner"} 
-										className="w-full h-full object-cover" 
+										className="w-12 h-12 sm:w-16 sm:h-16 rounded-full" 
+										fallbackText={selectedRoom.ownerName?.charAt(0) || "?"} 
 									/>
 								</div>
 								<div className="flex-1 min-w-0">

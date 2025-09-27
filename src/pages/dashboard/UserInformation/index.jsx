@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import HeaderComponent from "../../../components/Header/Header";
 import { getUser, logout, removeFriend, updateUserMessage, acceptFriendRequest, rejectFriendRequest } from "../../../firebase";
 import { useUserUid } from "../../../hooks/useUserUid";
+import ProfileImage from "@/components/ui/ProfileImage";
 
 function UserInformation() {
   const navigate = useNavigate();
@@ -32,7 +33,12 @@ function UserInformation() {
   }, [targetUserId]);
 
   const handleBack = () => {
-    navigate("/dashboard");
+    // 相手のアカウントの場合は友達ページに戻る、自分のアカウントの場合はダッシュボードに戻る
+    if (isOwnAccount) {
+      navigate("/dashboard");
+    } else {
+      navigate("/dashboard/home/friend-page");
+    }
   };
 
   // ログアウト処理
@@ -87,7 +93,7 @@ function UserInformation() {
     try {
       await acceptFriendRequest(requestId, fromUserId, currentUserId);
       alert("友達リクエストを承認しました！");
-      navigate("/dashboard");
+      navigate("/dashboard/home/friend-page");
     } catch (error) {
       console.error("友達リクエスト承認エラー:", error);
       alert("友達リクエストの承認に失敗しました");
@@ -100,7 +106,7 @@ function UserInformation() {
     try {
       await rejectFriendRequest(requestId);
       alert("友達リクエストを拒否しました");
-      navigate("/dashboard");
+      navigate("/dashboard/home/friend-page");
     } catch (error) {
       console.error("友達リクエスト拒否エラー:", error);
       alert("友達リクエストの拒否に失敗しました");
@@ -115,17 +121,12 @@ function UserInformation() {
         <div className="flex flex-col items-center gap-6 bg-white rounded-lg shadow p-6">
           {/* プロフィール画像 */}
           <div className="w-28 h-28 rounded-full overflow-hidden border">
-            {user?.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt={user?.displayName || "User"}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-3xl bg-gray-300 text-white">
-                {user?.displayName?.charAt(0) || "?"}
-              </div>
-            )}
+            <ProfileImage
+              src={user?.photoURL}
+              alt={user?.displayName || "User"}
+              className="w-28 h-28 rounded-full"
+              fallbackText={user?.displayName?.charAt(0) || "?"}
+            />
           </div>
 
           {/* ユーザー情報 */}
@@ -230,7 +231,7 @@ function UserInformation() {
                   try {
                     await removeFriend(currentUserId, targetUserId);
                     alert("フレンドを解除しました");
-                    navigate("/dashboard");
+                    navigate("/dashboard/home/friend-page");
                   } catch (e) {
                     console.error(e);
                     alert("フレンド解除に失敗しました");

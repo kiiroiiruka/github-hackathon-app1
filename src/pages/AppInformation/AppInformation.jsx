@@ -23,7 +23,7 @@ const AppInformation = () => {
 					{/* アプリ名 */}
 					<div className="mb-4">
 						<h3 className="text-lg font-semibold mb-2">アプリ名</h3>
-						<p className="text-gray-700">Enteli Web App</p>
+						<p className="text-gray-700">DriveLink</p>
 					</div>
 
 					{/* バージョン情報 */}

@@ -163,7 +163,7 @@ const Dashboard = () => {
 				<Routes>
 					<Route index element={<HomeScreen />} />
 					<Route path="home" element={<HomeScreen />} />
-					<Route path="home/inviting" element={<FriendPage />} />
+					<Route path="home/friend-page" element={<FriendPage />} />
 					<Route path="navi" element={<NaviCreateScreen />} />
 					<Route path="navi/try" element={<TryPage />} />
 					<Route path="navi/inviter" element={<InviterPreference />} />
