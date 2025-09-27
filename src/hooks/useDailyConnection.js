@@ -55,13 +55,6 @@ export const useDailyConnection = (
 				// 音声とビデオの初期設定
 				audioSource: true, // 音声ソースを有効
 				videoSource: false, // ビデオソースを無効
-				// UI設定
-				showLeaveButton: false,
-				showFullscreenButton: false,
-				showLocalVideo: false, // ローカルビデオは非表示
-				showParticipantsBar: false, // 参加者バーは非表示
-				// 事前設定
-				prejoin: false, // 事前参加UIを無効（カスタムUI使用）
 			});
 
 			console.log("✅ Dailyインスタンスが作成されました:", !!dailyInstance);
@@ -156,6 +149,12 @@ export const useDailyConnection = (
 					local: event.participant.local
 				});
 				
+				// 参加者の音声がオフの場合は警告を表示
+				if (!event.participant.local && !event.participant.audio) {
+					console.warn("⚠️ 参加者の音声がオフです:", event.participant.user_name);
+					console.warn("💡 参加者がブラウザでマイクを許可していない可能性があります");
+				}
+				
 				setParticipants((prev) => {
 					const newMap = new Map(prev);
 					newMap.set(event.participant.session_id, event.participant);
@@ -187,6 +186,20 @@ export const useDailyConnection = (
 			.on("camera-error", (event) => {
 				console.warn("Camera error (expected for audio-only):", event);
 				// カメラエラーは音声のみモードでは無視
+			})
+			.on("track-started", (event) => {
+				console.log("🎵 Track started:", {
+					participant: event.participant?.user_name || "Unknown",
+					track: event.track?.kind || "Unknown",
+					local: event.participant?.local || false
+				});
+			})
+			.on("track-stopped", (event) => {
+				console.log("🔇 Track stopped:", {
+					participant: event.participant?.user_name || "Unknown",
+					track: event.track?.kind || "Unknown",
+					local: event.participant?.local || false
+				});
 			})
 			.on("error", (event) => {
 				console.error("❌ Daily.co エラー:", event);
