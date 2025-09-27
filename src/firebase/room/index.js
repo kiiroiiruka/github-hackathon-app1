@@ -110,8 +110,27 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
  */
 export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 	try {
-		// Daily.co トークン生成
-		const apiBaseUrl = ""; // 本番環境のエンドポイント
+		// 開発環境と本番環境でAPIエンドポイントを分岐
+		const isDevelopment = import.meta.env.DEV;
+		const apiBaseUrl = isDevelopment 
+			? "http://localhost:8787"  // ローカル開発環境（Cloudflare Workers）
+			: ""; // 本番環境のエンドポイント
+
+		console.log("🔗 Daily token API request:", {
+			apiBaseUrl,
+			isDevelopment,
+			roomId,
+			userId,
+			userName
+		});
+
+		// 開発環境でAPIが利用できない場合のフォールバック
+		if (isDevelopment && !apiBaseUrl) {
+			console.warn("⚠️ 開発環境でAPIエンドポイントが設定されていません。フォールバックトークンを使用します。");
+			// フォールバック用のダミートークン（実際の通話はできませんが、エラーを防ぎます）
+			return `fallback-token-${roomId}-${userId}-${Date.now()}`;
+		}
+
 		const response = await fetch(`${apiBaseUrl}/api/daily-token`, {
 			method: "POST",
 			headers: {
@@ -125,14 +144,41 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 			}),
 		});
 
+		// レスポンスの状態をチェック
+		if (!response.ok) {
+			const errorText = await response.text();
+			console.error("❌ API Response Error:", {
+				status: response.status,
+				statusText: response.statusText,
+				body: errorText
+			});
+			
+			// 開発環境でAPIが利用できない場合のフォールバック
+			if (isDevelopment && response.status === 404) {
+				console.warn("⚠️ APIエンドポイントが見つかりません。フォールバックトークンを使用します。");
+				return `fallback-token-${roomId}-${userId}-${Date.now()}`;
+			}
+			
+			throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+		}
+
 		const result = await response.json();
 		if (!result.success) {
 			throw new Error(`Token generation failed: ${result.error}`);
 		}
 
+		console.log("✅ Daily token generated successfully");
 		return result.token;
 	} catch (error) {
-		console.error("Daily token generation error:", error);
+		console.error("❌ Daily token generation error:", error);
+		
+		// 開発環境でのフォールバック
+		const isDevelopment = import.meta.env.DEV;
+		if (isDevelopment && (error.message.includes('Failed to fetch') || error.message.includes('404'))) {
+			console.warn("⚠️ APIエンドポイントにアクセスできません。フォールバックトークンを使用します。");
+			return `fallback-token-${roomId}-${userId}-${Date.now()}`;
+		}
+		
 		throw error;
 	}
 };

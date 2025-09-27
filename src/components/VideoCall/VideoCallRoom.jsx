@@ -67,8 +67,12 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 		// 初期化済みの場合は実行しない
 		if (isInitialized) return;
 
+		let isMounted = true; // コンポーネントがマウントされているかチェック
+
 		const initializeCall = async () => {
 			try {
+				if (!isMounted) return;
+				
 				setIsLoading(true);
 				setError(null);
 				setIsInitialized(true); // 初期化開始フラグを設定
@@ -103,6 +107,8 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 					currentUser.photoURL || "",
 				);
 
+				if (!isMounted) return;
+
 				// 通話セッション開始（既に開始済みでない場合のみ）
 				if (!sessionStarted) {
 					await startParticipantSession(currentUser.uid, {
@@ -112,26 +118,35 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 					setSessionStarted(true);
 				}
 
+				if (!isMounted) return;
+
 				// Join the room (既に接続中でない場合のみ)
 				if (!isJoined && !isConnecting) {
 					await joinRoom(token);
 
 					// iframe の状態を確認
 					setTimeout(() => {
-						console.log("After joinRoom - iframe state:", {
-							daily: !!daily,
-							iframe: !!iframeRef.current,
-							isJoined,
-							isConnecting,
-						});
+						if (isMounted) {
+							console.log("After joinRoom - iframe state:", {
+								daily: !!daily,
+								iframe: !!iframeRef.current,
+								isJoined,
+								isConnecting,
+							});
+						}
 					}, 1000);
 				}
-				setIsLoading(false);
+				
+				if (isMounted) {
+					setIsLoading(false);
+				}
 			} catch (err) {
 				console.error("Video call initialization error:", err);
-				setError(err.message);
-				setIsLoading(false);
-				setIsInitialized(false); // エラー時は初期化フラグをリセット
+				if (isMounted) {
+					setError(err.message);
+					setIsLoading(false);
+					setIsInitialized(false); // エラー時は初期化フラグをリセット
+				}
 			}
 		};
 
@@ -139,6 +154,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 
 		// Cleanup on unmount
 		return () => {
+			isMounted = false;
 			if (currentUserUid && callDuration > 0) {
 				endCallSession(roomId, currentUserUid, callDuration);
 			}

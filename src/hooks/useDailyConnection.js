@@ -43,59 +43,65 @@ export const useDailyConnection = (
 
 	// Daily.coインスタンスの初期化
 	const initializeDaily = useCallback(async () => {
-		if (daily) return daily;
+		if (daily) {
+			console.log("✅ Dailyインスタンスは既に存在します");
+			return daily;
+		}
 
 		console.log("🚀 Daily.coインスタンスを初期化中...");
 
-		const dailyInstance = DailyIframe.createCallObject({
-			startAudioOff: false, // 音声を有効で開始（マイク許可を取得）
-			startVideoOff: true, // ビデオは無効
-			showLeaveButton: false,
-			showFullscreenButton: false,
-			showLocalVideo: false, // ローカルビデオは非表示
-			showParticipantsBar: false, // 参加者バーは非表示
-			// マイク許可の取得を確実にするための追加設定
-			audioConfig: {
-				enableMic: true,
-				enableCam: false,
-			},
-		});
+		try {
+			const dailyInstance = DailyIframe.createCallObject({
+				startAudioOff: false, // 音声を有効で開始（マイク許可を取得）
+				startVideoOff: true, // ビデオは無効
+				showLeaveButton: false,
+				showFullscreenButton: false,
+				showLocalVideo: false, // ローカルビデオは非表示
+				showParticipantsBar: false, // 参加者バーは非表示
+				// マイク許可の取得を確実にするための追加設定
+				audioConfig: {
+					enableMic: true,
+					enableCam: false,
+				},
+			});
 
-		// イベントリスナーの設定
-		dailyInstance
-			.on("joined-meeting", async (event) => {
-				console.log("Joined meeting:", event);
-				setIsJoined(true);
-				setIsConnecting(false);
-				setError(null);
-				startDurationTimer();
+			console.log("✅ Dailyインスタンスが作成されました:", !!dailyInstance);
 
-				// 音声を確実に有効にする
-				try {
-					await dailyInstance.setLocalAudio(true);
-					console.log("🎤 音声を有効にしました");
-					
-					// マイクの状態を確認
-					const audioState = dailyInstance.localAudio();
-					console.log("🎤 マイク状態:", audioState ? "ON" : "OFF");
-					
-					if (!audioState) {
-						console.warn("⚠️ マイクが無効になっています");
-						setError("マイクが無効になっています。ブラウザの設定でマイクを許可してください。");
+			// イベントリスナーの設定
+			dailyInstance
+				.on("joined-meeting", async (event) => {
+					console.log("Joined meeting:", event);
+					setIsJoined(true);
+					setIsConnecting(false);
+					setError(null);
+					startDurationTimer();
+
+					// 音声を確実に有効にする
+					try {
+						await dailyInstance.setLocalAudio(true);
+						console.log("🎤 音声を有効にしました");
+						
+						// マイクの状態を確認
+						const audioState = dailyInstance.localAudio();
+						console.log("🎤 マイク状態:", audioState ? "ON" : "OFF");
+						
+						if (!audioState) {
+							console.warn("⚠️ マイクが無効になっています");
+							setError("マイクが無効になっています。ブラウザの設定でマイクを許可してください。");
+						}
+					} catch (audioError) {
+						console.warn("音声の有効化に失敗:", audioError);
+						setError("マイクの初期化に失敗しました。ブラウザの設定を確認してください。");
 					}
-				} catch (audioError) {
-					console.warn("音声の有効化に失敗:", audioError);
-					setError("マイクの初期化に失敗しました。ブラウザの設定を確認してください。");
-				}
 
-				// 現在の参加者リストを更新
-				const currentParticipants = dailyInstance.participants();
-				const participantMap = new Map();
-				Object.entries(currentParticipants).forEach(([id, participant]) => {
-					participantMap.set(id, participant);
-				});
-				setParticipants(participantMap);
-			})
+					// 現在の参加者リストを更新
+					const currentParticipants = dailyInstance.participants();
+					const participantMap = new Map();
+					Object.entries(currentParticipants).forEach(([id, participant]) => {
+						participantMap.set(id, participant);
+					});
+					setParticipants(participantMap);
+				})
 			.on("left-meeting", (event) => {
 				console.log("Left meeting:", event);
 				setIsJoined(false);
@@ -170,8 +176,13 @@ export const useDailyConnection = (
 				setParticipants(new Map());
 			});
 
-		setDaily(dailyInstance);
-		return dailyInstance;
+			setDaily(dailyInstance);
+			return dailyInstance;
+		} catch (error) {
+			console.error("❌ Dailyインスタンスの初期化に失敗:", error);
+			setError(`Dailyライブラリの初期化に失敗しました: ${error.message}`);
+			throw error;
+		}
 	}, [
 		daily,
 		startDurationTimer,
