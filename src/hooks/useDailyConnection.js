@@ -46,32 +46,30 @@ export const useDailyConnection = (
 		if (daily) return daily;
 
 		const dailyInstance = DailyIframe.createCallObject({
-			showLeaveButton: true,
-			showFullscreenButton: true,
-			showLocalVideo: true,
-			showParticipantsBar: true,
-			theme: {
-				colors: {
-					accent: "#005fff",
-					accentText: "#ffffff",
-					background: "#1a1a1a",
-					backgroundAccent: "#2d2d2d",
-					baseText: "#ffffff",
-					border: "#3d3d3d",
-					mainAreaBg: "#1a1a1a",
-					supportiveText: "#b3b3b3",
-				},
-			},
+			startAudioOff: false, // 音声を有効で開始（マイク許可を取得）
+			startVideoOff: true, // ビデオは無効
+			showLeaveButton: false,
+			showFullscreenButton: false,
+			showLocalVideo: false, // ローカルビデオは非表示
+			showParticipantsBar: false, // 参加者バーは非表示
 		});
 
 		// イベントリスナーの設定
 		dailyInstance
-			.on("joined-meeting", (event) => {
+			.on("joined-meeting", async (event) => {
 				console.log("Joined meeting:", event);
 				setIsJoined(true);
 				setIsConnecting(false);
 				setError(null);
 				startDurationTimer();
+
+				// 音声を確実に有効にする
+				try {
+					await dailyInstance.setLocalAudio(true);
+					console.log("🎤 音声を有効にしました");
+				} catch (audioError) {
+					console.warn("音声の有効化に失敗:", audioError);
+				}
 
 				// 現在の参加者リストを更新
 				const currentParticipants = dailyInstance.participants();
@@ -126,9 +124,23 @@ export const useDailyConnection = (
 					});
 				}
 			})
+			.on("camera-error", (event) => {
+				console.warn("Camera error (expected for audio-only):", event);
+				// カメラエラーは音声のみモードでは無視
+			})
 			.on("error", (event) => {
-				console.error("Daily error:", event);
-				setError(event.error);
+				if (
+					event.error?.includes("microphone") ||
+					event.error?.includes("audio")
+				) {
+					console.error("マイクエラー:", event.error);
+					setError(
+						"マイクのアクセス許可が必要です。ブラウザの設定でマイクを許可してください。",
+					);
+				} else {
+					console.error("Daily error:", event);
+					setError(event.error);
+				}
 				setIsConnecting(false);
 				stopDurationTimer();
 			})
@@ -165,6 +177,8 @@ export const useDailyConnection = (
 				await dailyInstance.join({
 					url: dailyRoomUrl,
 					token: token,
+					startAudioOff: false, // 音声を有効で開始（マイク許可を取得）
+					startVideoOff: true, // ビデオは無効
 				});
 			} catch (err) {
 				console.error("Failed to join room:", err);

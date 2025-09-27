@@ -189,54 +189,76 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	}
 
 	return (
-		<div className="w-full h-full">
-			{/* 通話時間表示 */}
-			{isJoined && (
-				<div className="mb-4 p-3 bg-blue-50 rounded-lg">
-					<div className="flex justify-between items-center">
+		<div className="w-full h-full flex flex-col items-center justify-center p-6">
+			{/* 音声通話のメイン表示 */}
+			<div className="text-center mb-8">
+				<div className="w-32 h-32 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center">
+					<svg
+						className="w-16 h-16 text-blue-600"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							strokeWidth={2}
+							d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+						/>
+					</svg>
+				</div>
+
+				<h2 className="text-2xl font-bold text-gray-800 mb-2">音声通話中</h2>
+				<p className="text-gray-600 mb-4">{roomName}</p>
+
+				{/* 通話時間表示 */}
+				{isJoined && (
+					<div className="mb-4 p-3 bg-blue-50 rounded-lg">
 						<p className="text-sm text-blue-600">
 							通話時間:{" "}
-							<span className="font-mono font-semibold">
+							<span className="font-mono font-semibold text-lg">
 								{formattedDuration}
 							</span>
 						</p>
-						<div className="flex items-center gap-2">
+						<div className="flex items-center justify-center gap-2 mt-2">
 							<div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
 							<span className="text-sm text-red-600">通話中</span>
 						</div>
 					</div>
-				</div>
-			)}
-
-			<div className="relative">
-				{/* Daily iframe container */}
-				<div
-					ref={iframeRef}
-					className="w-full h-96 rounded-lg overflow-hidden bg-gray-900"
-					style={{ minHeight: "384px", minWidth: "100%" }}
-				/>
-
-				{/* Call controls overlay */}
-				{isJoined && (
-					<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-						<button
-							type="button"
-							onClick={handleLeaveCall}
-							className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
-						>
-							通話を終了
-						</button>
-					</div>
 				)}
 			</div>
 
-			{/* Participants info */}
+			{/* 音声制御ボタン */}
+			{isJoined && (
+				<div className="flex gap-4 mb-6">
+					<button
+						type="button"
+						onClick={() => {
+							if (daily) {
+								daily.setLocalAudio(!daily.localAudio());
+							}
+						}}
+						className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-lg"
+					>
+						マイク切り替え
+					</button>
+					<button
+						type="button"
+						onClick={handleLeaveCall}
+						className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+					>
+						通話を終了
+					</button>
+				</div>
+			)}
+
+			{/* 参加者情報 */}
 			{participants.length > 0 && (
-				<div className="mt-4 p-3 bg-gray-50 rounded-lg">
-					<p className="text-sm text-gray-600 mb-2">
+				<div className="w-full max-w-md p-4 bg-gray-50 rounded-lg">
+					<p className="text-sm text-gray-600 mb-3 text-center">
 						参加者: {participants.length}人
 					</p>
-					<div className="flex flex-wrap gap-2">
+					<div className="flex flex-wrap gap-2 justify-center">
 						{participants.map((participant) => (
 							<div
 								key={participant.session_id}
@@ -251,6 +273,9 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 					</div>
 				</div>
 			)}
+
+			{/* 隠しiframe（Daily.co用） */}
+			<div ref={iframeRef} className="hidden" />
 		</div>
 	);
 };
