@@ -121,7 +121,11 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 				// フォールバックトークンの場合は警告を表示
 				if (token.startsWith('fallback-token-')) {
 					console.warn("⚠️ フォールバックトークンが使用されています。実際の通話はできません。");
-					setError("APIサーバーに接続できません。開発環境ではCloudflare Workersを起動してください。");
+					const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
+					const errorMessage = isDevelopment 
+						? "APIサーバーに接続できません。開発環境ではCloudflare Workersを起動してください。"
+						: "APIサーバーに接続できません。本番環境ではCloudflare Pages Functionsの設定を確認してください。";
+					setError(errorMessage);
 					setIsLoading(false);
 					return;
 				}
