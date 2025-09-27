@@ -84,7 +84,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 				
 				setIsLoading(true);
 				setError(null);
-				setIsInitialized(true); // 初期化開始フラグを設定
 
 				// Get current user info
 				if (!currentUserUid) {
@@ -162,6 +161,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 				
 				if (isMounted) {
 					setIsLoading(false);
+					setIsInitialized(true); // 初期化完了フラグを設定
 				}
 			} catch (err) {
 				console.error("Video call initialization error:", err);
@@ -184,7 +184,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			}
 			destroyDaily();
 		};
-	}, [roomId, currentUserUid, isInitialized, retryCount]); // joinRoom, destroyDailyを依存配列から削除
+	}, [roomId, currentUserUid, retryCount]); // isInitializedを依存配列から削除
 
 	const handleLeaveCall = async () => {
 		if (currentUserUid && callDuration > 0) {
