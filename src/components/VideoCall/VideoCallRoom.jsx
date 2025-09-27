@@ -11,7 +11,7 @@ import { useDailyConnection } from "@/hooks/useDailyConnection";
 import { useParticipantManager } from "@/hooks/useParticipantManager";
 import { useUserUid } from "@/hooks/useUserUid";
 
-const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
+const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	const iframeRef = useRef(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState(null);
@@ -300,21 +300,29 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 					
 					{isConnecting && (
 						<div className="text-sm text-blue-600 bg-blue-50 px-6 py-4 rounded-lg border border-blue-200">
-							<div className="flex items-center justify-center mb-2">
-								<svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<div className="flex items-center justify-center mb-3">
+								<svg className="w-8 h-8 mr-2 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
 								</svg>
-								<span className="font-semibold">🎤 マイクの許可が必要です</span>
+								<span className="font-bold text-lg">🎤 マイクの使用を許可しますか？</span>
 							</div>
-							<p className="text-sm mb-3">
-								ブラウザの許可ダイアログが表示されたら「許可」をクリックしてください
-							</p>
-							<div className="text-xs text-gray-600 bg-white p-3 rounded border">
-								<p className="font-semibold mb-1">💡 許可方法:</p>
-								<ol className="text-left space-y-1">
+							<div className="bg-white p-4 rounded-lg border-2 border-blue-300 mb-3">
+								<p className="text-sm font-semibold text-gray-800 mb-2">
+									📢 ブラウザの許可ダイアログが表示されました
+								</p>
+								<p className="text-sm text-gray-700 mb-2">
+									「許可」をクリックして音声通話を開始してください
+								</p>
+								<div className="flex items-center justify-center">
+									<div className="animate-bounce text-blue-600">👇</div>
+								</div>
+							</div>
+							<div className="text-xs text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
+								<p className="font-semibold mb-2 text-yellow-800">⚠️ もしダイアログが表示されない場合:</p>
+								<ol className="text-left space-y-1 text-yellow-700">
 									<li>1. ブラウザのアドレスバー左の🔒マークをクリック</li>
 									<li>2. 「マイク」を「許可」に設定</li>
-									<li>3. ページを再読み込み</li>
+									<li>3. ページを再読み込みしてから再度試行</li>
 								</ol>
 							</div>
 						</div>
@@ -428,4 +436,4 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	);
 };
 
-export default VideoCallRoom;
+export default AudioCallRoom;

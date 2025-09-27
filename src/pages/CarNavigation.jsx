@@ -1,7 +1,7 @@
 import { onValue, ref, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import VideoCallRoom from "@/components/VideoCall/VideoCallRoom";
+import AudioCallRoom from "@/components/VideoCall/VideoCallRoom";
 import { auth, rtdb } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
 
@@ -11,7 +11,7 @@ const CarNavigation = () => {
 	const [members, setMembers] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [roomData, setRoomData] = useState(null);
-	const [showVideoCall, setShowVideoCall] = useState(false);
+	const [showAudioCall, setShowAudioCall] = useState(false);
 	const currentUserUid = useUserUid();
 
 	useEffect(() => {
@@ -74,7 +74,7 @@ const CarNavigation = () => {
 	}, [roomId, currentUserUid]);
 
 	const handleCallEnd = () => {
-		setShowVideoCall(false);
+		setShowAudioCall(false);
 	};
 
 	const handleLeaveRoom = () => {
@@ -131,14 +131,14 @@ const CarNavigation = () => {
 						)}
 					</div>
 
-					{/* 通話機能 */}
+					{/* 音声通話機能 */}
 					<div className="bg-white rounded-lg shadow-md p-4">
 						<div className="flex items-center justify-between mb-4">
-							<h2 className="text-lg font-semibold">音声・ビデオ通話</h2>
-							{!showVideoCall && roomData?.dailyRoom && (
+							<h2 className="text-lg font-semibold">🎤 音声通話</h2>
+							{!showAudioCall && roomData?.dailyRoom && (
 								<button
 									type="button"
-									onClick={() => setShowVideoCall(true)}
+									onClick={() => setShowAudioCall(true)}
 									className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
 								>
 									通話を開始
@@ -151,8 +151,8 @@ const CarNavigation = () => {
 							)}
 						</div>
 
-						{showVideoCall && roomData?.dailyRoom && (
-							<VideoCallRoom
+						{showAudioCall && roomData?.dailyRoom && (
+							<AudioCallRoom
 								roomId={roomId}
 								roomName={roomData?.name || "カーナビルーム"}
 								ownerUid={roomData?.ownerUid || ""}
