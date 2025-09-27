@@ -11,18 +11,21 @@ import { useDailyConnection } from "@/hooks/useDailyConnection";
 import { useParticipantManager } from "@/hooks/useParticipantManager";
 import { useUserUid } from "@/hooks/useUserUid";
 
-	const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
-		const iframeRef = useRef(null);
-		const [isLoading, setIsLoading] = useState(true);
-		const [error, setError] = useState(null);
-		const [dailyRoomUrl, setDailyRoomUrl] = useState(null);
-		const [isInitialized, setIsInitialized] = useState(false);
-		const [sessionStarted, setSessionStarted] = useState(false);
-		const currentUserUid = useUserUid();
+const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
+	const iframeRef = useRef(null);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState(null);
+	const [dailyRoomUrl, setDailyRoomUrl] = useState(null);
+	const [isInitialized, setIsInitialized] = useState(false);
+	const [sessionStarted, setSessionStarted] = useState(false);
+	const currentUserUid = useUserUid();
 
 	// 参加者管理フック
-	const { handleParticipantUpdate, getActiveParticipants } =
-		useParticipantManager(roomId);
+	const {
+		handleParticipantUpdate,
+		getActiveParticipants,
+		startParticipantSession,
+	} = useParticipantManager(roomId);
 
 	// Daily.co接続フック
 	const {
@@ -97,7 +100,7 @@ import { useUserUid } from "@/hooks/useUserUid";
 
 				// 通話セッション開始（既に開始済みでない場合のみ）
 				if (!sessionStarted) {
-					await startCallSession(roomId, currentUser.uid, {
+					await startParticipantSession(currentUser.uid, {
 						name: currentUser.displayName || "Anonymous",
 						photoURL: currentUser.photoURL || "",
 					});
