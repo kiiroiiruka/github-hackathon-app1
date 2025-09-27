@@ -1,4 +1,4 @@
-import { getFirestore, collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 /**
@@ -13,16 +13,14 @@ export async function getLatestParkingInfo() {
     if (!user) {
         throw new Error("ユーザー情報が取得できませんでした");
     }
+    
 
-    const q = query(
-        collection(db, "parkings"),
-        where("userId", "==", user.uid),
-        orderBy("createdAt", "desc"),
-        limit(1)
-    );
-    const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-        return querySnapshot.docs[0].data();
+    // ユーザーUIDを直接ドキュメントIDとして使用して取得
+    const userDocRef = doc(db, "parkings", user.uid);
+    const docSnapshot = await getDoc(userDocRef);
+    
+    if (docSnapshot.exists()) {
+        return docSnapshot.data();
     } else {
         return null;
     }
