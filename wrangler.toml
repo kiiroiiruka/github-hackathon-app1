@@ -4,11 +4,11 @@ pages_build_output_dir = "dist"
 
 # Preview environment (for testing)
 [env.preview]
-vars = { NODE_ENV = "preview" }
+vars = { NODE_ENV = "development" }
 
 # Production environment
 [env.production]
-vars = { NODE_ENV = "production" }
+vars = { NODE_ENV = "development" }
 
 # Secrets are managed via Cloudflare Dashboard or wrangler commands
 # For production: wrangler pages secret put DAILY_API_KEY --project-name github-hackathon-app1
