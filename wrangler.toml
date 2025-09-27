@@ -2,6 +2,14 @@ name = "github-hackathon-app1"
 compatibility_date = "2024-01-01"
 pages_build_output_dir = "dist"
 
+# Development environment
+[env.development]
+vars = { NODE_ENV = "development" }
+
 # Production environment only
 [env.production]
 vars = { NODE_ENV = "production" }
+
+# Environment variables for Daily.co API
+[vars]
+DAILY_API_KEY = "54db04ad50195ce1c6e69c3c74f60c9a1ea6fd2a1f72a0e496b599e6dd0217ab"

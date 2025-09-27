@@ -32,7 +32,10 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 		const roomId = roomRef.key;
 
 		// Daily.coのビデオルームを作成
-		const apiBaseUrl = ""; // 本番環境のエンドポイント
+		const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
+		const apiBaseUrl = isDevelopment 
+			? "http://localhost:8787"  // ローカル開発環境（Cloudflare Workers）
+			: window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
 		const dailyResponse = await fetch(`${apiBaseUrl}/api/daily-room`, {
 			method: "POST",
 			headers: {
@@ -114,7 +117,7 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 		const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
 		const apiBaseUrl = isDevelopment 
 			? "http://localhost:8787"  // ローカル開発環境（Cloudflare Workers）
-			: ""; // 本番環境のエンドポイント（Cloudflare Pages Functions - 相対パス）
+			: window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
 
 		console.log("🔗 Daily token API request:", {
 			apiBaseUrl,

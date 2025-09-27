@@ -292,18 +292,40 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	if (isLoading || isConnecting) {
 		return (
 			<div className="flex flex-col items-center justify-center h-96 bg-gray-100 rounded-lg">
-				<div className="text-center">
+				<div className="text-center max-w-md">
 					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-					<p className="text-gray-600 mb-2">
+					<p className="text-gray-600 mb-4 text-lg font-semibold">
 						{isLoading ? "通話を開始しています..." : "接続中..."}
 					</p>
+					
 					{isConnecting && (
-						<div className="text-sm text-blue-600 bg-blue-50 px-4 py-2 rounded-lg">
-							🎤 マイクの許可を求めています...
-							<br />
-							<span className="text-xs text-gray-500">
+						<div className="text-sm text-blue-600 bg-blue-50 px-6 py-4 rounded-lg border border-blue-200">
+							<div className="flex items-center justify-center mb-2">
+								<svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+								</svg>
+								<span className="font-semibold">🎤 マイクの許可が必要です</span>
+							</div>
+							<p className="text-sm mb-3">
 								ブラウザの許可ダイアログが表示されたら「許可」をクリックしてください
-							</span>
+							</p>
+							<div className="text-xs text-gray-600 bg-white p-3 rounded border">
+								<p className="font-semibold mb-1">💡 許可方法:</p>
+								<ol className="text-left space-y-1">
+									<li>1. ブラウザのアドレスバー左の🔒マークをクリック</li>
+									<li>2. 「マイク」を「許可」に設定</li>
+									<li>3. ページを再読み込み</li>
+								</ol>
+							</div>
+						</div>
+					)}
+					
+					{isLoading && (
+						<div className="text-sm text-gray-600 bg-gray-50 px-4 py-3 rounded-lg">
+							<p className="mb-2">📞 音声通話ルームに参加しています...</p>
+							<p className="text-xs text-gray-500">
+								同じルームのメンバーと音声で会話できます
+							</p>
 						</div>
 					)}
 				</div>
@@ -315,7 +337,7 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 		<div className="w-full h-full flex flex-col items-center justify-center p-6">
 			{/* 音声通話のメイン表示 */}
 			<div className="text-center mb-8">
-				<div className="w-32 h-32 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center">
+				<div className="w-32 h-32 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
 					<svg
 						className="w-16 h-16 text-blue-600"
 						fill="none"
@@ -331,8 +353,11 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 					</svg>
 				</div>
 
-				<h2 className="text-2xl font-bold text-gray-800 mb-2">音声通話中</h2>
+				<h2 className="text-2xl font-bold text-gray-800 mb-2">🎤 音声通話中</h2>
 				<p className="text-gray-600 mb-4">{roomName}</p>
+				<p className="text-sm text-gray-500 mb-4">
+					同じルームのメンバーと音声で会話できます
+				</p>
 
 				{/* 通話時間表示 */}
 				{isJoined && (
