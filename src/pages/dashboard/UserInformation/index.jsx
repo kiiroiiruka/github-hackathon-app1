@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import HeaderComponent from "../../../components/Header/Header";
-import { getUser, logout, removeFriend } from "../../../firebase";
+import { getUser, logout, removeFriend, updateUserMessage, acceptFriendRequest, rejectFriendRequest } from "../../../firebase";
 import { useUserUid } from "../../../hooks/useUserUid";
 
 function UserInformation() {
@@ -9,9 +9,14 @@ function UserInformation() {
   const [searchParams] = useSearchParams();
   const currentUserId = useUserUid();
   const [user, setUser] = useState(null);
+  const [isEditingMessage, setIsEditingMessage] = useState(false);
+  const [messageInput, setMessageInput] = useState("");
   
   // URLパラメータから対象ユーザーIDを取得（なければ現在のユーザー）
   const targetUserId = searchParams.get('userId') || currentUserId;
+  // 友達リクエスト情報をURLパラメータから取得
+  const requestId = searchParams.get('requestId');
+  const fromUserId = searchParams.get('fromUserId');
 
   useEffect(() => {
     const load = async () => {
@@ -48,6 +53,60 @@ function UserInformation() {
   // 自分のアカウントかどうかを判定
   const isOwnAccount = targetUserId === currentUserId;
 
+  // 一言メッセージ編集開始
+  const handleStartEditMessage = () => {
+    setMessageInput(user?.userShortMessage || "");
+    setIsEditingMessage(true);
+  };
+
+  // 一言メッセージ更新
+  const handleUpdateMessage = async () => {
+    if (!currentUserId) return;
+    try {
+      await updateUserMessage(currentUserId, messageInput);
+      // ユーザー情報を再取得
+      const updatedUser = await getUser(currentUserId);
+      setUser(updatedUser);
+      setIsEditingMessage(false);
+      alert("一言メッセージを更新しました！");
+    } catch (error) {
+      console.error("一言メッセージ更新エラー:", error);
+      alert("一言メッセージの更新に失敗しました");
+    }
+  };
+
+  // 一言メッセージ編集キャンセル
+  const handleCancelEditMessage = () => {
+    setIsEditingMessage(false);
+    setMessageInput("");
+  };
+
+  // 友達リクエスト承認
+  const handleAcceptFriendRequest = async () => {
+    if (!requestId || !fromUserId || !currentUserId) return;
+    try {
+      await acceptFriendRequest(requestId, fromUserId, currentUserId);
+      alert("友達リクエストを承認しました！");
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("友達リクエスト承認エラー:", error);
+      alert("友達リクエストの承認に失敗しました");
+    }
+  };
+
+  // 友達リクエスト拒否
+  const handleRejectFriendRequest = async () => {
+    if (!requestId) return;
+    try {
+      await rejectFriendRequest(requestId);
+      alert("友達リクエストを拒否しました");
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("友達リクエスト拒否エラー:", error);
+      alert("友達リクエストの拒否に失敗しました");
+    }
+  };
+
   return (
     <div>
       <HeaderComponent title="アカウント情報" onBack={handleBack} />
@@ -80,11 +139,55 @@ function UserInformation() {
 
             {/* 一言メッセージ */}
             <div>
-              <div className="font-bold text-lg mb-1">一言メッセージ</div>
-              <p className="text-sm text-gray-700 whitespace-pre-line">
-                {user?.userShortMessage ||
-                  "よろしくお願いします!"}
-              </p>
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-bold text-lg">一言メッセージ</div>
+                {isOwnAccount && !isEditingMessage && (
+                  <button
+                    type="button"
+                    onClick={handleStartEditMessage}
+                    className="bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-4 rounded transition-colors"
+                  >
+                    編集
+                  </button>
+                )}
+              </div>
+              {isEditingMessage ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    placeholder="一言メッセージを入力（例：よろしくお願いします！）"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    maxLength={100}
+                    rows={3}
+                  />
+                  <div className="text-xs text-gray-500 text-right">
+                    {100 - (messageInput?.length || 0)} / 100 文字
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleUpdateMessage}
+                      disabled={!messageInput.trim()}
+                      className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white text-sm py-2 px-4 rounded transition-colors"
+                    >
+                      更新
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEditMessage}
+                      className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded transition-colors"
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-700 whitespace-pre-line">
+                  {user?.userShortMessage ||
+                    "よろしくお願いします!"}
+                </p>
+              )}
             </div>
 
           {/* 操作ボタン */}
@@ -98,6 +201,24 @@ function UserInformation() {
                   ログアウト
                 </button>
               </div>
+          ) : requestId ? (
+            /* 友達リクエスト承認・拒否ボタン */
+            <div className="pt-4 border-t border-gray-200 w-full space-y-2">
+              <button
+                type="button"
+                onClick={handleAcceptFriendRequest}
+                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md hover:shadow-lg"
+              >
+                友達リクエストを承認
+              </button>
+              <button
+                type="button"
+                onClick={handleRejectFriendRequest}
+                className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-md hover:shadow-lg"
+              >
+                友達リクエストを拒否
+              </button>
+            </div>
           ) : (
             <div className="pt-4 border-t border-gray-200 w-full">
               <button

@@ -4,7 +4,7 @@ import carIcon from "../../assets/carIcon.png";
 import { getUser } from "../../firebase";
 import { useUserUid } from "../../hooks/useUserUid";
 
-function HeaderComponent2({ title, onUserIconClick }) {
+function HeaderComponent2({ title, onUserIconClick, onBackClick }) {
 	const navigate = useNavigate();
 	const [userInfo, setUserInfo] = useState(null);
 	const currentUserId = useUserUid();
@@ -25,6 +25,17 @@ function HeaderComponent2({ title, onUserIconClick }) {
 		loadUserInfo();
 	}, [currentUserId]);
 
+	// 左アイコン（車）クリック処理
+	const handleLeftIconClick = () => {
+		if (onBackClick) {
+			// カスタムハンドラーが提供されている場合はそれを使用（戻るボタンなど）
+			onBackClick();
+		} else {
+			// デフォルトの動作：AppInformationページに遷移
+			navigate("/dashboard/app-info");
+		}
+	};
+
 	// ユーザーアイコンクリック処理
 	const handleUserIconClick = () => {
 		if (onUserIconClick) {
@@ -38,9 +49,15 @@ function HeaderComponent2({ title, onUserIconClick }) {
 
 	return (
 		<header style={styles.header}>
-			{/* 左側: 車アイコン */}
+			{/* 左側: 車アイコン（クリック可能） */}
 			<div style={styles.left}>
-				<img src={carIcon} alt="Car Icon" style={styles.icon} />
+				<button
+					type="button"
+					onClick={handleLeftIconClick}
+					style={styles.iconButton}
+				>
+					<img src={carIcon} alt="Car Icon" style={styles.icon} />
+				</button>
 			</div>
 
 			{/* 中央: タイトル */}
@@ -107,6 +124,14 @@ const styles = {
 		justifyContent: "flex-end",
 		alignItems: "center",
 		zIndex: 1,
+	},
+	iconButton: {
+		background: "none",
+		border: "none",
+		padding: 0,
+		cursor: "pointer",
+		borderRadius: "12px",
+		transition: "transform 0.2s ease",
 	},
 	icon: {
 		width: "44px",
