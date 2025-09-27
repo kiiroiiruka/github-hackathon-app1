@@ -106,7 +106,8 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 				}
 
 				const dailyRoomInfo = firebaseRoomData.dailyRoom;
-				setDailyRoomUrl(dailyRoomInfo.url);
+				const roomUrl = dailyRoomInfo.url;
+				setDailyRoomUrl(roomUrl);
 
 				// Get user token
 				const token = await getDailyToken(
@@ -143,7 +144,8 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 
 				// Join the room (既に接続中でない場合のみ)
 				if (!isJoined && !isConnecting) {
-					await joinRoom(token);
+					console.log("🚀 ルームに参加を開始します:", { roomUrl, token: token.substring(0, 20) + "..." });
+					await joinRoom(token, roomUrl);
 
 					// iframe の状態を確認
 					setTimeout(() => {

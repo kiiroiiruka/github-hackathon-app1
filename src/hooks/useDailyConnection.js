@@ -227,30 +227,38 @@ export const useDailyConnection = (
 
 	// ルームに参加
 	const joinRoom = useCallback(
-		async (token) => {
-			if (!dailyRoomUrl || isConnecting || isJoined) return;
+		async (token, roomUrl = null) => {
+			const urlToUse = roomUrl || dailyRoomUrl;
+			if (!urlToUse || isConnecting || isJoined) {
+				console.log("🚫 joinRoom skipped:", { urlToUse: !!urlToUse, isConnecting, isJoined });
+				return;
+			}
 
 			try {
+				console.log("🎤 マイク許可を要求しています...");
 				setIsConnecting(true);
 				setError(null);
 
 				// まず明示的にマイクの許可を要求
 				const micPermissionGranted = await requestMicrophonePermission();
 				if (!micPermissionGranted) {
+					console.log("❌ マイク許可が得られませんでした");
 					setIsConnecting(false);
 					return;
 				}
 
+				console.log("✅ マイク許可が得られました。Daily.coに接続中...");
 				const dailyInstance = await initializeDaily();
 
+				console.log("🚀 Daily.coルームに参加中:", { url: urlToUse, token: token.substring(0, 20) + "..." });
 				await dailyInstance.join({
-					url: dailyRoomUrl,
+					url: urlToUse,
 					token: token,
 					startAudioOff: false, // 音声を有効で開始（マイク許可を取得）
 					startVideoOff: true, // ビデオは無効
 				});
 			} catch (err) {
-				console.error("Failed to join room:", err);
+				console.error("❌ Failed to join room:", err);
 				setError(err.message);
 				setIsConnecting(false);
 			}
