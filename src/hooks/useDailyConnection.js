@@ -112,6 +112,32 @@ export const useDailyConnection = (
 							}
 						}, 1000);
 						
+						// 音声レベルの監視を開始（5秒後）
+						setTimeout(() => {
+							try {
+								console.log("🔊 音声レベル監視を開始します...");
+								
+								// 参加者の音声レベルを確認
+								const participants = dailyInstance.participants();
+								Object.entries(participants).forEach(([id, participant]) => {
+									if (participant.audioTrack) {
+										console.log(`🎤 ${participant.user_name}の音声トラック:`, {
+											enabled: participant.audioTrack.enabled,
+											muted: participant.audioTrack.muted,
+											readyState: participant.audioTrack.readyState
+										});
+									}
+								});
+								
+								// ローカルの音声レベルも確認
+								const localAudioTrack = dailyInstance.localAudio();
+								console.log("🎤 ローカル音声レベル:", localAudioTrack);
+								
+							} catch (levelError) {
+								console.error("❌ 音声レベル確認エラー:", levelError);
+							}
+						}, 5000);
+						
 					} catch (audioError) {
 						console.warn("音声の有効化に失敗:", audioError);
 						setError("マイクの初期化に失敗しました。ブラウザの設定を確認してください。");
@@ -193,6 +219,26 @@ export const useDailyConnection = (
 					track: event.track?.kind || "Unknown",
 					local: event.participant?.local || false
 				});
+				
+				// 音声トラックの場合、詳細情報をログ出力
+				if (event.track?.kind === 'audio') {
+					console.log("🔊 Audio track details:", {
+						participant: event.participant?.user_name,
+						trackId: event.track.id,
+						enabled: event.track.enabled,
+						muted: event.track.muted,
+						readyState: event.track.readyState
+					});
+					
+					// リモート参加者の音声トラックの場合、再生状況を確認
+					if (!event.participant?.local) {
+						console.log("🎧 リモート参加者の音声トラックが開始されました");
+						console.log("💡 もし音声が聞こえない場合：");
+						console.log("   1. ブラウザの音量設定を確認");
+						console.log("   2. システムの音量設定を確認");
+						console.log("   3. ヘッドフォン/スピーカーの接続を確認");
+					}
+				}
 			})
 			.on("track-stopped", (event) => {
 				console.log("🔇 Track stopped:", {
