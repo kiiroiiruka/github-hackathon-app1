@@ -1,10 +1,15 @@
-import { useEffect, useRef, useState } from "react";
 import { get, ref } from "firebase/database";
+import { useEffect, useRef, useState } from "react";
 import { auth, rtdb } from "@/firebase";
-import { getDailyToken, startCallSession, endCallSession, updateCallDuration } from "@/firebase/room";
-import { useUserUid } from "@/hooks/useUserUid";
+import {
+	endCallSession,
+	getDailyToken,
+	startCallSession,
+	updateCallDuration,
+} from "@/firebase/room";
 import { useDailyConnection } from "@/hooks/useDailyConnection";
 import { useParticipantManager } from "@/hooks/useParticipantManager";
+import { useUserUid } from "@/hooks/useUserUid";
 
 const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	const iframeRef = useRef(null);
@@ -14,7 +19,8 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 	const currentUserUid = useUserUid();
 
 	// 参加者管理フック
-	const { handleParticipantUpdate, getActiveParticipants } = useParticipantManager(roomId);
+	const { handleParticipantUpdate, getActiveParticipants } =
+		useParticipantManager(roomId);
 
 	// Daily.co接続フック
 	const {
@@ -63,34 +69,16 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 					throw new Error("User not authenticated");
 				}
 
-				// FirebaseからDaily.coルーム情報を取得
-				const roomRef = ref(rtdb, `rooms/${roomId}`);
-				const roomSnapshot = await get(roomRef);
-				const firebaseRoomData = roomSnapshot.val();
+				// Daily.co通話機能を一時的に無効化（参考プロジェクトの成功パターンに合わせる）
+				// TODO: 後でDaily.co統合を追加
+				console.log("Mock video call initialized for room:", roomId);
 
-				if (!firebaseRoomData || !firebaseRoomData.dailyRoom) {
-					throw new Error("Daily room not found in Firebase");
-				}
-
-				const dailyRoomInfo = firebaseRoomData.dailyRoom;
-				setDailyRoomUrl(dailyRoomInfo.url);
-
-				// Get user token
-				const token = await getDailyToken(
-					roomId,
-					currentUser.uid,
-					currentUser.displayName || "Anonymous",
-					currentUser.photoURL || ""
-				);
-
-				// 通話セッション開始
+				// 通話セッション開始（Firebaseのみ）
 				await startCallSession(roomId, currentUser.uid, {
 					name: currentUser.displayName || "Anonymous",
 					photoURL: currentUser.photoURL || "",
 				});
 
-				// Join the room
-				await joinRoom(token);
 				setIsLoading(false);
 			} catch (err) {
 				console.error("Video call initialization error:", err);
@@ -106,9 +94,8 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			if (currentUserUid && callDuration > 0) {
 				endCallSession(roomId, currentUserUid, callDuration);
 			}
-			destroyDaily();
 		};
-	}, [roomId, currentUserUid, joinRoom, destroyDaily, callDuration]);
+	}, [roomId, currentUserUid, callDuration]);
 
 	const handleLeaveCall = async () => {
 		if (currentUserUid && callDuration > 0) {
@@ -154,63 +141,60 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 
 	return (
 		<div className="w-full h-full">
-			{/* 通話時間表示 */}
-			{isJoined && (
-				<div className="mb-4 p-3 bg-blue-50 rounded-lg">
-					<div className="flex justify-between items-center">
-						<p className="text-sm text-blue-600">
-							通話時間: <span className="font-mono font-semibold">{formattedDuration}</span>
-						</p>
-						<div className="flex items-center gap-2">
-							<div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-							<span className="text-sm text-red-600">通話中</span>
-						</div>
+			{/* ルーム情報表示 */}
+			<div className="mb-4 p-4 bg-green-50 rounded-lg border border-green-200">
+				<div className="flex justify-between items-center">
+					<div>
+						<h3 className="text-lg font-semibold text-green-800">{roomName}</h3>
+						<p className="text-sm text-green-600">ルームID: {roomId}</p>
+					</div>
+					<div className="flex items-center gap-2">
+						<div className="w-3 h-3 bg-green-500 rounded-full"></div>
+						<span className="text-sm text-green-600">ルーム作成完了</span>
 					</div>
 				</div>
-			)}
-
-			<div className="relative">
-				{/* Daily iframe container */}
-				<div
-					ref={iframeRef}
-					className="w-full h-96 rounded-lg overflow-hidden bg-gray-900"
-				/>
-
-				{/* Call controls overlay */}
-				{isJoined && (
-					<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
-						<button
-							type="button"
-							onClick={handleLeaveCall}
-							className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
-						>
-							通話を終了
-						</button>
-					</div>
-				)}
 			</div>
 
-			{/* Participants info */}
-			{participants.length > 0 && (
-				<div className="mt-4 p-3 bg-gray-50 rounded-lg">
-					<p className="text-sm text-gray-600 mb-2">
-						参加者: {participants.length}人
-					</p>
-					<div className="flex flex-wrap gap-2">
-						{participants.map((participant) => (
-							<div
-								key={participant.session_id}
-								className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+			{/* 通話機能のモック表示 */}
+			<div className="relative">
+				<div className="w-full h-96 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-dashed border-blue-300 flex items-center justify-center">
+					<div className="text-center">
+						<div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+							<svg
+								className="w-8 h-8 text-white"
+								fill="currentColor"
+								viewBox="0 0 20 20"
 							>
-								{participant.user_name || "Anonymous"}
-								{participant.local && (
-									<span className="text-blue-600">(あなた)</span>
-								)}
-							</div>
-						))}
+								<path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+							</svg>
+						</div>
+						<h3 className="text-xl font-semibold text-blue-800 mb-2">
+							通話機能
+						</h3>
+						<p className="text-blue-600 mb-4">ルーム作成が完了しました</p>
+						<p className="text-sm text-blue-500">Daily.co統合は後で追加予定</p>
 					</div>
 				</div>
-			)}
+
+				{/* ルーム終了ボタン */}
+				<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+					<button
+						type="button"
+						onClick={handleLeaveCall}
+						className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+					>
+						ルームを終了
+					</button>
+				</div>
+			</div>
+
+			{/* ルーム情報 */}
+			<div className="mt-4 p-3 bg-gray-50 rounded-lg">
+				<p className="text-sm text-gray-600 mb-2">ルーム作成者: {ownerUid}</p>
+				<p className="text-xs text-gray-500">
+					Firebase Realtime Database にルーム情報が保存されました
+				</p>
+			</div>
 		</div>
 	);
 };
