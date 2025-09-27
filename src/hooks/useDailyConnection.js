@@ -78,17 +78,45 @@ export const useDailyConnection = (
 
 					// 音声を確実に有効にする
 					try {
+						// まず現在の音声状態を確認
+						const initialAudioState = dailyInstance.localAudio();
+						console.log("🎤 参加時の初期マイク状態:", initialAudioState ? "ON" : "OFF");
+						
+						// 音声を強制的に有効にする
 						await dailyInstance.setLocalAudio(true);
 						console.log("🎤 音声を有効にしました");
 						
-						// マイクの状態を確認
-						const audioState = dailyInstance.localAudio();
-						console.log("🎤 マイク状態:", audioState ? "ON" : "OFF");
+						// 少し待ってから状態を再確認
+						setTimeout(async () => {
+							try {
+								const audioState = dailyInstance.localAudio();
+								console.log("🎤 マイク状態（1秒後）:", audioState ? "ON" : "OFF");
+								
+								// 参加者情報も確認
+								const participants = dailyInstance.participants();
+								console.log("👥 現在の参加者:", Object.keys(participants).length, "人");
+								
+								// 各参加者の音声状態を確認
+								Object.entries(participants).forEach(([id, participant]) => {
+									console.log(`👤 参加者 ${id}:`, {
+										user_name: participant.user_name,
+										audio: participant.audio,
+										video: participant.video,
+										local: participant.local
+									});
+								});
+								
+								if (!audioState) {
+									console.warn("⚠️ マイクが無効になっています");
+									setError("マイクが無効になっています。ブラウザの設定でマイクを許可してください。");
+								} else {
+									console.log("✅ マイクが正常に有効になっています");
+								}
+							} catch (checkError) {
+								console.error("❌ 音声状態確認エラー:", checkError);
+							}
+						}, 1000);
 						
-						if (!audioState) {
-							console.warn("⚠️ マイクが無効になっています");
-							setError("マイクが無効になっています。ブラウザの設定でマイクを許可してください。");
-						}
 					} catch (audioError) {
 						console.warn("音声の有効化に失敗:", audioError);
 						setError("マイクの初期化に失敗しました。ブラウザの設定を確認してください。");
@@ -118,7 +146,14 @@ export const useDailyConnection = (
 				}
 			})
 			.on("participant-joined", (event) => {
-				console.log("Participant joined:", event);
+				console.log("👥 Participant joined:", {
+					session_id: event.participant.session_id,
+					user_name: event.participant.user_name,
+					audio: event.participant.audio,
+					video: event.participant.video,
+					local: event.participant.local
+				});
+				
 				setParticipants((prev) => {
 					const newMap = new Map(prev);
 					newMap.set(event.participant.session_id, event.participant);

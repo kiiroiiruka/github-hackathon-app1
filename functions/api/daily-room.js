@@ -52,7 +52,7 @@ export async function onRequest(context) {
 					enable_chat: false, // チャット無効
 					enable_screenshare: false, // 画面共有無効
 					enable_knocking: false,
-					enable_prejoin_ui: false, // 事前参加UI無効
+					enable_prejoin_ui: true, // 事前参加UI有効（音声設定確認用）
 					start_video_off: true, // ビデオオフ
 					start_audio_off: false, // 音声オン
 					max_participants: 10, // 参加者数を削減
