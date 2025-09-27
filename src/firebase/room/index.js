@@ -31,25 +31,16 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 		const roomRef = push(ref(rtdb, "rooms"));
 		const roomId = roomRef.key;
 
-		// Daily.coのビデオルームを作成
-		// 開発環境ではCloudflare Functionsサーバー、本番では相対パス
-		const apiBaseUrl = import.meta.env.DEV ? "http://localhost:8788" : "/";
-		const dailyResponse = await fetch(`${apiBaseUrl}/api/daily-room`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
+		// Daily.coのビデオルーム作成を一時的に無効化（参考プロジェクトの成功パターンに合わせる）
+		// TODO: 後でDaily.co統合を追加
+		const dailyResult = {
+			success: true,
+			dailyRoom: {
+				id: roomId,
+				name: roomName,
+				url: `https://test.daily.co/${roomId}`, // 仮のURL
 			},
-			body: JSON.stringify({
-				roomId: roomId,
-				roomName: roomName,
-				ownerUid: currentUser.uid,
-			}),
-		});
-
-		const dailyResult = await dailyResponse.json();
-		if (!dailyResult.success) {
-			throw new Error(`Daily room creation failed: ${dailyResult.error}`);
-		}
+		};
 
 		// メンバー一覧: 作成者も含める（デフォルトaccepted: true）
 		const members = {
@@ -111,27 +102,11 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
  */
 export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 	try {
-		// 開発環境ではCloudflare Functionsサーバー、本番では相対パス
-		const apiBaseUrl = import.meta.env.DEV ? "http://localhost:8788" : "/";
-		const response = await fetch(`${apiBaseUrl}/api/daily-token`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				roomId: roomId,
-				userId: userId,
-				userName: userName,
-				userPhotoURL: userPhotoURL,
-			}),
-		});
-
-		const result = await response.json();
-		if (!result.success) {
-			throw new Error(`Token generation failed: ${result.error}`);
-		}
-
-		return result.token;
+		// Daily.co トークン生成を一時的に無効化（参考プロジェクトの成功パターンに合わせる）
+		// TODO: 後でDaily.co統合を追加
+		const mockToken = `mock_token_${roomId}_${userId}`;
+		console.log("Mock Daily token generated:", mockToken);
+		return mockToken;
 	} catch (error) {
 		console.error("Daily token generation error:", error);
 		throw error;
