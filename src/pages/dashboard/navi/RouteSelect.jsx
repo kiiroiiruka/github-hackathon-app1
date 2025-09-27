@@ -1,32 +1,104 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import HeaderComponent from "../../../components/Header/Header";
-import MapSearch from "@/components/ui/MapSearch";
-import { useState, useEffect } from "react";
+import LocationSearch from "../../../components/ui/LocationSearch";
+import { useState, useEffect, useCallback } from "react";
 
 const RouteSelect = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedDestination, setSelectedDestination] = useState(null);
+  const [selectedDeparture, setSelectedDeparture] = useState(null);
   const [savedFavorites, setSavedFavorites] = useState([]);
+  const [locationType, setLocationType] = useState("destination"); // "departure" or "destination"
 
   // お気に入りを読み込む
-  useEffect(() => {
+  const loadFavorites = useCallback(() => {
     const favorites = localStorage.getItem('favoriteLocations');
     if (favorites) {
       try {
-        setSavedFavorites(JSON.parse(favorites));
+        const parsedFavorites = JSON.parse(favorites);
+        setSavedFavorites(parsedFavorites);
+        console.log('お気に入りを読み込み:', parsedFavorites.length, '件');
       } catch (error) {
         console.error('お気に入りの読み込みエラー:', error);
       }
     }
   }, []);
 
+  useEffect(() => {
+    loadFavorites();
+  }, [loadFavorites]);
+
+  // お気に入りが変更された時にlocalStorageに保存
+  useEffect(() => {
+    if (savedFavorites.length > 0) {
+      localStorage.setItem('favoriteLocations', JSON.stringify(savedFavorites));
+    }
+  }, [savedFavorites]);
+
   // 既に選択された場所がある場合（RoomCreatから）
   useEffect(() => {
     if (location.state?.selectedLocation) {
       setSelectedDestination(location.state.selectedLocation);
+      console.log('RouteSelect - 初期選択された目的地:', location.state.selectedLocation);
     }
   }, [location.state]);
+
+  // 共通のお気に入り追加処理
+  const addToFavorites = useCallback((name, coordinates) => {
+    const newFavorite = {
+      id: Date.now(),
+      name: name,
+      coordinates: coordinates,
+      addedAt: new Date().toISOString()
+    };
+    setSavedFavorites(prev => [...prev, newFavorite]);
+    console.log("お気に入りに追加:", name, coordinates);
+  }, []);
+
+  // 場所タイプに応じた選択処理
+  const handleLocationSelect = useCallback((location) => {
+    if (locationType === "departure") {
+      setSelectedDeparture(location);
+      localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(location));
+    } else {
+      setSelectedDestination(location);
+      localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(location));
+    }
+    // 自動的にお気に入りに追加
+    addToFavorites(location.name, location.coordinates);
+  }, [locationType, addToFavorites]);
+
+  // 選択をクリア
+  const clearLocationSelection = useCallback((type) => {
+    if (type === "departure") {
+      setSelectedDeparture(null);
+      localStorage.removeItem("roomCreat_selectedDeparture");
+    } else {
+      setSelectedDestination(null);
+      localStorage.removeItem("roomCreat_selectedLocation");
+    }
+  }, []);
+
+  // お気に入りを全削除
+  const clearAllFavorites = useCallback(() => {
+    setSavedFavorites([]);
+    localStorage.removeItem('favoriteLocations');
+    console.log('お気に入りを全削除しました');
+  }, []);
+
+  // 個別のお気に入りを削除
+  const removeFavorite = useCallback((favoriteId) => {
+    const updatedFavorites = savedFavorites.filter(f => f.id !== favoriteId);
+    setSavedFavorites(updatedFavorites);
+    
+    if (updatedFavorites.length === 0) {
+      localStorage.removeItem('favoriteLocations');
+    } else {
+      localStorage.setItem('favoriteLocations', JSON.stringify(updatedFavorites));
+    }
+    console.log('お気に入りを削除:', favoriteId);
+  }, [savedFavorites]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -47,22 +119,18 @@ const RouteSelect = () => {
             </p>
           </div>
 
-          {/* 目的地検索セクション */}
-          <div className="bg-white rounded-xl p-6 shadow-lg mb-6 border border-gray-100">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-2xl">🔍</span>
-              <h2 className="text-lg font-semibold text-gray-800">目的地を検索</h2>
-            </div>
-            <MapSearch 
-              onSelectDestination={(dest, name) => {
-                const destination = {
-                  name: name,
-                  coordinates: dest
-                };
-                setSelectedDestination(destination);
-              }}
-            />
-          </div>
+          {/* 場所検索・設定セクション */}
+          <LocationSearch
+            locationType={locationType}
+            selectedDeparture={selectedDeparture}
+            selectedDestination={selectedDestination}
+            onLocationTypeChange={setLocationType}
+            onLocationSelect={handleLocationSelect}
+            onClearLocation={clearLocationSelection}
+            showLocationTypeSelector={true}
+            showCurrentSettings={true}
+            className="mb-6"
+          />
 
           {/* 選択された目的地の表示 */}
           {selectedDestination && (
@@ -88,38 +156,89 @@ const RouteSelect = () => {
             </div>
           )}
 
-          {/* お気に入りクイック選択 */}
-          {savedFavorites.length > 0 && (
-            <div className="bg-white rounded-xl p-6 shadow-lg mb-6 border border-gray-100">
-              <div className="flex items-center gap-3 mb-4">
+          {/* お気に入り一覧セクション */}
+          <div className="bg-white rounded-xl p-6 shadow-lg mb-6 border border-gray-100">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
                 <span className="text-2xl">⭐</span>
-                <h2 className="text-lg font-semibold text-gray-800">お気に入りから選択</h2>
+                <h2 className="text-lg font-semibold text-gray-800">
+                  お気に入り一覧
+                </h2>
+                {savedFavorites.length > 0 && (
+                  <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
+                    {savedFavorites.length}件
+                  </span>
+                )}
               </div>
-              <div className="grid gap-2 max-h-48 overflow-y-auto">
-                {savedFavorites.slice(0, 5).map((favorite) => (
-                  <button
-                    key={favorite.id}
-                    type="button"
-                    onClick={() => setSelectedDestination(favorite)}
-                    className="flex items-center justify-between p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-colors"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{favorite.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {favorite.coordinates[0].toFixed(4)}, {favorite.coordinates[1].toFixed(4)}
-                      </p>
-                    </div>
-                    <span className="text-blue-500">→</span>
-                  </button>
-                ))}
-              </div>
-              {savedFavorites.length > 5 && (
-                <p className="text-sm text-gray-500 mt-2 text-center">
-                  他 {savedFavorites.length - 5} 件のお気に入りがあります
-                </p>
+              {savedFavorites.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearAllFavorites}
+                  className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+                >
+                  全削除
+                </button>
               )}
             </div>
-          )}
+
+            {savedFavorites.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4 opacity-50">📍</div>
+                <p className="text-gray-500 mb-2">まだお気に入りが登録されていません</p>
+                <p className="text-sm text-gray-400">上の検索で場所を検索して追加してください</p>
+              </div>
+            ) : (
+              <div className="grid gap-3 max-h-64 overflow-y-auto">
+                {savedFavorites.map((favorite) => (
+                  <div 
+                    key={favorite.id}
+                    className="group relative p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:bg-gray-50 transition-all duration-200"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleLocationSelect(favorite)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-lg">📍</span>
+                            <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              {favorite.name}
+                            </h3>
+                            {selectedDestination?.id === favorite.id && (
+                              <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                選択中
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <p>📏 緯度: {favorite.coordinates[0].toFixed(6)}</p>
+                            <p>📏 経度: {favorite.coordinates[1].toFixed(6)}</p>
+                            <p className="text-xs text-gray-500">
+                              登録日: {new Date(favorite.addedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-blue-500 text-lg">→</span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFavorite(favorite.id);
+                      }}
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all duration-200 p-2 hover:bg-red-50 rounded-lg"
+                      title="削除"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* アクションボタンセクション */}
           <div className="space-y-4">
@@ -136,13 +255,15 @@ const RouteSelect = () => {
                 </div>
               </button>
 
-              {selectedDestination && (
+              {selectedDeparture && selectedDestination && (
                 <button
                   type="button"
                   onClick={() => navigate("/dashboard/navi/route-screen", {
                     state: { 
                       destination: selectedDestination.coordinates,
-                      destinationName: selectedDestination.name 
+                      destinationName: selectedDestination.name,
+                      departure: selectedDeparture.coordinates,
+                      departureName: selectedDeparture.name
                     }
                   })}
                   className="flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
@@ -156,20 +277,40 @@ const RouteSelect = () => {
               )}
             </div>
 
-            {/* この場所でルーム作成ボタン */}
-            {selectedDestination && (
+            {/* 設定した場所でルーム作成ボタン */}
+            {(selectedDeparture || selectedDestination) && (
               <div className="pt-2">
                 <button
                   type="button"
-                  onClick={() => navigate("/dashboard/navi/room", {
-                    state: { selectedLocation: selectedDestination }
-                  })}
+                  onClick={() => {
+                    // 両方の場所をローカルストレージに保存
+                    if (selectedDeparture) {
+                      localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(selectedDeparture));
+                    }
+                    if (selectedDestination) {
+                      localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(selectedDestination));
+                    }
+                    
+                    navigate("/dashboard/navi/room", {
+                      state: { 
+                        selectedLocation: selectedDestination,
+                        selectedDeparture: selectedDeparture
+                      }
+                    });
+                  }}
                   className="w-full flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                 >
                   <span className="text-2xl">🏠</span>
                   <div className="text-center">
-                    <div className="font-semibold">この場所でルーム作成</div>
-                    <div className="text-sm opacity-90">選択した目的地を設定してルーム作成</div>
+                    <div className="font-semibold">設定した場所でルーム作成</div>
+                    <div className="text-sm opacity-90">
+                      {selectedDeparture && selectedDestination 
+                        ? "出発地と目的地を設定してルーム作成"
+                        : selectedDeparture 
+                        ? "出発地を設定してルーム作成"
+                        : "目的地を設定してルーム作成"
+                      }
+                    </div>
                   </div>
                 </button>
               </div>
@@ -181,9 +322,12 @@ const RouteSelect = () => {
                 type="button"
                 onClick={() => {
                   const returnTo = location.state?.returnTo;
-                  if (returnTo && selectedDestination) {
+                  if (returnTo && (selectedDestination || selectedDeparture)) {
                     navigate(returnTo, {
-                      state: { selectedLocation: selectedDestination }
+                      state: { 
+                        selectedLocation: selectedDestination,
+                        selectedDeparture: selectedDeparture
+                      }
                     });
                   } else {
                     navigate("/dashboard/navi/room");

@@ -1,32 +1,61 @@
 import { useNavigate } from "react-router-dom";
 import HeaderComponent from "../../../components/Header/Header";
-import MapSearch from "../../../components/ui/MapSearch";
-import { useState, useEffect } from "react";
+import LocationSearch from "../../../components/ui/LocationSearch";
+import { useState, useCallback } from "react";
+import { useFavorites } from "../../../hooks/useFavorites";
+import { useAuthState } from "../../../hooks/useAuthState";
 
 const PurlieuLocation = () => {
   const navigate = useNavigate();
-  const [favorites, setFavorites] = useState([]);
   const [selectedFavorite, setSelectedFavorite] = useState(null);
+  const [locationType, setLocationType] = useState("destination"); // "departure" or "destination"
+  const [selectedDeparture, setSelectedDeparture] = useState(null);
+  const [selectedDestination, setSelectedDestination] = useState(null);
+  
+  // Firebase認証状態を監視
+  useAuthState();
+  
+  // Firebaseベースのお気に入り管理
+  const { 
+    favorites, 
+    loading, 
+    error, 
+    addFavorite, 
+    removeFavorite, 
+    removeAllFavorites 
+  } = useFavorites();
 
-  // localStorageからお気に入りを読み込む
-  useEffect(() => {
-    const savedFavorites = localStorage.getItem('favoriteLocations');
-    if (savedFavorites) {
-      try {
-        const parsedFavorites = JSON.parse(savedFavorites);
-        setFavorites(parsedFavorites);
-      } catch (error) {
-        console.error('お気に入りの読み込みでエラー:', error);
-      }
+  // お気に入り追加処理（Firebase対応）
+  const addToFavorites = useCallback(async (name, coordinates) => {
+    const success = await addFavorite(name, coordinates);
+    if (success) {
+      console.log("お気に入りに追加:", name, coordinates);
+    }
+  }, [addFavorite]);
+
+  // 場所タイプに応じた選択処理
+  const handleLocationSelect = useCallback(async (location) => {
+    if (locationType === "departure") {
+      setSelectedDeparture(location);
+      localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(location));
+    } else {
+      setSelectedDestination(location);
+      localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(location));
+    }
+    // 自動的にお気に入りに追加
+    await addToFavorites(location.name, location.coordinates);
+  }, [locationType, addToFavorites]);
+
+  // 選択をクリア
+  const clearLocationSelection = useCallback((type) => {
+    if (type === "departure") {
+      setSelectedDeparture(null);
+      localStorage.removeItem("roomCreat_selectedDeparture");
+    } else {
+      setSelectedDestination(null);
+      localStorage.removeItem("roomCreat_selectedLocation");
     }
   }, []);
-
-  // お気に入りが変更された時にlocalStorageに保存
-  useEffect(() => {
-    if (favorites.length > 0) {
-      localStorage.setItem('favoriteLocations', JSON.stringify(favorites));
-    }
-  }, [favorites]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50">
@@ -48,24 +77,17 @@ const PurlieuLocation = () => {
           </div>
 
           {/* 検索セクション */}
-          <div className="bg-white rounded-xl p-6 shadow-lg mb-6 border border-gray-100">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-2xl">🔍</span>
-              <h2 className="text-lg font-semibold text-gray-800">場所を検索</h2>
-            </div>
-            <MapSearch
-              onSelectDestination={(dest, name) => {
-                const newFavorite = {
-                  id: Date.now(),
-                  name: name,
-                  coordinates: dest,
-                  addedAt: new Date().toISOString()
-                };
-                setFavorites(prev => [...prev, newFavorite]);
-                console.log("お気に入りに追加:", name, dest);
-              }}
-            />
-          </div>
+          <LocationSearch
+            locationType={locationType}
+            selectedDeparture={selectedDeparture}
+            selectedDestination={selectedDestination}
+            onLocationTypeChange={setLocationType}
+            onLocationSelect={handleLocationSelect}
+            onClearLocation={clearLocationSelection}
+            showLocationTypeSelector={true}
+            showCurrentSettings={true}
+            className="mb-6"
+          />
 
           {/* お気に入り一覧セクション */}
           <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
@@ -80,23 +102,42 @@ const PurlieuLocation = () => {
                     {favorites.length}件
                   </span>
                 )}
+                {loading && (
+                  <span className="bg-gray-100 text-gray-600 text-sm px-2 py-1 rounded-full">
+                    読み込み中...
+                  </span>
+                )}
               </div>
               {favorites.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setFavorites([]);
-                    setSelectedFavorite(null);
-                    localStorage.removeItem('favoriteLocations');
+                  onClick={async () => {
+                    const success = await removeAllFavorites();
+                    if (success) {
+                      setSelectedFavorite(null);
+                    }
                   }}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+                  disabled={loading}
+                  className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   全削除
                 </button>
               )}
             </div>
 
-            {favorites.length === 0 ? (
+            {/* エラー表示 */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4 opacity-50">⏳</div>
+                <p className="text-gray-500 mb-2">お気に入りを読み込み中...</p>
+              </div>
+            ) : favorites.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4 opacity-50">📍</div>
                 <p className="text-gray-500 mb-2">まだお気に入りが登録されていません</p>
@@ -113,9 +154,15 @@ const PurlieuLocation = () => {
                         ? "bg-blue-50 border-blue-300 shadow-md" 
                         : "bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
                     }`}
-                    onClick={() => setSelectedFavorite(
-                      selectedFavorite?.id === favorite.id ? null : favorite
-                    )}
+                    onClick={() => {
+                      setSelectedFavorite(
+                        selectedFavorite?.id === favorite.id ? null : favorite
+                      );
+                      // 選択されたお気に入りを現在のタイプに設定
+                      if (selectedFavorite?.id !== favorite.id) {
+                        handleLocationSelect(favorite);
+                      }
+                    }}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -140,22 +187,15 @@ const PurlieuLocation = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          const updatedFavorites = favorites.filter(f => f.id !== favorite.id);
-                          setFavorites(updatedFavorites);
-                          
-                          if (updatedFavorites.length === 0) {
-                            localStorage.removeItem('favoriteLocations');
-                          } else {
-                            localStorage.setItem('favoriteLocations', JSON.stringify(updatedFavorites));
-                          }
-                          
-                          if (selectedFavorite?.id === favorite.id) {
+                          const success = await removeFavorite(favorite.id);
+                          if (success && selectedFavorite?.id === favorite.id) {
                             setSelectedFavorite(null);
                           }
                         }}
-                        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all duration-200 p-2 hover:bg-red-50 rounded-lg"
+                        disabled={loading}
+                        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all duration-200 p-2 hover:bg-red-50 rounded-lg disabled:opacity-50"
                         title="削除"
                       >
                         🗑️
@@ -182,20 +222,29 @@ const PurlieuLocation = () => {
 
           {/* アクションボタン */}
           <div className="flex justify-center gap-4 mt-8">
-            {selectedFavorite && (
+            {(selectedDeparture || selectedDestination) && (
               <button
                 type="button"
                 onClick={() => {
-                  // ローカルストレージにも保存
-                  localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(selectedFavorite));
+                  // 両方の場所をローカルストレージに保存
+                  if (selectedDeparture) {
+                    localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(selectedDeparture));
+                  }
+                  if (selectedDestination) {
+                    localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(selectedDestination));
+                  }
+                  
                   navigate("/dashboard/navi/room", {
-                    state: { selectedLocation: selectedFavorite }
+                    state: { 
+                      selectedLocation: selectedDestination,
+                      selectedDeparture: selectedDeparture
+                    }
                   });
                 }}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
               >
-                <span>📍</span>
-                この場所でルーム作成
+                <span>�</span>
+                設定した場所でルーム作成
               </button>
             )}
             <button

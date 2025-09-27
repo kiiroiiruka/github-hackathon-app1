@@ -16,6 +16,11 @@ const RoomCreat = () => {
     const saved = localStorage.getItem("roomCreat_selectedLocation");
     return saved ? JSON.parse(saved) : null;
   });
+  const [selectedDeparture, setSelectedDeparture] = useState(() => {
+    // ローカルストレージから初期値を取得
+    const saved = localStorage.getItem("roomCreat_selectedDeparture");
+    return saved ? JSON.parse(saved) : null;
+  });
 
   // InviterPreferenceから戻ってきた時のフレンド情報を受け取る
   useEffect(() => {
@@ -45,6 +50,19 @@ const RoomCreat = () => {
         JSON.stringify(location.state.selectedLocation),
       );
     }
+    // 出発地点を受け取る
+    if (location.state?.selectedDeparture) {
+      console.log(
+        "RoomCreat - selectedDeparture受信:",
+        location.state.selectedDeparture,
+      );
+      setSelectedDeparture(location.state.selectedDeparture);
+      // ローカルストレージに保存
+      localStorage.setItem(
+        "roomCreat_selectedDeparture",
+        JSON.stringify(location.state.selectedDeparture),
+      );
+    }
   }, [location.state]);
 
   // selectedFriendsが変更されたときにローカルストレージに保存
@@ -66,6 +84,18 @@ const RoomCreat = () => {
       localStorage.removeItem("roomCreat_selectedLocation");
     }
   }, [selectedLocation]);
+
+  // selectedDepartureが変更されたときにローカルストレージに保存
+  useEffect(() => {
+    if (selectedDeparture) {
+      localStorage.setItem(
+        "roomCreat_selectedDeparture",
+        JSON.stringify(selectedDeparture),
+      );
+    } else {
+      localStorage.removeItem("roomCreat_selectedDeparture");
+    }
+  }, [selectedDeparture]);
 
   // フレンド選択ページに移動
   const handleInviterNavigation = () => {
@@ -97,9 +127,10 @@ const RoomCreat = () => {
       // TODO: ルーム作成機能を実装
       alert("ルーム作成機能は準備中です");
 
-      // 仮の成功処理
+      // 仮の成功処理 - すべてのローカルストレージをクリア
       localStorage.removeItem("roomCreat_selectedFriends");
       localStorage.removeItem("roomCreat_selectedLocation");
+      localStorage.removeItem("roomCreat_selectedDeparture");
 
       navigate("/dashboard/navi/confirmation", {
         state: {
@@ -107,6 +138,7 @@ const RoomCreat = () => {
           roomName: roomName.trim(),
           selectedFriends,
           selectedLocation,
+          selectedDeparture,
         },
       });
     } catch (e) {
@@ -153,41 +185,78 @@ const RoomCreat = () => {
                   <span>🗺️</span>
                   ルート選択
                 </h2>
-                {selectedLocation && (
-                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                    目的地設定済み
-                  </span>
-                )}
+                <div className="flex gap-2">
+                  {selectedDeparture && (
+                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                      出発地設定済み
+                    </span>
+                  )}
+                  {selectedLocation && (
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      目的地設定済み
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* 選択された場所の表示 */}
-              {selectedLocation && (
-                <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">📍</span>
-                    <h3 className="font-semibold text-green-800">
-                      設定済み目的地
-                    </h3>
+              <div className="space-y-3">
+                {selectedDeparture && (
+                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">�</span>
+                      <h3 className="font-semibold text-green-800">
+                        設定済み出発地
+                      </h3>
+                    </div>
+                    <p className="text-green-700 font-medium">
+                      {selectedDeparture.name}
+                    </p>
+                    <p className="text-sm text-green-600 mt-1">
+                      緯度: {selectedDeparture.coordinates[0].toFixed(4)}, 経度:{" "}
+                      {selectedDeparture.coordinates[1].toFixed(4)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDeparture(null);
+                        localStorage.removeItem("roomCreat_selectedDeparture");
+                      }}
+                      className="mt-2 text-red-500 hover:text-red-700 text-sm font-medium"
+                    >
+                      出発地をクリア
+                    </button>
                   </div>
-                  <p className="text-green-700 font-medium">
-                    {selectedLocation.name}
-                  </p>
-                  <p className="text-sm text-green-600 mt-1">
-                    緯度: {selectedLocation.coordinates[0].toFixed(4)}, 経度:{" "}
-                    {selectedLocation.coordinates[1].toFixed(4)}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedLocation(null);
-                      localStorage.removeItem("roomCreat_selectedLocation");
-                    }}
-                    className="mt-2 text-red-500 hover:text-red-700 text-sm font-medium"
-                  >
-                    目的地をクリア
-                  </button>
-                </div>
-              )}
+                )}
+                
+                {selectedLocation && (
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">🎯</span>
+                      <h3 className="font-semibold text-blue-800">
+                        設定済み目的地
+                      </h3>
+                    </div>
+                    <p className="text-blue-700 font-medium">
+                      {selectedLocation.name}
+                    </p>
+                    <p className="text-sm text-blue-600 mt-1">
+                      緯度: {selectedLocation.coordinates[0].toFixed(4)}, 経度:{" "}
+                      {selectedLocation.coordinates[1].toFixed(4)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedLocation(null);
+                        localStorage.removeItem("roomCreat_selectedLocation");
+                      }}
+                      className="mt-2 text-red-500 hover:text-red-700 text-sm font-medium"
+                    >
+                      目的地をクリア
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <div className="grid gap-3">
                 <button
@@ -236,6 +305,10 @@ const RoomCreat = () => {
                       state: {
                         destination: selectedLocation?.coordinates,
                         destinationName: selectedLocation?.name,
+                        departure: selectedDeparture?.coordinates,
+                        departureName: selectedDeparture?.name,
+                        selectedDeparture: selectedDeparture,
+                        selectedLocation: selectedLocation,
                         selectedFriends,
                         roomName: roomName.trim(),
                       },
