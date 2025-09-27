@@ -32,7 +32,7 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 		const roomId = roomRef.key;
 
 		// Daily.coのビデオルームを作成
-		const apiBaseUrl = "/"; // 本番環境のエンドポイント
+		const apiBaseUrl = ""; // 本番環境のエンドポイント
 		const dailyResponse = await fetch(`${apiBaseUrl}/api/daily-room`, {
 			method: "POST",
 			headers: {
@@ -111,7 +111,7 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 	try {
 		// Daily.co トークン生成
-		const apiBaseUrl = "/"; // 本番環境のエンドポイント
+		const apiBaseUrl = ""; // 本番環境のエンドポイント
 		const response = await fetch(`${apiBaseUrl}/api/daily-token`, {
 			method: "POST",
 			headers: {
