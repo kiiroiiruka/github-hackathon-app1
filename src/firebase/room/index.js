@@ -114,7 +114,7 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 		const isDevelopment = import.meta.env.DEV;
 		const apiBaseUrl = isDevelopment 
 			? "http://localhost:8787"  // ローカル開発環境（Cloudflare Workers）
-			: ""; // 本番環境のエンドポイント
+			: ""; // 本番環境のエンドポイント（Cloudflare Pages Functions）
 
 		console.log("🔗 Daily token API request:", {
 			apiBaseUrl,
@@ -124,9 +124,9 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 			userName
 		});
 
-		// 開発環境でAPIが利用できない場合のフォールバック
-		if (isDevelopment && !apiBaseUrl) {
-			console.warn("⚠️ 開発環境でAPIエンドポイントが設定されていません。フォールバックトークンを使用します。");
+		// APIエンドポイントが利用できない場合のフォールバック
+		if (!apiBaseUrl) {
+			console.warn("⚠️ APIエンドポイントが設定されていません。フォールバックトークンを使用します。");
 			// フォールバック用のダミートークン（実際の通話はできませんが、エラーを防ぎます）
 			return `fallback-token-${roomId}-${userId}-${Date.now()}`;
 		}
@@ -172,11 +172,21 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 	} catch (error) {
 		console.error("❌ Daily token generation error:", error);
 		
-		// 開発環境でのフォールバック
+		// ネットワークエラーやAPIエンドポイントが利用できない場合のフォールバック
 		const isDevelopment = import.meta.env.DEV;
-		if (isDevelopment && (error.message.includes('Failed to fetch') || error.message.includes('404') || error.message.includes('ERR_CONNECTION_REFUSED'))) {
+		const isNetworkError = error.message.includes('Failed to fetch') || 
+							  error.message.includes('404') || 
+							  error.message.includes('ERR_CONNECTION_REFUSED') ||
+							  error.message.includes('NetworkError') ||
+							  error.message.includes('TypeError');
+		
+		if (isNetworkError) {
 			console.warn("⚠️ APIエンドポイントにアクセスできません。フォールバックトークンを使用します。");
-			console.warn("💡 Cloudflare Workersの開発サーバーを起動してください: cd functions && npx wrangler dev --port 8787");
+			if (isDevelopment) {
+				console.warn("💡 Cloudflare Workersの開発サーバーを起動してください: cd functions && npx wrangler dev --port 8787");
+			} else {
+				console.warn("💡 本番環境では、Cloudflare Pages Functionsが正しく設定されているか確認してください。");
+			}
 			return `fallback-token-${roomId}-${userId}-${Date.now()}`;
 		}
 		

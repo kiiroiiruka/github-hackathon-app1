@@ -118,6 +118,14 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 
 				if (!isMounted) return;
 
+				// フォールバックトークンの場合は警告を表示
+				if (token.startsWith('fallback-token-')) {
+					console.warn("⚠️ フォールバックトークンが使用されています。実際の通話はできません。");
+					setError("APIサーバーに接続できません。開発環境ではCloudflare Workersを起動してください。");
+					setIsLoading(false);
+					return;
+				}
+
 				// 通話セッション開始（既に開始済みでない場合のみ）
 				if (!sessionStarted) {
 					await startParticipantSession(currentUser.uid, {
@@ -215,12 +223,16 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 		const isMicrophoneError = displayError.includes("マイク") || 
 								  displayError.includes("microphone") || 
 								  displayError.includes("audio");
+		
+		const isApiError = displayError.includes("APIサーバー") || 
+						  displayError.includes("Cloudflare Workers");
 
 		return (
 			<div className="flex flex-col items-center justify-center h-96 bg-gray-100 rounded-lg">
 				<div className="text-red-600 text-center max-w-md">
 					<p className="text-lg font-semibold mb-4">
-						{isMicrophoneError ? "🎤 マイクエラー" : "通話エラー"}
+						{isMicrophoneError ? "🎤 マイクエラー" : 
+						 isApiError ? "🔧 APIサーバーエラー" : "通話エラー"}
 					</p>
 					<p className="text-sm mb-4">{displayError}</p>
 					
@@ -233,6 +245,19 @@ const VideoCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 								<li>ブラウザのアドレスバーの左側にある🔒マークをクリック</li>
 								<li>「マイク」の設定を「許可」に変更</li>
 								<li>ページを再読み込みしてから再度試行</li>
+							</ol>
+						</div>
+					)}
+					
+					{isApiError && (
+						<div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+							<p className="text-sm text-blue-800 mb-2">
+								<strong>開発環境での解決方法:</strong>
+							</p>
+							<ol className="text-xs text-blue-700 text-left list-decimal list-inside space-y-1">
+								<li>ターミナルで <code className="bg-blue-100 px-1 rounded">cd functions</code> を実行</li>
+								<li><code className="bg-blue-100 px-1 rounded">npx wrangler dev --port 8787</code> を実行</li>
+								<li>サーバーが起動したら、このページを再読み込み</li>
 							</ol>
 						</div>
 					)}

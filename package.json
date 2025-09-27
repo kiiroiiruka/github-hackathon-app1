@@ -4,7 +4,10 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"build": "vite build"
+		"build": "vite build",
+		"dev": "vite",
+		"dev:functions": "cd functions && npx wrangler dev --port 8787",
+		"dev:all": "concurrently \"npm run dev\" \"npm run dev:functions\""
 	},
 	"dependencies": {
 		"@daily-co/daily-js": "^0.84.0",
@@ -26,6 +29,7 @@
 		"@types/react": "^19.1.13",
 		"@types/react-dom": "^19.1.9",
 		"@vitejs/plugin-react-swc": "^4.1.0",
+		"concurrently": "^8.2.2",
 		"eslint": "^9.36.0",
 		"eslint-plugin-react-hooks": "^5.2.0",
 		"eslint-plugin-react-refresh": "^0.4.20",
