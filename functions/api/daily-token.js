@@ -51,11 +51,8 @@ export async function onRequest(context) {
 					user_name: userName || "Anonymous",
 					is_owner: false,
 					exp: Math.floor(Date.now() / 1000) + 60 * 60, // Token expires in 1 hour
-					enable_recording: "cloud",
 					start_video_off: true,  // 音声通話に最適化：ビデオはオフ
 					start_audio_off: false, // 音声はオン
-					enable_screenshare: false, // 画面共有は無効
-					enable_chat: false, // チャットは無効
 				},
 			}),
 		});
