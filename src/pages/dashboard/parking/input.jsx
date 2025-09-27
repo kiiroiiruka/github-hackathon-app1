@@ -56,7 +56,7 @@ const Parkinginput = () => {
                     {/* 到着日時表示 */}
                     {arrivalTime && (
                         <div className="text-base font-semibold text-blue-700">
-                            到着日時: {arrivalTime.toLocaleString("ja-JP")}
+                            駐車日時: {arrivalTime.toLocaleString("ja-JP")}
                         </div>
                     )}
 

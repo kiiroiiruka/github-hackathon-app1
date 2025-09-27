@@ -150,7 +150,7 @@ const ParkingInfoDisplay = () => {
           {parkingInfo ? (
             <>
               <div className="text-base font-semibold text-blue-700 mb-2">
-                到着日時:{" "}
+                駐車日時:{" "}
                 {parkingInfo.arrivalTime
                   ? new Date(parkingInfo.arrivalTime).toLocaleString("ja-JP")
                   : "未設定"}
