@@ -46,11 +46,9 @@ export async function onRequest(context) {
 			},
 			body: JSON.stringify({
 				properties: {
-					room_name: `room-${roomId}`,
-					user_id: userId,
-					user_name: userName || "Anonymous",
+					room_name: roomId, // 参考プロジェクトと同じ形式
+					user_name: userName || `User ${userId}`,
 					is_owner: false,
-					exp: Math.floor(Date.now() / 1000) + 60 * 60, // Token expires in 1 hour
 					start_video_off: true,  // 音声通話に最適化：ビデオはオフ
 					start_audio_off: false, // 音声はオン
 				},

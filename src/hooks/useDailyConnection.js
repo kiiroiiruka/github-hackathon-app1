@@ -326,7 +326,7 @@ export const useDailyConnection = (
 
 				console.log("🚀 Daily.coルームに参加中:", { url: urlToUse, token: token.substring(0, 20) + "..." });
 				
-				// 参考プロジェクトの成功パターンに合わせる
+				// 参考プロジェクトの成功パターンに合わせる（認識されないプロパティを削除）
 				const callObject = DailyIframe.createCallObject({
 					url: urlToUse,
 					token: token,
@@ -334,8 +334,6 @@ export const useDailyConnection = (
 					startVideoOff: true,
 					showLeaveButton: false,
 					showFullscreenButton: false,
-					showLocalVideo: false,
-					showParticipantsBar: false,
 				});
 				
 				// Dailyインスタンスを設定

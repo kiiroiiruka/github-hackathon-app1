@@ -45,19 +45,15 @@ export async function onRequest(context) {
 				"Authorization": `Bearer ${env.DAILY_API_KEY}`,
 			},
 			body: JSON.stringify({
-				name: `room-${roomId}`,
+				name: roomId, // 参考プロジェクトと同じ形式
 				privacy: "private",
 				properties: {
-					enable_recording: false,
 					enable_chat: false, // チャット無効
 					enable_screenshare: false, // 画面共有無効
-					enable_knocking: false,
 					enable_prejoin_ui: true, // 事前参加UI有効（音声設定確認用）
 					start_video_off: true, // ビデオオフ
 					start_audio_off: false, // 音声オン
 					max_participants: 10, // 参加者数を削減
-					nbf: Math.floor(Date.now() / 1000), // Room available now
-					exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // Expires in 24 hours
 				},
 			}),
 		});
