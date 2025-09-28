@@ -60,21 +60,21 @@ export const useDailyConnection = (
 					await callObject.setLocalAudio(true);
 					console.log("🎤 通話開始時は音声有効状態で開始");
 					
-					// 音声トラックの状態を確認
-					const audioTrack = callObject.getLocalAudioTrack();
-					if (audioTrack) {
-						console.log("🎤 ローカル音声トラックの状態:", {
-							enabled: audioTrack.enabled,
-							muted: audioTrack.muted,
-							readyState: audioTrack.readyState
-						});
-					}
-					
 					// 現在の参加者リストを更新
 					const currentParticipants = callObject.participants();
 					const participantMap = new Map();
 					Object.entries(currentParticipants).forEach(([id, participant]) => {
 						participantMap.set(id, participant);
+						
+						// ローカル参加者の音声トラック状態を確認
+						if (participant.local) {
+							console.log("🎤 ローカル参加者の音声状態:", {
+								user_name: participant.user_name,
+								audio: participant.audio,
+								video: participant.video,
+								local: participant.local
+							});
+						}
 					});
 					setParticipants(participantMap);
 					
@@ -180,8 +180,20 @@ export const useDailyConnection = (
 							console.log("✅ 音声トラックが安定しています:", {
 								participant: event.participant?.user_name,
 								trackId: event.track.id,
-								readyState: event.track.readyState
+								readyState: event.track.readyState,
+								enabled: event.track.enabled,
+								muted: event.track.muted
 							});
+							
+							// ローカル参加者の音声トラックの場合、追加の確認
+							if (event.participant?.local) {
+								console.log("🎤 ローカル音声トラックの詳細:", {
+									trackId: event.track.id,
+									enabled: event.track.enabled,
+									muted: event.track.muted,
+									readyState: event.track.readyState
+								});
+							}
 						}
 					}, 2000);
 					
