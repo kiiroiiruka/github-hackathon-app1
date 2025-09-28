@@ -1,6 +1,6 @@
 {
-  "name": "Car Navigation App",
-  "short_name": "CarNav",
+  "name": "DriveLink",
+  "short_name": "DriveLink",
   "description": "車のナビゲーションと駐車場管理アプリ",
   "start_url": "/",
   "display": "fullscreen",
@@ -10,22 +10,16 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/vite.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "/vite.svg",
+      "src": "/carIcon.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/vite.svg",
+      "src": "/carIcon.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["navigation", "travel", "utilities"],

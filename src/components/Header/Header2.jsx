@@ -106,6 +106,8 @@ const styles = {
 		right: 0,
 		zIndex: 1000,
 		overflow: "hidden",
+		paddingTop: "calc(16px + env(safe-area-inset-top))",
+		minHeight: "calc(64px + env(safe-area-inset-top))",
 	},
 	left: {
 		flex: 1,

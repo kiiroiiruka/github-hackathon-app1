@@ -1,9 +1,9 @@
 // Service Worker for PWA
-const CACHE_NAME = 'car-nav-app-v2';
+const CACHE_NAME = 'drivelink-app-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/vite.svg'
+  '/carIcon.png'
 ];
 
 // インストール時の処理

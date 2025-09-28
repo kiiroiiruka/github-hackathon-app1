@@ -1,6 +1,24 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+/* PWA環境での安全エリア対応 */
+@supports (padding: max(0px)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* PWA環境でのフルスクリーン対応 */
+@media (display-mode: fullscreen) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 /* カスタムスクロールバー */
 .scrollbar-thin {
   scrollbar-width: thin;

@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithGoogle } from "@/firebase";
-import reactLogo from "../assets/react.svg";
+import carIcon from "../assets/carIcon.png";
 
 function LoginScreen() {
 	const [isLoading, setIsLoading] = useState(false);
@@ -42,8 +42,8 @@ function LoginScreen() {
 					)}
 				>
 					<img
-						src={reactLogo}
-						alt="アプリアイコン"
+						src={carIcon}
+						alt="DriveLink"
 						className="w-16 h-16 opacity-90"
 					/>
 				</div>
