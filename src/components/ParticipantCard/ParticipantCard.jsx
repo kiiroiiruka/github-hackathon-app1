@@ -81,6 +81,18 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		}
 	}, [iconURL]);
 	
+	// photoURLが更新された時に画像エラー状態をリセット
+	useEffect(() => {
+		if (photoURL && photoURL !== "" && photoURL !== null) {
+			console.log("🖼️ photoURLが更新されました、画像エラー状態をリセット:", photoURL);
+			setImageError(false);
+			// エラー状態のキャッシュからも削除
+			if (imageErrorRef.current.has(photoURL)) {
+				imageErrorRef.current.delete(photoURL);
+			}
+		}
+	}, [photoURL]);
+	
 	// デバッグログを追加（重要な情報のみ）
 	console.log("ParticipantCard Debug:", {
 		user_name,
@@ -158,6 +170,17 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 								console.log("🖼️ エラー状態を永続化:", iconURL);
 							}
 							setImageError(true);
+							
+							// photoURLが更新された場合は、エラー状態をリセットして再試行
+							if (photoURL && photoURL !== iconURL) {
+								console.log("🖼️ photoURLが更新されたため、エラー状態をリセットして再試行");
+								setTimeout(() => {
+									setImageError(false);
+									if (imageErrorRef.current.has(iconURL)) {
+										imageErrorRef.current.delete(iconURL);
+									}
+								}, 100);
+							}
 						}}
 					/>
 				) : (
