@@ -60,6 +60,16 @@ export const useDailyConnection = (
 					await callObject.setLocalAudio(true);
 					console.log("🎤 通話開始時は音声有効状態で開始");
 					
+					// Daily.coの接続状態を詳細に確認
+					console.log("🔍 Daily.co接続状態の詳細分析:");
+					console.log("📊 接続状態:", {
+						meetingState: callObject.meetingState(),
+						networkConnectionState: callObject.networkConnectionState(),
+						participants: callObject.participants(),
+						localAudio: callObject.localAudio(),
+						localVideo: callObject.localVideo()
+					});
+					
 					// 現在の参加者リストを更新
 					const currentParticipants = callObject.participants();
 					const participantMap = new Map();
@@ -226,6 +236,46 @@ export const useDailyConnection = (
 							console.log("   1. ブラウザの音量設定を確認");
 							console.log("   2. システムの音量設定を確認");
 							console.log("   3. ヘッドフォン/スピーカーの接続を確認");
+							
+							// 音声トラックの実際の音声データを監視
+							setTimeout(() => {
+								try {
+									console.log("🔍 音声トラックの詳細分析を開始...");
+									console.log("📊 音声トラックのプロパティ:", {
+										trackId: event.track.id,
+										enabled: event.track.enabled,
+										muted: event.track.muted,
+										readyState: event.track.readyState,
+										kind: event.track.kind,
+										label: event.track.label,
+										id: event.track.id
+									});
+									
+									// 音声トラックの実際の音声データを確認
+									if (event.track && event.track.getStats) {
+										event.track.getStats().then(stats => {
+											console.log("📈 音声トラックの統計情報:", stats);
+										}).catch(err => {
+											console.log("📈 統計情報の取得に失敗:", err);
+										});
+									}
+									
+									// 音声トラックの制約を確認
+									if (event.track && event.track.getConstraints) {
+										const constraints = event.track.getConstraints();
+										console.log("⚙️ 音声トラックの制約:", constraints);
+									}
+									
+									// 音声トラックの設定を確認
+									if (event.track && event.track.getSettings) {
+										const settings = event.track.getSettings();
+										console.log("🔧 音声トラックの設定:", settings);
+									}
+									
+								} catch (error) {
+									console.error("❌ 音声トラック分析エラー:", error);
+								}
+							}, 1000);
 						}
 					}
 				}
