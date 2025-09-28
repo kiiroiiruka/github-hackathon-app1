@@ -28,7 +28,9 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
     // 既存のroutingControlがあれば削除
     if (routingControlRef.current) {
       try {
-        if (map.hasControl && map.hasControl(routingControlRef.current)) {
+        if (map && typeof map.removeControl === 'function' && 
+            map.hasControl && typeof map.hasControl === 'function' && 
+            map.hasControl(routingControlRef.current)) {
           map.removeControl(routingControlRef.current);
         }
       } catch (error) {
@@ -42,6 +44,12 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
       setTimeout(() => {
         if (!isMountedRef.current) return;
         
+        console.log('ルート計算開始:', {
+          from: position,
+          to: destination,
+          timestamp: new Date().toLocaleTimeString()
+        });
+
         const routingControl = L.Routing.control({
           waypoints: [L.latLng(position[0], position[1]), L.latLng(destination[0], destination[1])],
           lineOptions: { 
@@ -63,12 +71,7 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
         
         routingControlRef.current = routingControl;
         
-        // マップが完全に準備されていることを確認してから追加
-        if (map && map.getContainer()) {
-          routingControl.addTo(map);
-        }
-      }, 100);
-
+        // イベントリスナーを設定
         const handleRoutesFound = (e) => {
           if (!isMountedRef.current) return;
           
@@ -77,7 +80,8 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
           if (route?.summary && route.coordinates) {
             try {
               // ルートの線を永続的に表示するため、別途Polylineとして作成
-              if (routeLayerRef.current && map.hasLayer(routeLayerRef.current)) {
+              if (routeLayerRef.current && map && typeof map.hasLayer === 'function' && 
+                  typeof map.removeLayer === 'function' && map.hasLayer(routeLayerRef.current)) {
                 map.removeLayer(routeLayerRef.current);
               }
               
@@ -89,7 +93,9 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
               });
               
               routeLayerRef.current = routePolyline;
-              routePolyline.addTo(map);
+              if (map && typeof map.addLayer === 'function') {
+                routePolyline.addTo(map);
+              }
               
               // ルート情報を親コンポーネントに渡す
               if (onRouteInfo && typeof onRouteInfo === 'function' && isMountedRef.current) {
@@ -113,11 +119,14 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
           console.error("ルート検索エラー:", e.error);
         };
 
-        // イベントリスナーを設定
-        if (routingControlRef.current) {
-          routingControlRef.current.on("routesfound", handleRoutesFound);
-          routingControlRef.current.on("routingerror", handleRoutingError);
+        routingControl.on("routesfound", handleRoutesFound);
+        routingControl.on("routingerror", handleRoutingError);
+        
+        // マップが完全に準備されていることを確認してから追加
+        if (map && map.getContainer()) {
+          routingControl.addTo(map);
         }
+      }, 100);
       
     } catch (error) {
       console.error('RoutingControlの作成に失敗:', error);
@@ -128,7 +137,8 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
       isMountedRef.current = false;
       
       // ルートレイヤーをクリーンアップ
-      if (routeLayerRef.current && map && map.hasLayer(routeLayerRef.current)) {
+      if (routeLayerRef.current && map && typeof map.hasLayer === 'function' && 
+          typeof map.removeLayer === 'function' && map.hasLayer(routeLayerRef.current)) {
         try {
           map.removeLayer(routeLayerRef.current);
         } catch (error) {
@@ -144,7 +154,9 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
           routingControlRef.current.off("routingerror");
           
           // マップからコントロールを削除
-          if (map && map.removeControl && map.hasControl(routingControlRef.current)) {
+          if (map && typeof map.removeControl === 'function' && 
+              map.hasControl && typeof map.hasControl === 'function' && 
+              map.hasControl(routingControlRef.current)) {
             map.removeControl(routingControlRef.current);
           }
         } catch (error) {
