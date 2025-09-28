@@ -55,19 +55,15 @@ export const useDailyConnection = (
 				// 音声とビデオの初期設定
 				audioSource: true, // 音声ソースを有効
 				videoSource: false, // ビデオソースを無効
-				// 音声品質と安定性の設定
-				audioConfig: {
-					enableMic: true,
-					enableCam: false,
-					// 音声品質の向上
-					audioQuality: 'high',
-					// 音声の自動調整を有効
-					audioProcessing: {
-						noiseSuppression: true,
-						echoCancellation: true,
-						autoGainControl: true
-					}
-				}
+				// 音声の基本設定
+				startAudioOff: false, // 音声を有効で開始
+				startVideoOff: true, // ビデオを無効で開始
+				// 音声品質の設定
+				audioQuality: 'high',
+				// 音声処理の設定
+				noiseSuppression: true,
+				echoCancellation: true,
+				autoGainControl: true
 			});
 
 			console.log("✅ Dailyインスタンスが作成されました:", !!dailyInstance);
@@ -243,6 +239,17 @@ export const useDailyConnection = (
 						readyState: event.track.readyState
 					});
 					
+					// 音声トラックの安定性を監視
+					setTimeout(() => {
+						if (event.track && event.track.readyState === 'live') {
+							console.log("✅ 音声トラックが安定しています:", {
+								participant: event.participant?.user_name,
+								trackId: event.track.id,
+								readyState: event.track.readyState
+							});
+						}
+					}, 2000);
+					
 					// リモート参加者の音声トラックの場合、再生状況を確認
 					if (!event.participant?.local) {
 						console.log("🎧 リモート参加者の音声トラックが開始されました");
@@ -364,6 +371,7 @@ export const useDailyConnection = (
 			}
 
 			try {
+				console.log("🚀 ルームに参加を開始します:", { roomUrl: urlToUse, token: token.substring(0, 20) + "..." });
 				console.log("🎤 マイク許可を要求しています...");
 				setIsConnecting(true);
 				setError(null);
