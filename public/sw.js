@@ -1,10 +1,9 @@
 // Service Worker for PWA
-const CACHE_NAME = 'car-nav-app-v1';
+const CACHE_NAME = 'car-nav-app-v2';
 const urlsToCache = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json'
+  '/manifest.json',
+  '/vite.svg'
 ];
 
 // インストール時の処理

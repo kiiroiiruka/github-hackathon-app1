@@ -6,6 +6,7 @@ import { useAuthState } from "./hooks/useAuthState";
 import Dashboard from "./pages/Dashboard";
 import UserPolicy from "./pages/dashboard/policy/UserPolicy";
 import LoginScreen from "./pages/LoginScreen";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 function App() {
 	const navigate = useNavigate(); //遷移先を指定
@@ -43,14 +44,17 @@ function App() {
 	}, [routeChange]);
 
 	return (
-		<Routes>
-			{/* ログイン画面 */}
-			<Route path="/" element={<LoginScreen />} />
-			{/* 公開ページ */}
-			<Route path="/policy" element={<UserPolicy />} />
-			{/* ダッシュボード画面（サブルーティング対応） */}
-			<Route path="/dashboard/*" element={<Dashboard />} />
-		</Routes>
+		<>
+			<Routes>
+				{/* ログイン画面 */}
+				<Route path="/" element={<LoginScreen />} />
+				{/* 公開ページ */}
+				<Route path="/policy" element={<UserPolicy />} />
+				{/* ダッシュボード画面（サブルーティング対応） */}
+				<Route path="/dashboard/*" element={<Dashboard />} />
+			</Routes>
+			<PWAInstallPrompt />
+		</>
 	);
 }
 export default App;
