@@ -44,6 +44,12 @@ export const useDailyConnection = (
 			memberData: member ? { name: member.name, uid: member.uid, photoURL: member.photoURL } : null
 		});
 		
+		// メンバーが見つからない場合は、デフォルトのアバターURLを返す
+		if (!member && userName) {
+			console.log("🖼️ メンバーが見つからないため、デフォルトアバターを使用:", userName);
+			return `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random&color=fff&size=96`;
+		}
+		
 		return photoURL;
 	}, [members]);
 
@@ -385,6 +391,30 @@ export const useDailyConnection = (
 					local: event.participant.local
 				});
 				
+				// リモート参加者の場合、Firebaseのmembersデータを更新
+				if (!event.participant.local && roomId && currentUserUid) {
+					console.log("🔥 リモート参加者のFirebase membersデータを更新:", {
+						user_name: event.participant.user_name,
+						session_id: event.participant.session_id,
+						roomId: roomId
+					});
+					
+					// Firebaseのmembersデータを更新
+					import("firebase/database").then(({ ref, update }) => {
+						const memberRef = ref(rtdb, `rooms/${roomId}/members/${event.participant.session_id}`);
+						update(memberRef, {
+							name: event.participant.user_name,
+							uid: event.participant.session_id,
+							accepted: true,
+							joinedAt: Date.now()
+						}).then(() => {
+							console.log("✅ リモート参加者のFirebase membersデータを更新完了");
+						}).catch((error) => {
+							console.error("❌ リモート参加者のFirebase membersデータ更新エラー:", error);
+						});
+					});
+				}
+				
 				// 参加者を即座に状態管理に追加（photoURLを含む）
 				setParticipants((prev) => {
 					const newMap = new Map(prev);
@@ -490,7 +520,31 @@ export const useDailyConnection = (
 				}
 			})
 			.on("participant-left", (event) => {
-				console.log("Participant left:", event);
+				console.log("👥 Participant left:", {
+					session_id: event.participant.session_id,
+					user_name: event.participant.user_name,
+					local: event.participant.local
+				});
+				
+				// リモート参加者の場合、Firebaseのmembersデータを削除
+				if (!event.participant.local && roomId && currentUserUid) {
+					console.log("🔥 リモート参加者のFirebase membersデータを削除:", {
+						user_name: event.participant.user_name,
+						session_id: event.participant.session_id,
+						roomId: roomId
+					});
+					
+					// Firebaseのmembersデータを削除
+					import("firebase/database").then(({ ref, remove }) => {
+						const memberRef = ref(rtdb, `rooms/${roomId}/members/${event.participant.session_id}`);
+						remove(memberRef).then(() => {
+							console.log("✅ リモート参加者のFirebase membersデータを削除完了");
+						}).catch((error) => {
+							console.error("❌ リモート参加者のFirebase membersデータ削除エラー:", error);
+						});
+					});
+				}
+				
 				setParticipants((prev) => {
 					const newMap = new Map(prev);
 					newMap.delete(event.participant.session_id);
