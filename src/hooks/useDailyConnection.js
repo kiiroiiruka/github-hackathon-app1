@@ -225,43 +225,50 @@ export const useDailyConnection = (
 					
 					// 現在の参加者リストを更新（重複を防ぐ）
 					const currentParticipants = callObject.participants();
-					setParticipants((prev) => {
-						const newMap = new Map();
+					console.log("🔍 joined-meeting時の参加者データ:", {
+						participants: currentParticipants,
+						participantCount: Object.keys(currentParticipants).length
+					});
+					
+					// 参加者リストを確実に更新
+					const participantMap = new Map();
+					Object.entries(currentParticipants).forEach(([id, participant]) => {
+						// photoURLを追加
+						const participantWithPhoto = {
+							...participant,
+							photoURL: getMemberPhotoURL(participant.user_name, participant.session_id)
+						};
+						participantMap.set(id, participantWithPhoto);
 						
-						// 既存の参加者を保持しつつ、新しい参加者情報で更新
-						Object.entries(currentParticipants).forEach(([id, participant]) => {
-							newMap.set(id, participant);
+						// ローカル参加者の音声トラック状態を確認
+						if (participant.local) {
+							console.log("🎤 ローカル参加者の音声状態:", {
+								user_name: participant.user_name,
+								audio: participant.audio,
+								video: participant.video,
+								local: participant.local,
+								session_id: id
+							});
 							
-							// ローカル参加者の音声トラック状態を確認
-							if (participant.local) {
-								console.log("🎤 ローカル参加者の音声状態:", {
-									user_name: participant.user_name,
-									audio: participant.audio,
-									video: participant.video,
-									local: participant.local,
+							// ローカル参加者の音声状態を状態管理に反映
+							// ただし、初期接続時は明示的にtrueに設定済みなので、実際の状態と異なる場合のみ更新
+							if (participant.audio !== isMicrophoneEnabled) {
+								console.log("🔄 ローカル参加者の音声状態を更新:", {
+									previousState: isMicrophoneEnabled,
+									newState: participant.audio,
 									session_id: id
 								});
-								
-								// ローカル参加者の音声状態を状態管理に反映
-								// ただし、初期接続時は明示的にtrueに設定済みなので、実際の状態と異なる場合のみ更新
-								if (participant.audio !== isMicrophoneEnabled) {
-									console.log("🔄 ローカル参加者の音声状態を更新:", {
-										previousState: isMicrophoneEnabled,
-										newState: participant.audio,
-										session_id: id
-									});
-									setIsMicrophoneEnabled(participant.audio);
-								}
+								setIsMicrophoneEnabled(participant.audio);
 							}
-						});
-						
-						console.log("👥 参加者リストを更新:", {
-							totalParticipants: newMap.size,
-							participantIds: Array.from(newMap.keys())
-						});
-						
-						return newMap;
+						}
 					});
+					
+					console.log("👥 参加者リストを更新:", {
+						totalParticipants: participantMap.size,
+						participantIds: Array.from(participantMap.keys())
+					});
+					
+					setParticipants(participantMap);
 					
 					// 音声状態の定期監視を開始
 					const audioStateMonitor = setInterval(() => {

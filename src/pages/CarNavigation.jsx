@@ -187,20 +187,27 @@ const CarNavigation = () => {
 					}
 					
 					// 通話参加者がいない場合は、メンバーから参加者データを作成
-					// ただし、音声状態は適切に初期化
-					const fallbackParticipants = members.map(member => {
-						console.log("📝 フォールバック参加者データを作成:", member.name);
-						return {
+					// ただし、音声状態は適切に初期化（デバッグログを削減）
+					if (members.length > 0) {
+						const fallbackParticipants = members.map(member => ({
 							session_id: member.uid,
 							user_name: member.name,
 							audio: member.uid === currentUserUid ? true : false, // ローカルユーザーのみ音声ON
 							photoURL: member.photoURL,
 							local: member.uid === currentUserUid
-						};
-					});
+						}));
+						
+						// フォールバック使用時のみログ出力
+						console.log("📝 フォールバック参加者データを使用:", {
+							count: fallbackParticipants.length,
+							reason: "callParticipantsが空"
+						});
+						
+						return fallbackParticipants;
+					}
 					
-					console.log("📝 フォールバック参加者数:", fallbackParticipants.length);
-					return fallbackParticipants;
+					// メンバーもいない場合は空配列
+					return [];
 				})()}
 			/>
 		</div>
