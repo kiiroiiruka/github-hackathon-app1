@@ -11,17 +11,9 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
   const routeLayerRef = useRef(null); // ルートの線を保持するLayer
 
   useEffect(() => {
-<<<<<<< HEAD
     // コンポーネントがマウントされていることを記録
     isMountedRef.current = true;
     
-    // 既存のroutingControlがあれば削除
-    if (routingControlRef.current) {
-      try {
-        map.removeControl(routingControlRef.current);
-      } catch (error) {
-        console.warn('既存のroutingControlの削除に失敗:', error);
-=======
     console.log("RoutingControl - map:", map);
     console.log("RoutingControl - position:", position);
     console.log("RoutingControl - destination:", destination);
@@ -32,6 +24,15 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
     }
 
     console.log("ルーティングコントロールを作成中...");
+    
+    // 既存のroutingControlがあれば削除
+    if (routingControlRef.current) {
+      try {
+        map.removeControl(routingControlRef.current);
+      } catch (error) {
+        console.warn('既存のroutingControlの削除に失敗:', error);
+      }
+    }
     
     const routingControl = L.Routing.control({
       waypoints: [
@@ -72,10 +73,10 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
           arrivalTime: new Date(Date.now() + summary.totalTime * 1000),
           instructions: route.instructions
         });
->>>>>>> origin/feat/#2
       }
       routingControlRef.current = null;
-    }
+    });
+    
     if (!map || !position || !destination || !isMountedRef.current) return;
     
     // 座標の有効性をチェック
@@ -87,7 +88,6 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
       return;
     }
 
-<<<<<<< HEAD
     try {
       const routingControl = L.Routing.control({
         waypoints: [L.latLng(position[0], position[1]), L.latLng(destination[0], destination[1])],
@@ -197,23 +197,23 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
       
       // 注意: routeLayerRef.currentは意図的に削除しない
       // ルートの線を永続的に表示するため
-=======
-    routingControl.on("routingerror", (e) => {
-      console.error("ルーティングエラー:", e);
-    });
+      
+      routingControl.on("routingerror", (e) => {
+        console.error("ルーティングエラー:", e);
+      });
 
-    return () => {
-      try {
-        if (map.hasLayer?.(routingControl)) {
-          map.removeControl(routingControl);
-        } else {
-          map.removeControl(routingControl);
+      return () => {
+        try {
+          if (map.hasLayer?.(routingControl)) {
+            map.removeControl(routingControl);
+          } else {
+            map.removeControl(routingControl);
+          }
+          console.log("ルーティングコントロールを削除しました");
+        } catch (error) {
+          console.error("ルーティングコントロールの削除でエラー:", error);
         }
-        console.log("ルーティングコントロールを削除しました");
-      } catch (error) {
-        console.error("ルーティングコントロールの削除でエラー:", error);
-      }
->>>>>>> origin/feat/#2
+      };
     };
   }, [map, position, destination, onRouteInfo]);
   
