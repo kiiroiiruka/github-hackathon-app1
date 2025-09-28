@@ -29,12 +29,19 @@ const SelectedFriendsSection = ({ selectedFriends, clearAllSelection }) => (
           <p className="text-center">下からフレンドを選択してください</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex gap-3 overflow-x-auto pb-2" style={{scrollbarWidth: 'thin'}}>
           {selectedFriends.map((friend) => (
-            <div key={friend.uid} className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl shadow-sm">
-              <FriendAvatar friend={friend} isSelected={false} />
-              <div>
-                <span className="text-sm font-medium text-gray-800">{friend.name}</span>
+            <div key={friend.uid} className="flex flex-col items-center gap-2 p-3 bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl shadow-sm min-w-[80px] flex-shrink-0">
+              <div className="relative">
+                <FriendAvatar friend={friend} isSelected={false} size="w-12 h-12" />
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-xs text-white">✓</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs font-medium text-gray-800 truncate max-w-[60px]" title={friend.name}>
+                  {friend.name}
+                </div>
                 <div className="text-xs text-gray-600">招待予定</div>
               </div>
             </div>

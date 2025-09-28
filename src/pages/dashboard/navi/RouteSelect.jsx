@@ -314,29 +314,6 @@ const RouteSelect = () => {
               </div>
             )}
 
-            {/* 戻るボタン */}
-            <div className="flex justify-center pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  const returnTo = location.state?.returnTo;
-                  if (returnTo && (selectedDestination || selectedDeparture)) {
-                    navigate(returnTo, {
-                      state: { 
-                        selectedLocation: selectedDestination,
-                        selectedDeparture: selectedDeparture
-                      }
-                    });
-                  } else {
-                    navigate("/dashboard/navi/room");
-                  }
-                }}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
-              >
-                <span>←</span>
-                戻る
-              </button>
-            </div>
           </div>
         </div>
       </div>

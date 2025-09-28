@@ -429,14 +429,6 @@ const PurlieuLocation = () => {
                 設定した場所でルーム作成
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard/navi/route")}
-              className="flex items-center gap-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
-            >
-              <span>←</span>
-              戻る
-            </button>
           </div>
         </div>
       </div>
