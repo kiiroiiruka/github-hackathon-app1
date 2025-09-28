@@ -122,12 +122,23 @@ export const useDailyConnection = (
 					
 					// 既存のphotoURLを保持し、新しいphotoURLが取得できる場合はそれを使用
 					let photoURL = existingParticipant?.photoURL;
-					if (!photoURL) {
+					
+					// 既存のphotoURLがない場合のみ、新しいphotoURLを取得
+					if (!photoURL || photoURL === "" || photoURL === null) {
 						// ローカル参加者の場合は特別処理
 						if (participantData.local && currentUserUid) {
 							photoURL = getMemberPhotoURL(participantData.user_name, currentUserUid);
 						} else {
 							photoURL = getMemberPhotoURL(participantData.user_name, participantData.session_id);
+						}
+						
+						// 生成されたアイコンが返された場合は、既存のphotoURLを保持
+						if (photoURL && photoURL.includes("ui-avatars.com")) {
+							console.log("🔄 生成されたアイコンが返されたため、既存のphotoURLを保持:", {
+								user_name: participantData.user_name,
+								existingPhotoURL: existingParticipant?.photoURL
+							});
+							photoURL = existingParticipant?.photoURL || null;
 						}
 					}
 					
@@ -763,7 +774,9 @@ export const useDailyConnection = (
 						});
 						
 						const photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
-						if (photoURL) {
+						
+						// 生成されたアイコンが返された場合は、既存のphotoURLを保持
+						if (photoURL && !photoURL.includes("ui-avatars.com")) {
 							setParticipants((prev) => {
 								const newMap = new Map(prev);
 								const existingParticipant = newMap.get(event.participant.session_id);
@@ -779,6 +792,11 @@ export const useDailyConnection = (
 							console.log("🔄 participant-updated参加者のphotoURL再取得成功:", {
 								user_name: event.participant.user_name,
 								photoURL: photoURL
+							});
+						} else if (photoURL && photoURL.includes("ui-avatars.com")) {
+							console.log("🔄 生成されたアイコンが返されたため、既存のphotoURLを保持:", {
+								user_name: event.participant.user_name,
+								session_id: event.participant.session_id
 							});
 						}
 					}

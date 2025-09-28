@@ -174,8 +174,8 @@ const CarNavigation = () => {
 						}
 					}
 					
-					// 新しいphotoURLが取得できた場合は更新（空文字列も有効な値として扱う）
-					if (photoURL !== undefined && photoURL !== null) {
+					// 新しいphotoURLが取得できた場合は更新（生成されたアイコンは除外）
+					if (photoURL !== undefined && photoURL !== null && !photoURL.includes("ui-avatars.com")) {
 						if (newPhotoURLs.get(sessionId) !== photoURL) {
 							newPhotoURLs.set(sessionId, photoURL);
 							newPhotoURLs.set(userName, photoURL);
@@ -187,6 +187,12 @@ const CarNavigation = () => {
 								photoURLType: typeof photoURL
 							});
 						}
+					} else if (photoURL && photoURL.includes("ui-avatars.com")) {
+						console.log("🖼️ 生成されたアイコンは除外:", {
+							sessionId,
+							userName,
+							photoURL
+						});
 					}
 				});
 				

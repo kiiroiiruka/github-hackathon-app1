@@ -5,6 +5,7 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
 	const { user_name, audio, photoURL, uid, session_id } = participant;
 	const [imageError, setImageError] = useState(false);
 	const imageErrorRef = useRef(new Set()); // 画像エラー状態を永続化
+	const validPhotoURLRef = useRef(null); // 有効なphotoURLを保持
 	const currentUser = useCurrentUser(); // 現在のユーザー情報を取得
 	
 	// ユーザーIDを基にアイコンURLを生成する関数
@@ -55,6 +56,7 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
 		// ローカル参加者でGoogleアイコンが利用可能な場合はそれを使用
 		if (isLocal && currentUser?.photoURL) {
 			console.log("🖼️ ローカル参加者のGoogleアイコンを使用:", currentUser.photoURL);
+			validPhotoURLRef.current = currentUser.photoURL;
 			return currentUser.photoURL;
 		}
 		
@@ -62,12 +64,14 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
 		let cachedPhotoURL = participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name);
 		if (cachedPhotoURL !== undefined && cachedPhotoURL !== null && cachedPhotoURL !== "") {
 			console.log("🖼️ キャッシュされたphotoURLを使用:", cachedPhotoURL);
+			validPhotoURLRef.current = cachedPhotoURL;
 			return cachedPhotoURL;
 		}
 		
 		// FirebaseのmembersデータからphotoURLが取得できる場合はそれを使用
 		if (photoURL && photoURL !== "" && photoURL !== null) {
 			console.log("🖼️ Firebase photoURLを使用:", photoURL);
+			validPhotoURLRef.current = photoURL;
 			return photoURL;
 		}
 		
@@ -75,7 +79,14 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
 		const googlePhotoURL = getGooglePhotoURL(user_name);
 		if (googlePhotoURL) {
 			console.log("🖼️ Google認証からphotoURLを取得:", googlePhotoURL);
+			validPhotoURLRef.current = googlePhotoURL;
 			return googlePhotoURL;
+		}
+		
+		// 有効なphotoURLが既に保存されている場合はそれを使用
+		if (validPhotoURLRef.current && !validPhotoURLRef.current.includes("ui-avatars.com")) {
+			console.log("🖼️ 保存された有効なphotoURLを使用:", validPhotoURLRef.current);
+			return validPhotoURLRef.current;
 		}
 		
 		// それ以外の場合は生成されたアイコンを使用
@@ -108,6 +119,9 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
 	}, [photoURL]);
 	
 	// デバッグログを追加（重要な情報のみ）
+	const cachedPhotoURL = participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name);
+	const googlePhotoURL = getGooglePhotoURL(user_name);
+	
 	console.log("ParticipantCard Debug:", {
 		user_name,
 		isLocal,
@@ -120,9 +134,17 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
 		willShowImage: !imageError,
 		hasGooglePhoto: !!(isLocal && currentUser?.photoURL),
 		hasFirebasePhoto: !!photoURL,
-		hasCachedPhoto: !!(participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name)),
-		cachedPhotoURL: participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name),
-		usingGeneratedIcon: !(isLocal && currentUser?.photoURL) && !photoURL && !(participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name))
+		hasCachedPhoto: !!cachedPhotoURL,
+		cachedPhotoURL: cachedPhotoURL,
+		googlePhotoURL: googlePhotoURL,
+		usingGeneratedIcon: !(isLocal && currentUser?.photoURL) && !photoURL && !cachedPhotoURL && !googlePhotoURL,
+		iconSource: (() => {
+			if (isLocal && currentUser?.photoURL) return "local-google";
+			if (cachedPhotoURL) return "cached";
+			if (photoURL) return "firebase";
+			if (googlePhotoURL) return "google-auth";
+			return "generated";
+		})()
 	});
 	
 	// ユーザー名が長すぎる場合は省略
