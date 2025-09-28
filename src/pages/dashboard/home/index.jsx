@@ -1,298 +1,265 @@
-import { useCallback, useEffect, useState } from "react";
+import { onValue, ref, update } from "firebase/database";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-	acceptFriendRequest,
-	getFriendRequests,
-	getSentFriendRequests,
-	getUser,
-	logout,
-	rejectFriendRequest,
-	updateUserMessage,
-} from "@/firebase";
-import { useUserUid } from "@/hooks/useUserUid";
-import HeaderComponent2 from "../../../components/Header/Header2";
+import { auth, rtdb } from "@/firebase";
+import HeaderComponent2 from "@/components/Header/Header2";
+import ProfileImage from "@/components/ui/ProfileImage";
 
 const HomeScreen = () => {
 	const navigate = useNavigate();
-	const [friendRequests, setFriendRequests] = useState([]);
-	const [sentFriendRequests, setSentFriendRequests] = useState([]);
-	const [userMessage, setUserMessage] = useState("");
-	const [currentUser, setCurrentUser] = useState(null);
-	const currentUserId = useUserUid();
+	const [invitedRooms, setInvitedRooms] = useState([]);
+	const [ownedRooms, setOwnedRooms] = useState([]);
+	const [selectedRoom, setSelectedRoom] = useState(() => {
+		const saved = localStorage.getItem('selectedRoom');
+		return saved ? JSON.parse(saved) : null;
+	});
+	const [loading, setLoading] = useState(true);
+	const [updatingId, setUpdatingId] = useState("");
 
-	// ユーザー情報を取得
-	const loadCurrentUser = useCallback(async () => {
-		if (!currentUserId) return;
-
-		try {
-			const user = await getUser(currentUserId);
-			setCurrentUser(user);
-			setUserMessage(user?.userShortMessage || "");
-		} catch (error) {
-			console.error("ユーザー情報取得エラー:", error);
-		}
-	}, [currentUserId]);
-
-	// 受信した友達リクエストを取得
-	const loadFriendRequests = useCallback(async () => {
-		if (!currentUserId) return;
-
-		try {
-			const requests = await getFriendRequests(currentUserId);
-			setFriendRequests(requests);
-		} catch (error) {
-			console.error("友達リクエスト取得エラー:", error);
-		}
-	}, [currentUserId]);
-
-	// 送信した友達リクエストを取得
-	const loadSentFriendRequests = useCallback(async () => {
-		if (!currentUserId) return;
-
-		try {
-			const sentRequests = await getSentFriendRequests(currentUserId);
-			setSentFriendRequests(sentRequests);
-		} catch (error) {
-			console.error("送信した友達リクエスト取得エラー:", error);
-		}
-	}, [currentUserId]);
-
-	// コンポーネントマウント時にデータを取得
 	useEffect(() => {
-		if (currentUserId) {
-			loadCurrentUser();
-			loadFriendRequests();
-			loadSentFriendRequests();
+		const currentUser = auth.currentUser;
+		if (!currentUser) {
+			setInvitedRooms([]);
+			setOwnedRooms([]);
+			setLoading(false);
+			return;
 		}
-	}, [
-		currentUserId,
-		loadCurrentUser,
-		loadFriendRequests,
-		loadSentFriendRequests,
-	]);
 
-	// 友達リクエスト承認
-	const handleAcceptRequest = async (requestId, fromUserId) => {
+		const roomsRef = ref(rtdb, "rooms");
+		const unsubscribe = onValue(
+			roomsRef,
+			(snapshot) => {
+				const value = snapshot.val() || {};
+				const list = Object.entries(value).map(([roomId, room]) => ({
+					roomId,
+					...room,
+				}));
+				const invited = list.filter(
+					(room) =>
+						room?.members?.[currentUser.uid] &&
+						room.members[currentUser.uid].invited &&
+						!room.members[currentUser.uid].accepted,
+				);
+				const owned = list.filter((room) => room?.ownerUid === currentUser.uid);
+				setInvitedRooms(invited);
+				setOwnedRooms(owned);
+				setLoading(false);
+			},
+			() => setLoading(false),
+		);
+
+		return () => unsubscribe();
+	}, []);
+
+	const handleAccept = async (roomId) => {
+		const currentUser = auth.currentUser;
+		if (!currentUser) return;
 		try {
-			await acceptFriendRequest(requestId, fromUserId, currentUserId);
-			await loadFriendRequests(); // 受信リストを更新
-			await loadSentFriendRequests(); // 送信リストも更新
-			alert("友達リクエストを承認しました！");
-		} catch (error) {
-			console.error("友達リクエスト承認エラー:", error);
-			alert("友達リクエストの承認に失敗しました");
+			setUpdatingId(roomId);
+			await update(ref(rtdb, `rooms/${roomId}/members/${currentUser.uid}`), {
+				accepted: true,
+			});
+			navigate(`/dashboard/car/${roomId}`);
+		} catch (e) {
+			console.error("参加更新に失敗:", e);
+			alert("参加処理に失敗しました。再試行してください。");
+		} finally {
+			setUpdatingId("");
 		}
 	};
 
-	// 友達リクエスト拒否
-	const handleRejectRequest = async (requestId) => {
-		try {
-			await rejectFriendRequest(requestId);
-			await loadFriendRequests(); // 受信リストを更新
-			await loadSentFriendRequests(); // 送信リストも更新
-			alert("友達リクエストを拒否しました");
-		} catch (error) {
-			console.error("友達リクエスト拒否エラー:", error);
-			alert("友達リクエストの拒否に失敗しました");
-		}
+	const handleUserIconClick = () => {
+		navigate("/dashboard/UserInformation");
 	};
 
-	// 一言メッセージ更新
-	const handleUpdateMessage = async () => {
-		if (!currentUserId) return;
-
-		try {
-			await updateUserMessage(currentUserId, userMessage);
-			await loadCurrentUser(); // ユーザー情報を再読み込み
-			alert("一言メッセージを更新しました！");
-		} catch (error) {
-			console.error("一言メッセージ更新エラー:", error);
-			alert("一言メッセージの更新に失敗しました");
-		}
+	// フレンドページへの遷移処理
+	const handleFriendClick = () => {
+		navigate("/dashboard/home/friend-page");
 	};
 
-	// ログアウト処理
-	const handleLogout = async () => {
-		try {
-			await logout();
-			console.log("ログアウトしました");
-		} catch (error) {
-			console.error("ログアウトエラー:", error);
-		}
+	// ルーム選択処理
+	const handleRoomSelect = (room) => {
+		setSelectedRoom(room);
+		localStorage.setItem('selectedRoom', JSON.stringify(room));
 	};
 
 	return (
 		<div>
-			<HeaderComponent2 title="ホーム" />
+			<HeaderComponent2 title="ホーム" onUserIconClick={handleUserIconClick} />
 			<div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
-				{/* 一言メッセージ編集セクション */}
-				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
-					<h2 className="text-lg font-semibold mb-3">一言メッセージ</h2>
-					<div className="flex gap-2">
-						<input
-							type="text"
-							value={userMessage}
-							onChange={(e) => setUserMessage(e.target.value)}
-							placeholder="一言メッセージを入力（例：よろしくお願いします！）"
-							className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-							maxLength={50}
-						/>
-						<button
-							type="button"
-							onClick={handleUpdateMessage}
-							disabled={!userMessage.trim()}
-							className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded transition-colors"
-						>
-							更新
-						</button>
-					</div>
-					{currentUser?.userShortMessage && (
-						<p className="text-sm text-gray-600 mt-2">
-							現在のメッセージ: "{currentUser.userShortMessage}"
-						</p>
-					)}
-					{currentUser?.createdAt && (
-						<p className="text-xs text-gray-500 mt-1">
-							アカウント作成日:{" "}
-							{new Date(currentUser.createdAt.toDate()).toLocaleDateString(
-								"ja-JP",
-							)}
-						</p>
-					)}
+				{/* フレンドボタン */}
+				<div className="mb-6">
+					<button
+						type="button"
+						onClick={handleFriendClick}
+						className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
+					>
+						<span className="text-2xl">👥</span>
+						<span className="text-lg">フレンド</span>
+					</button>
 				</div>
 
-				{/* 送信した友達リクエストセクション */}
-				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
-					<h2 className="text-lg font-semibold mb-3">送信した友達リクエスト</h2>
-					<div className="mb-3">
-						<button
-							type="button"
-							onClick={() => navigate("/dashboard/home/inviting")}
-							className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-						>
-							招待中のルームを見る
-						</button>
-					</div>
-					{sentFriendRequests.length === 0 ? (
-						<p className="text-gray-500">送信中の友達リクエストはありません</p>
+				{/* 作成・招待されたルーム */}
+				<div className="bg-white rounded-lg shadow-md p-3 mb-4">
+					<h2 className="text-lg font-semibold mb-3 text-gray-800">作成・招待されたルーム</h2>
+					{loading ? (
+						<div className="flex items-center justify-center py-8">
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+							<span className="ml-3 text-gray-600">読み込み中...</span>
+						</div>
+					) : invitedRooms.length === 0 && ownedRooms.length === 0 ? (
+						<div className="text-center py-8">
+							<div className="text-6xl mb-4">🏠</div>
+							<p className="text-gray-600 text-lg">ルームがありません</p>
+							<p className="text-gray-500 text-sm mt-2">ルームを作成するか、招待を待ちましょう</p>
+						</div>
 					) : (
-						<div className="space-y-3">
-							{sentFriendRequests.map((request) => (
-								<div
-									key={request.id}
-									className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-yellow-50"
+						<div className="max-h-60 overflow-y-auto space-y-2">
+							{/* 招待されたルーム */}
+							{invitedRooms.map((room) => (
+								<button
+									key={room.roomId}
+									type="button"
+									onClick={() => handleRoomSelect(room)}
+									className={`w-full text-left border border-gray-200 rounded-lg p-2 transition-all duration-200 hover:shadow-md ${
+										selectedRoom?.roomId === room.roomId 
+											? 'bg-blue-100 border-blue-300 shadow-md' 
+											: 'bg-gradient-to-r from-blue-50 to-indigo-50'
+									}`}
 								>
-									<div className="flex items-center gap-3">
-										<div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-											{request.recipientPhotoURL ? (
-												<img
-													src={request.recipientPhotoURL}
-													alt={request.recipientName}
-													className="w-10 h-10 rounded-full object-cover"
-												/>
-											) : (
-												<span className="text-gray-600 text-sm">?</span>
-											)}
+									<div className="flex items-start gap-2">
+										<div className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm flex-shrink-0">
+											<ProfileImage 
+												src={room.ownerPhotoURL} 
+												alt={room.ownerName || "owner"} 
+												className="w-8 h-8 rounded-full" 
+												fallbackText={room.ownerName?.charAt(0) || "?"} 
+											/>
 										</div>
-										<div>
-											<p className="font-medium">{request.recipientName}</p>
-											<p className="text-sm text-gray-500">
-												ID: {request.recipientUid}
-											</p>
-											{request.senderMessage && (
-												<p className="text-sm text-blue-600 mt-1 italic">
-													あなたのメッセージ: "{request.senderMessage}"
-												</p>
-											)}
+										<div className="flex-1 min-w-0">
+											<div className="flex items-center gap-2 mb-1">
+												<h3 className="font-medium text-sm text-gray-800 break-words">{room.name || "(名称未設定)"}</h3>
+												<span className="inline-block bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs font-medium">
+													招待中
+												</span>
+											</div>
+											<div className="text-xs text-gray-600">
+												<p>作成者: {room.ownerName || "(名称未設定)"}</p>
+											</div>
 										</div>
 									</div>
-									<div className="flex items-center">
-										<span className="text-sm text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
-											承認待ち
-										</span>
+								</button>
+							))}
+
+							{/* 作成したルーム */}
+							{ownedRooms.map((room) => (
+								<button
+									key={room.roomId}
+									type="button"
+									onClick={() => handleRoomSelect(room)}
+									className={`w-full text-left border border-gray-200 rounded-lg p-2 transition-all duration-200 hover:shadow-md ${
+										selectedRoom?.roomId === room.roomId 
+											? 'bg-green-100 border-green-300 shadow-md' 
+											: 'bg-gradient-to-r from-green-50 to-emerald-50'
+									}`}
+								>
+									<div className="flex items-start gap-2">
+										<div className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm flex-shrink-0">
+											<ProfileImage 
+												src={room.ownerPhotoURL} 
+												alt={room.ownerName || "owner"} 
+												className="w-8 h-8 rounded-full" 
+												fallbackText={room.ownerName?.charAt(0) || "?"} 
+											/>
+										</div>
+										<div className="flex-1 min-w-0">
+											<div className="flex items-center gap-2 mb-1">
+												<h3 className="font-medium text-sm text-gray-800 break-words">{room.name || "(名称未設定)"}</h3>
+												<span className="inline-block bg-green-100 text-green-800 px-1.5 py-0.5 rounded text-xs font-medium">
+													あなたが作成
+												</span>
+											</div>
+										</div>
 									</div>
-								</div>
+								</button>
 							))}
 						</div>
 					)}
 				</div>
 
-				{/* 友達リクエスト受信セクション */}
-				<div className="bg-white rounded-lg shadow-md p-4 mb-6">
-					<h2 className="text-lg font-semibold mb-3">受信した友達リクエスト</h2>
-					{friendRequests.length === 0 ? (
-						<p className="text-gray-500">友達リクエストはありません</p>
-					) : (
-						<div className="space-y-3">
-							{friendRequests.map((request) => (
-								<div
-									key={request.id}
-									className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
-								>
-									<div className="flex items-center gap-3">
-										<div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-											{request.senderPhotoURL ? (
-												<img
-													src={request.senderPhotoURL}
-													alt={request.senderName}
-													className="w-10 h-10 rounded-full object-cover"
-												/>
-											) : (
-												<span className="text-gray-600 text-sm">?</span>
-											)}
-										</div>
-										<div>
-											<p className="font-medium">{request.senderName}</p>
-											<p className="text-sm text-gray-500">
-												ID: {request.senderUid}
-											</p>
-											{request.senderMessage && (
-												<p className="text-sm text-blue-600 mt-1 italic">
-													"{request.senderMessage}"
-												</p>
-											)}
-											{request.senderCreatedAt && (
-												<p className="text-xs text-gray-400 mt-1">
-													アカウント作成日:{" "}
-													{new Date(
-														request.senderCreatedAt.toDate(),
-													).toLocaleDateString("ja-JP")}
-												</p>
-											)}
-										</div>
+				{/* 選択中のルーム詳細 */}
+				{selectedRoom && (
+					<div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-6">
+						<h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-800">選択中のルーム</h2>
+						<div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+							<div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+								<div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden border-2 border-white shadow-md flex-shrink-0">
+									<ProfileImage 
+										src={selectedRoom.ownerPhotoURL} 
+										alt={selectedRoom.ownerName || "owner"} 
+										className="w-12 h-12 sm:w-16 sm:h-16 rounded-full" 
+										fallbackText={selectedRoom.ownerName?.charAt(0) || "?"} 
+									/>
+								</div>
+								<div className="flex-1 min-w-0">
+									<h3 className="font-bold text-lg sm:text-xl text-gray-800 mb-2 break-words">
+										{selectedRoom.name || "(名称未設定)"}
+									</h3>
+									<div className="space-y-2 text-xs sm:text-sm">
+										<p><span className="font-medium text-gray-700">作成者:</span> <span className="text-gray-600">{selectedRoom.ownerName || "(名称未設定)"}</span></p>
+										<p><span className="font-medium text-gray-700">ルームID:</span> <span className="font-mono bg-white px-2 py-1 rounded border text-gray-800 text-xs break-all">{selectedRoom.roomId}</span></p>
+										<p><span className="font-medium text-gray-700">作成時刻:</span> <span className="text-gray-600">{selectedRoom.createdAt ? new Date(selectedRoom.createdAt).toLocaleString("ja-JP") : "-"}</span></p>
+										<p><span className="font-medium text-gray-700">種別:</span> 
+											<span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+												selectedRoom.ownerUid === auth.currentUser?.uid 
+													? 'bg-green-100 text-green-800' 
+													: 'bg-blue-100 text-blue-800'
+											}`}>
+												{selectedRoom.ownerUid === auth.currentUser?.uid ? 'あなたが作成' : '招待中'}
+											</span>
+										</p>
 									</div>
-									<div className="flex gap-2">
+									<div className="mt-4 flex flex-col sm:flex-row gap-2">
+										{selectedRoom.ownerUid === auth.currentUser?.uid ? (
+											<button
+												type="button"
+												onClick={() => navigate(`/dashboard/car/${selectedRoom.roomId}`)}
+												className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
+											>
+												<span>🗺️</span>カーナビへ移動
+											</button>
+										) : (
+											<button
+												type="button"
+												onClick={() => handleAccept(selectedRoom.roomId)}
+												disabled={updatingId === selectedRoom.roomId}
+												className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
+											>
+												{updatingId === selectedRoom.roomId ? (
+													<>
+														<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+														処理中...
+													</>
+												) : (
+													<>
+														<span>🚗</span>ルームに参加
+													</>
+												)}
+											</button>
+										)}
 										<button
 											type="button"
-											onClick={() =>
-												handleAcceptRequest(request.id, request.fromUserId)
-											}
-											className="bg-green-500 hover:bg-green-600 text-white text-sm py-1 px-3 rounded transition-colors"
+											onClick={() => setSelectedRoom(null)}
+											className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-3 sm:px-4 rounded-lg transition-colors text-sm sm:text-base w-full sm:w-auto"
 										>
-											承認
-										</button>
-										<button
-											type="button"
-											onClick={() => handleRejectRequest(request.id)}
-											className="bg-red-500 hover:bg-red-600 text-white text-sm py-1 px-3 rounded transition-colors"
-										>
-											拒否
+											選択解除
 										</button>
 									</div>
 								</div>
-							))}
+							</div>
 						</div>
-					)}
-				</div>
-
-				{/* ログアウトボタン */}
-				<button
-					type="button"
-					onClick={handleLogout}
-					className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-colors"
-				>
-					ログアウト
-				</button>
+					</div>
+				)}
 			</div>
 		</div>
 	);

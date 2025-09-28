@@ -6,8 +6,9 @@ import { useUserUid } from "../hooks/useUserUid";
 import CarNavigation from "./CarNavigation";
 import FriendsAddScreen from "./dashboard/friends";
 import HomeScreen from "./dashboard/home";
-import InvitingRoom from "./dashboard/home/InvitingRoom";
+import FriendPage from "./dashboard/home/FriendPage";
 import MemoScreen from "./dashboard/memo";
+import CreateMemo from "./dashboard/memo/creatememo";
 import NaviCreateScreen from "./dashboard/navi";
 import InviterPreference from "./dashboard/navi/InviterPreference";
 import PurlieuLocation from "./dashboard/navi/PurlieuLocation";
@@ -20,6 +21,10 @@ import Approval from "./dashboard/navi/Approval";
 import ParkingScreen from "./dashboard/parking";
 import ParkingDetail from "./dashboard/parking/Detail";
 import Parkinginput from "./dashboard/parking/input";
+import UserInformation from "./dashboard/UserInformation";
+import UserPolicy from "./dashboard/policy/UserPolicy";
+import AppInformation from "./AppInformation/AppInformation";
+import DevelopmentPage from "./DevelopmentPage/DevelopmentPage";
 const TABS = [
     {
         key: "home",
@@ -160,7 +165,7 @@ const Dashboard = () => {
                 <Routes>
                     <Route index element={<HomeScreen />} />
                     <Route path="home" element={<HomeScreen />} />
-                    <Route path="home/inviting" element={<InvitingRoom />} />
+                    <Route path="home/friend-page" element={<FriendPage />} />
                     <Route path="navi" element={<NaviCreateScreen />} />
                     <Route path="navi/try" element={<TryPage />} />
                     <Route path="navi/inviter" element={<InviterPreference />} />
@@ -171,11 +176,16 @@ const Dashboard = () => {
                     <Route path="navi/approval" element={<Approval />} />
                     <Route path="navi/room" element={<RoomCreat />} />
                     <Route path="friends" element={<FriendsAddScreen />} />
+                    <Route path="UserInformation" element={<UserInformation />} />
                     <Route path="parking" element={<ParkingScreen />} />
                     <Route path="parking/:id" element={<ParkingDetail />} />
                     <Route path="parking/input" element={<Parkinginput />} />
                     <Route path="car/:roomId" element={<CarNavigation />} />
                     <Route path="memo" element={<MemoScreen />} />
+                    <Route path="memo/creatememo" element={<CreateMemo />} />
+                    <Route path="policy" element={<UserPolicy />} />
+                    <Route path="app-info" element={<AppInformation />} />
+                    <Route path="development" element={<DevelopmentPage />} />
                 </Routes>
             </main>
             <FooterTab value={tab} onChange={handleTabChange} tabs={TABS} />

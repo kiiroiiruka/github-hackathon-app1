@@ -1,9 +1,10 @@
 import {
-	doc,
-	getDoc,
-	serverTimestamp,
-	setDoc,
-	writeBatch,
+    doc,
+    getDoc,
+    serverTimestamp,
+    setDoc,
+    writeBatch,
+    deleteDoc,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
@@ -45,6 +46,9 @@ export const createOrUpdateUser = async (user, friendsData = []) => {
 		userShortMessage = "",
 	} = user;
 
+	// 既存ユーザーかどうかを確認
+	const existingUser = await getUser(uid);
+
 	// ユーザー情報全体
 	const userData = {
 		uid,
@@ -52,9 +56,13 @@ export const createOrUpdateUser = async (user, friendsData = []) => {
 		photoURL,
 		userShortMessage,
 		email, // プライベート情報
-		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp(),
 	};
+
+	// 新規ユーザーの場合のみcreatedAtを設定
+	if (!existingUser) {
+		userData.createdAt = serverTimestamp();
+	}
 
 	// バッチ書き込みを作成
 	const batch = writeBatch(db);
@@ -108,4 +116,23 @@ export const updateUserMessage = async (userId, message) => {
 		console.error("一言メッセージ更新エラー:", error);
 		throw error;
 	}
+};
+
+/**
+ * フレンドを相互に解除する
+ * users/{uid}/friends/{targetUid} と users/{targetUid}/friends/{uid} を削除
+ * @param {string} userId - 自分のユーザーID
+ * @param {string} targetUserId - 相手のユーザーID
+ */
+export const removeFriend = async (userId, targetUserId) => {
+    if (!userId || !targetUserId) throw new Error("ユーザーIDが不足しています");
+    try {
+        const batch = writeBatch(db);
+        batch.delete(doc(db, "users", userId, "friends", targetUserId));
+        batch.delete(doc(db, "users", targetUserId, "friends", userId));
+        await batch.commit();
+    } catch (error) {
+        console.error("フレンド解除エラー:", error);
+        throw error;
+    }
 };

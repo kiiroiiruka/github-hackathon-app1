@@ -4,6 +4,7 @@ import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { auth } from "@/firebase";
 import { useAuthState } from "./hooks/useAuthState";
 import Dashboard from "./pages/Dashboard";
+import UserPolicy from "./pages/dashboard/policy/UserPolicy";
 import LoginScreen from "./pages/LoginScreen";
 
 function App() {
@@ -17,13 +18,19 @@ function App() {
 	const routeChange = useCallback(
 		(user) => {
 			if (user) {
-				// ログイン済みの場合、ダッシュボード系のパス以外は /dashboard にリダイレクト
-				if (!location.pathname.startsWith("/dashboard")) {
+				// ログイン済み: /dashboard 配下 もしくは 公開ページ(/policy)は許可
+				const isDashboard = location.pathname.startsWith("/dashboard");
+				const isPublic = location.pathname === "/policy";
+				if (!isDashboard && !isPublic) {
 					navigate("/dashboard", { replace: true });
 				}
 			} else {
-				// 未ログインの場合、ログイン画面にリダイレクト
-				navigate("/", { replace: true });
+				// 未ログイン: ルート(/) と 公開ページ(/policy)は許可
+				const isRoot = location.pathname === "/";
+				const isPublic = location.pathname === "/policy";
+				if (!isRoot && !isPublic) {
+					navigate("/", { replace: true });
+				}
 			}
 		},
 		[location.pathname, navigate],
@@ -39,6 +46,8 @@ function App() {
 		<Routes>
 			{/* ログイン画面 */}
 			<Route path="/" element={<LoginScreen />} />
+			{/* 公開ページ */}
+			<Route path="/policy" element={<UserPolicy />} />
 			{/* ダッシュボード画面（サブルーティング対応） */}
 			<Route path="/dashboard/*" element={<Dashboard />} />
 		</Routes>
