@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import HeaderComponent2 from "../../../components/Header/Header2";
+import HeaderComponent from "../../../components/Header/Header";
 import { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { Icon } from "leaflet";
@@ -203,7 +203,7 @@ const RouteScreen = () => {
 
   return (
     <div className="flex flex-col justify-center items-center p-5 h-screen bg-gray-100">
-      <HeaderComponent2 title="通信" />
+      <HeaderComponent title="通信" />
       <div className="text-center mb-4">
         <p className="text-gray-600 mb-3">ルート情報を表示します</p>
         
