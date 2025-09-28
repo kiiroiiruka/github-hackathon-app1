@@ -9,6 +9,7 @@ import { getLatestParkingInfo } from "../../../firebase/parkingget";
 
 // Leaflet関連
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import { Icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import "leaflet-routing-machine";
@@ -259,8 +260,28 @@ const ParkingInfoDisplay = () => {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
                   />
-                  <Marker position={nowPosition} />
-                  <Marker position={parkingInfo.position} />
+                  <Marker 
+                    position={nowPosition} 
+                    icon={new Icon({
+                      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+                      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+                      iconSize: [25, 41],
+                      iconAnchor: [12, 41],
+                      popupAnchor: [1, -34],
+                      shadowSize: [41, 41]
+                    })}
+                  />
+                  <Marker 
+                    position={parkingInfo.position} 
+                    icon={new Icon({
+                      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+                      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+                      iconSize: [25, 41],
+                      iconAnchor: [12, 41],
+                      popupAnchor: [1, -34],
+                      shadowSize: [41, 41]
+                    })}
+                  />
                   <RoutingControl from={nowPosition} to={parkingInfo.position} />
                 </MapContainer>
               </div>

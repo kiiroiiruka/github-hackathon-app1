@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ButtonBool from "../../../components/ButtonBool/ButtonBool";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { Icon } from "leaflet";
 import RoutingControl from "../../../components/ui/RoutingControl";
 import MapSearch from "../../../components/ui/MapSearch";
 
@@ -20,6 +21,25 @@ const TryPage = () => {
   const [executed, setExecuted] = useState(false);
   const [position, setPosition] = useState([35.6812, 139.7671]); // 初期は東京駅
   const [destination, setDestination] = useState(null);
+
+  // カスタムアイコンの設定
+  const currentLocationIcon = new Icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+
+  const destinationIcon = new Icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
 
   const handleClick = () => {
     alert("使用済み");
@@ -65,14 +85,14 @@ const TryPage = () => {
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
             {/* 現在地マーカー */}
-            <Marker position={position}>
-              <Popup>現在地</Popup>
+            <Marker position={position} icon={currentLocationIcon}>
+              <Popup>📍 現在地</Popup>
             </Marker>
 
             {/* 目的地マーカー */}
             {destination && (
-              <Marker position={destination}>
-                <Popup>目的地</Popup>
+              <Marker position={destination} icon={destinationIcon}>
+                <Popup>🎯 目的地</Popup>
               </Marker>
             )}
 

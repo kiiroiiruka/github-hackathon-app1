@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import HeaderComponent2 from "../../../components/Header/Header2";
 import { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { Icon } from "leaflet";
 import RoutingControl from "../../../components/ui/RoutingControl";
 import MapSearch from "../../../components/ui/MapSearch";
 import { useAuthState } from "../../../hooks/useAuthState";
@@ -42,6 +43,25 @@ const RouteScreen = () => {
   const [saveMessage, setSaveMessage] = useState("");
   const routeCalculatedRef = useRef(false); // ルート計算完了フラグ
   const routeKeyRef = useRef(null); // ルート用の安定したkey
+  
+  // カスタムアイコンの設定
+  const departureIcon = new Icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+
+  const destinationIcon = new Icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
   
   // Firebase認証状態を監視
   useAuthState();
@@ -282,14 +302,14 @@ const RouteScreen = () => {
 
             {/* 出発地マーカー */}
             {departure && (
-              <Marker position={departure}>
+              <Marker position={departure} icon={departureIcon}>
                 <Popup>🚀 {departureName || "出発地"}</Popup>
               </Marker>
             )}
 
             {/* 目的地マーカー */}
             {destination && (
-              <Marker position={destination}>
+              <Marker position={destination} icon={destinationIcon}>
                 <Popup>🎯 {destinationName || "目的地"}</Popup>
               </Marker>
             )}
