@@ -1,5 +1,5 @@
 import { onValue, ref, update } from "firebase/database";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AudioCallRoom from "@/components/VideoCall/VideoCallRoom";
 import AudioCallFooter from "@/components/Footer/AudioCallFooter";
@@ -16,6 +16,7 @@ const CarNavigation = () => {
 	const [isCallActive, setIsCallActive] = useState(false); // 通話状態
 	const [callParticipants, setCallParticipants] = useState([]); // 通話参加者
 	const currentUserUid = useUserUid();
+	const updateTimeoutRef = useRef(null);
 
 	useEffect(() => {
 		if (!roomId || !currentUserUid) {
@@ -84,11 +85,26 @@ const CarNavigation = () => {
 		handleLeaveRoom();
 	};
 
-	// 通話状態の更新ハンドラー
-	const handleCallStateUpdate = (state) => {
-		setIsCallActive(state.isActive);
-		setCallParticipants(state.participants || []);
-	};
+	// 通話状態の更新ハンドラー（デバウンス付き）
+	const handleCallStateUpdate = useCallback((state) => {
+		if (updateTimeoutRef.current) {
+			clearTimeout(updateTimeoutRef.current);
+		}
+		
+		updateTimeoutRef.current = setTimeout(() => {
+			setIsCallActive(state.isActive);
+			setCallParticipants(state.participants || []);
+		}, 50); // 50msのデバウンス
+	}, []);
+
+	// クリーンアップ
+	useEffect(() => {
+		return () => {
+			if (updateTimeoutRef.current) {
+				clearTimeout(updateTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	const handleLeaveRoom = () => {
 		navigate("/dashboard/home");

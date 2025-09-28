@@ -1,5 +1,5 @@
 import { get, ref } from "firebase/database";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { auth, rtdb } from "@/firebase";
 import {
 	endCallSession,
@@ -54,16 +54,49 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd, onCallStateUpdat
 		}
 	}, [isJoined, callDuration, currentUserUid, roomId]);
 
-	// 通話状態の更新を親コンポーネントに通知
-	useEffect(() => {
-		if (onCallStateUpdate) {
-			onCallStateUpdate({
-				isActive: isJoined,
-				participants: participants,
-				isMicrophoneEnabled: dailyMicrophoneEnabled
-			});
+	// participantsをメモ化して無限ループを防ぐ
+	const memoizedParticipants = useMemo(() => {
+		return participants.map(p => ({
+			session_id: p.session_id,
+			user_name: p.user_name,
+			audio: p.audio,
+			photoURL: p.photoURL,
+			local: p.local
+		}));
+	}, [participants]);
+
+	// デバウンス用のタイマー
+	const updateTimeoutRef = useRef(null);
+
+	// 通話状態の更新を親コンポーネントに通知（デバウンス付き）
+	const notifyCallStateUpdate = useCallback(() => {
+		if (updateTimeoutRef.current) {
+			clearTimeout(updateTimeoutRef.current);
 		}
-	}, [isJoined, participants, dailyMicrophoneEnabled, onCallStateUpdate]);
+		
+		updateTimeoutRef.current = setTimeout(() => {
+			if (onCallStateUpdate) {
+				onCallStateUpdate({
+					isActive: isJoined,
+					participants: memoizedParticipants,
+					isMicrophoneEnabled: dailyMicrophoneEnabled
+				});
+			}
+		}, 100); // 100msのデバウンス
+	}, [onCallStateUpdate, isJoined, memoizedParticipants, dailyMicrophoneEnabled]);
+
+	useEffect(() => {
+		notifyCallStateUpdate();
+	}, [notifyCallStateUpdate]);
+
+	// クリーンアップ
+	useEffect(() => {
+		return () => {
+			if (updateTimeoutRef.current) {
+				clearTimeout(updateTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	// Daily iframeの設定
 	useEffect(() => {
