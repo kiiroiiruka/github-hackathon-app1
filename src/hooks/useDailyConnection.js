@@ -58,12 +58,6 @@ export const useDailyConnection = (
 				// 音声の基本設定
 				startAudioOff: false, // 音声を有効で開始
 				startVideoOff: true, // ビデオを無効で開始
-				// 音声品質の設定
-				audioQuality: 'high',
-				// 音声処理の設定
-				noiseSuppression: true,
-				echoCancellation: true,
-				autoGainControl: true
 			});
 
 			console.log("✅ Dailyインスタンスが作成されました:", !!dailyInstance);
@@ -188,6 +182,18 @@ export const useDailyConnection = (
 				if (!event.participant.local && !event.participant.audio) {
 					console.warn("⚠️ 参加者の音声がオフです:", event.participant.user_name);
 					console.warn("💡 参加者がブラウザでマイクを許可していない可能性があります");
+					
+					// リモート参加者の音声を有効にする試み
+					setTimeout(() => {
+						try {
+							console.log("🔄 リモート参加者の音声を有効にしようとしています...");
+							// 注意: リモート参加者の音声は直接制御できません
+							// これは参加者自身がマイクを許可する必要があります
+							console.log("💡 リモート参加者にマイクの許可を促してください");
+						} catch (error) {
+							console.error("❌ リモート参加者の音声有効化エラー:", error);
+						}
+					}, 3000);
 				}
 				
 				setParticipants((prev) => {
@@ -253,10 +259,21 @@ export const useDailyConnection = (
 					// リモート参加者の音声トラックの場合、再生状況を確認
 					if (!event.participant?.local) {
 						console.log("🎧 リモート参加者の音声トラックが開始されました");
-						console.log("💡 もし音声が聞こえない場合：");
-						console.log("   1. ブラウザの音量設定を確認");
-						console.log("   2. システムの音量設定を確認");
-						console.log("   3. ヘッドフォン/スピーカーの接続を確認");
+						
+						// 音声トラックが無効な場合の対処法
+						if (!event.track.enabled) {
+							console.warn("⚠️ リモート参加者の音声トラックが無効です");
+							console.warn("💡 相手に以下を確認してもらってください：");
+							console.warn("   1. ブラウザでマイクの許可を確認");
+							console.warn("   2. マイクが他のアプリで使用されていないか確認");
+							console.warn("   3. ブラウザの音声設定を確認");
+						} else {
+							console.log("✅ リモート参加者の音声トラックが有効です");
+							console.log("💡 もし音声が聞こえない場合：");
+							console.log("   1. ブラウザの音量設定を確認");
+							console.log("   2. システムの音量設定を確認");
+							console.log("   3. ヘッドフォン/スピーカーの接続を確認");
+						}
 					}
 				}
 			})
