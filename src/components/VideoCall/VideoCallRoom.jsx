@@ -438,7 +438,9 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 								key={participant.session_id}
 								className={`flex items-center gap-2 px-3 py-1 text-xs rounded-full ${
 									participant.local 
-										? 'bg-blue-100 text-blue-800' 
+										? dailyMicrophoneEnabled 
+											? 'bg-green-100 text-green-800' 
+											: 'bg-red-100 text-red-800'
 										: participant.audio 
 											? 'bg-green-100 text-green-800' 
 											: 'bg-red-100 text-red-800'
@@ -448,11 +450,12 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 								{participant.local && (
 									<span className="text-blue-600">(あなた)</span>
 								)}
-								{!participant.local && (
-									<span className="text-xs">
-										{participant.audio ? '🎤' : '🔇'}
-									</span>
-								)}
+								<span className="text-xs">
+									{participant.local 
+										? (dailyMicrophoneEnabled ? '🎤' : '🔇')
+										: (participant.audio ? '🎤' : '🔇')
+									}
+								</span>
 							</div>
 						))}
 					</div>

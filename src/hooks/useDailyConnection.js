@@ -84,9 +84,34 @@ export const useDailyConnection = (
 								video: participant.video,
 								local: participant.local
 							});
+							
+							// ローカル参加者の音声状態を状態管理に反映
+							setIsMicrophoneEnabled(participant.audio);
 						}
 					});
 					setParticipants(participantMap);
+					
+					// 音声状態の定期監視を開始
+					const audioStateMonitor = setInterval(() => {
+						try {
+							const participants = callObject.participants();
+							const localParticipant = Object.values(participants).find(p => p.local);
+							
+							if (localParticipant && localParticipant.audio !== isMicrophoneEnabled) {
+								console.log("🔄 音声状態の変更を検出:", {
+									user_name: localParticipant.user_name,
+									previousState: isMicrophoneEnabled,
+									currentState: localParticipant.audio
+								});
+								setIsMicrophoneEnabled(localParticipant.audio);
+							}
+						} catch (error) {
+							console.error("❌ 音声状態監視エラー:", error);
+						}
+					}, 2000);
+					
+					// クリーンアップ用のタイマーIDを保存
+					callObject._audioStateMonitor = audioStateMonitor;
 					
 				} catch (audioError) {
 					console.warn("音声の有効化に失敗:", audioError);
@@ -587,20 +612,12 @@ export const useDailyConnection = (
 					// 音声トラックの安定性を向上させる設定
 					audioSource: true,
 					videoSource: false,
-					// 音声品質と安定性の向上
-					audioBandwidth: 64000, // 64kbps
-					audioQuality: 'high',
 					// 接続の安定性向上
 					receiveSettings: {
 						audio: {
 							enabled: true,
 							volume: 1.0
 						}
-					},
-					// 音声トラックの自動復旧
-					audioTrackSettings: {
-						enabled: true,
-						volume: 1.0
 					}
 				});
 				
@@ -642,6 +659,32 @@ export const useDailyConnection = (
 			setIsMicrophoneEnabled(newState);
 			
 			console.log(`🎤 マイクを${newState ? '有効化' : '無効化'}しました`);
+			
+			// 音声状態の変更を他の参加者に確実に伝えるため、少し待ってから状態を再確認
+			setTimeout(() => {
+				try {
+					const currentParticipants = daily.participants();
+					const localParticipant = Object.values(currentParticipants).find(p => p.local);
+					
+					if (localParticipant) {
+						console.log("🔄 マイク状態の再確認:", {
+							user_name: localParticipant.user_name,
+							audio: localParticipant.audio,
+							local: localParticipant.local,
+							expectedState: newState
+						});
+						
+						// 状態が期待値と異なる場合は修正
+						if (localParticipant.audio !== newState) {
+							console.warn("⚠️ マイク状態の不整合を検出。修正を試行します。");
+							daily.setLocalAudio(newState);
+						}
+					}
+				} catch (error) {
+					console.error("❌ マイク状態再確認エラー:", error);
+				}
+			}, 1000);
+			
 			return newState;
 		} catch (err) {
 			console.error("❌ マイク切り替えエラー:", err);
@@ -652,6 +695,11 @@ export const useDailyConnection = (
 	// クリーンアップ
 	const destroyDaily = useCallback(() => {
 		if (daily) {
+			// 音声状態監視を停止
+			if (daily._audioStateMonitor) {
+				clearInterval(daily._audioStateMonitor);
+				daily._audioStateMonitor = null;
+			}
 			daily.destroy();
 		}
 		stopDurationTimer();
