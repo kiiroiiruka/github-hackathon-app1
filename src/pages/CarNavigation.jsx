@@ -26,9 +26,8 @@ const CarNavigation = () => {
 
 		// 画面入室時に自分の参加状態を true にする（作成者/参加者どちらも）
 		if (currentUserUid) {
-			void update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
-				accepted: true,
-			});
+			// 既存のメンバーデータを保持しつつ、accepted状態のみ更新
+			void update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}/accepted`), true);
 		}
 
 		// ルーム情報とメンバー情報を取得

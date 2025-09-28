@@ -470,6 +470,7 @@ export const useDailyConnection = (
 						update(memberRef, {
 							name: event.participant.user_name,
 							uid: event.participant.session_id,
+							photoURL: event.participant.photoURL || "",
 							accepted: true,
 							joinedAt: Date.now()
 						}).then(() => {
