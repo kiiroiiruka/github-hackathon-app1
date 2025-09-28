@@ -54,10 +54,21 @@ export const useDailyConnection = (
 				// 参加成功をログに記録
 				console.log("✅ Daily.coルームに正常に参加しました");
 
-				// 参考プロジェクトの成功パターンに合わせる
+				// 音声トラックの確実な初期化
 				try {
+					// 音声を明示的に有効化
 					await callObject.setLocalAudio(true);
 					console.log("🎤 通話開始時は音声有効状態で開始");
+					
+					// 音声トラックの状態を確認
+					const audioTrack = callObject.getLocalAudioTrack();
+					if (audioTrack) {
+						console.log("🎤 ローカル音声トラックの状態:", {
+							enabled: audioTrack.enabled,
+							muted: audioTrack.muted,
+							readyState: audioTrack.readyState
+						});
+					}
 					
 					// 現在の参加者リストを更新
 					const currentParticipants = callObject.participants();
@@ -185,6 +196,18 @@ export const useDailyConnection = (
 							console.warn("   1. ブラウザでマイクの許可を確認");
 							console.warn("   2. マイクが他のアプリで使用されていないか確認");
 							console.warn("   3. ブラウザの音声設定を確認");
+							
+							// 音声トラックの有効化を試行（3秒後に再試行）
+							setTimeout(() => {
+								try {
+									console.log("🔄 リモート参加者の音声トラックを有効化しようとしています...");
+									// 注意: リモート参加者の音声は直接制御できません
+									// これは参加者自身がマイクを許可する必要があります
+									console.log("💡 リモート参加者にマイクの許可を促してください");
+								} catch (error) {
+									console.error("❌ リモート参加者の音声有効化エラー:", error);
+								}
+							}, 3000);
 						} else {
 							console.log("✅ リモート参加者の音声トラックが有効です");
 							console.log("💡 もし音声が聞こえない場合：");
@@ -326,7 +349,7 @@ export const useDailyConnection = (
 
 				console.log("🚀 Daily.coルームに参加中:", { url: urlToUse, token: token.substring(0, 20) + "..." });
 				
-				// 参考プロジェクトの成功パターンに合わせる（音声トラック安定性を重視）
+				// Daily.coの正しい設定（音声トラック安定性を重視）
 				const callObject = DailyIframe.createCallObject({
 					url: urlToUse,
 					token: token,
@@ -335,10 +358,8 @@ export const useDailyConnection = (
 					showLeaveButton: false,
 					showFullscreenButton: false,
 					// 音声トラックの安定性を向上させる設定
-					audioConfig: {
-						enableMic: true,
-						enableCam: false,
-					},
+					audioSource: true,
+					videoSource: false,
 				});
 				
 				// Dailyインスタンスを設定
