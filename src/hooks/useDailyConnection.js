@@ -64,7 +64,6 @@ export const useDailyConnection = (
 					console.log("🔍 Daily.co接続状態の詳細分析:");
 					console.log("📊 接続状態:", {
 						meetingState: callObject.meetingState(),
-						networkConnectionState: callObject.networkConnectionState(),
 						participants: callObject.participants(),
 						localAudio: callObject.localAudio(),
 						localVideo: callObject.localVideo()
@@ -251,25 +250,24 @@ export const useDailyConnection = (
 										id: event.track.id
 									});
 									
-									// 音声トラックの実際の音声データを確認
-									if (event.track && event.track.getStats) {
-										event.track.getStats().then(stats => {
-											console.log("📈 音声トラックの統計情報:", stats);
-										}).catch(err => {
-											console.log("📈 統計情報の取得に失敗:", err);
-										});
+									// 音声トラックの制約を確認（存在する場合のみ）
+									if (event.track && typeof event.track.getConstraints === 'function') {
+										try {
+											const constraints = event.track.getConstraints();
+											console.log("⚙️ 音声トラックの制約:", constraints);
+										} catch (err) {
+											console.log("⚙️ 制約の取得に失敗:", err);
+										}
 									}
 									
-									// 音声トラックの制約を確認
-									if (event.track && event.track.getConstraints) {
-										const constraints = event.track.getConstraints();
-										console.log("⚙️ 音声トラックの制約:", constraints);
-									}
-									
-									// 音声トラックの設定を確認
-									if (event.track && event.track.getSettings) {
-										const settings = event.track.getSettings();
-										console.log("🔧 音声トラックの設定:", settings);
+									// 音声トラックの設定を確認（存在する場合のみ）
+									if (event.track && typeof event.track.getSettings === 'function') {
+										try {
+											const settings = event.track.getSettings();
+											console.log("🔧 音声トラックの設定:", settings);
+										} catch (err) {
+											console.log("🔧 設定の取得に失敗:", err);
+										}
 									}
 									
 								} catch (error) {
