@@ -36,14 +36,4 @@ export { auth, db, provider, rtdb } from "./firebaseConfig";
 // ================================
 // ルーム関連 (Realtime Database)
 // ================================
-export {
-	createRoomWithInvites,
-	getAbsentMembersOnce,
-	getAcceptedMembersOnce,
-	// invited helpers
-	getInvitedMembersOnce,
-	subscribeAbsentMembers,
-	// status helpers
-	subscribeAcceptedMembers,
-	subscribeInvitedMembers,
-} from "./room";
+export { createRoomWithInvites } from "./room";
