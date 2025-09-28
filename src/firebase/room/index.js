@@ -330,7 +330,20 @@ const deleteDailyRoom = async (dailyRoomId) => {
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error("❌ API Response Error:", {
+			console.log("📊 API Response Error:", {
+				status: response.status,
+				statusText: response.statusText,
+				errorText: errorText,
+				dailyRoomId: dailyRoomId
+			});
+			
+			// 404エラーの場合は成功として扱う（ルームが既に削除済み）
+			if (response.status === 404) {
+				console.log("✅ Daily.coルームは既に削除済みまたは存在しません:", dailyRoomId);
+				return { success: true, message: `Room ${dailyRoomId} was already deleted or does not exist` };
+			}
+			
+			console.error("❌ API Response Error (非404):", {
 				status: response.status,
 				statusText: response.statusText,
 				errorText: errorText,
@@ -405,8 +418,11 @@ export const checkAndDeleteRoomIfEmpty = async (roomId) => {
 			if (roomData.dailyRoom && roomData.dailyRoom.id) {
 				try {
 					console.log("🗑️ Daily.coルームも削除します:", roomData.dailyRoom.id);
-					await deleteDailyRoom(roomData.dailyRoom.id);
-					console.log("✅ Daily.coルームを削除しました:", roomData.dailyRoom.id);
+					const deleteResult = await deleteDailyRoom(roomData.dailyRoom.id);
+					console.log("✅ Daily.coルーム削除処理完了:", {
+						roomId: roomData.dailyRoom.id,
+						result: deleteResult
+					});
 				} catch (error) {
 					console.error("❌ Daily.coルーム削除エラー:", error);
 					// Daily.coルームの削除に失敗しても、Firebaseルームは削除を続行

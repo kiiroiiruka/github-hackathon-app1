@@ -55,7 +55,33 @@ export async function onRequest(context) {
 
 			if (!dailyResponse.ok) {
 				const errorData = await dailyResponse.text();
-				console.error(`❌ Daily API Error Details:`, {
+				console.log(`📊 Daily API Error Details:`, {
+					status: dailyResponse.status,
+					statusText: dailyResponse.statusText,
+					errorData: errorData,
+					roomId: roomId
+				});
+				
+				// 404エラー（ルームが見つからない）の場合は成功として扱う
+				if (dailyResponse.status === 404) {
+					console.log(`✅ Daily.coルームは既に削除済みまたは存在しません: ${roomId}`);
+					return new Response(
+						JSON.stringify({
+							success: true,
+							message: `Room ${roomId} was already deleted or does not exist`,
+						}),
+						{
+							headers: {
+								"Content-Type": "application/json",
+								"Access-Control-Allow-Origin": "*",
+								"Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+								"Access-Control-Allow-Headers": "Content-Type, Authorization",
+							},
+						},
+					);
+				}
+				
+				console.error(`❌ Daily API Error (非404):`, {
 					status: dailyResponse.status,
 					statusText: dailyResponse.statusText,
 					errorData: errorData,
