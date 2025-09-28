@@ -159,6 +159,27 @@ const Confirmation = () => {
               </span>
             </ActionButton>
 
+            {/* 承認管理ボタン */}
+            {selectedFriends && selectedFriends.length > 0 && (
+              <ActionButton
+                variant="secondary"
+                onClick={() => navigate("/dashboard/navi/approval", {
+                  state: {
+                    roomId,
+                    roomName,
+                    selectedFriends,
+                    selectedLocation,
+                    selectedDeparture
+                  }
+                })}
+              >
+                <span className="flex items-center justify-center gap-3">
+                  <span className="text-2xl">🤝</span>
+                  フレンド承認を管理
+                </span>
+              </ActionButton>
+            )}
+
             {/* ホームに戻るボタン */}
             <ActionButton
               variant="secondary"
