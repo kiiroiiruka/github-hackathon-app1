@@ -61,7 +61,8 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 			user_name: p.user_name,
 			audio: p.audio,
 			photoURL: p.photoURL,
-			local: p.local
+			// Daily.coから提供されるlocalプロパティをそのまま使用
+			local: p.local || false
 		}));
 		
 		// デバッグログを追加

@@ -197,7 +197,7 @@ const CarNavigation = () => {
 						const fallbackParticipants = members.map(member => ({
 							session_id: member.uid,
 							user_name: member.name,
-							audio: member.uid === currentUserUid ? true : false, // ローカルユーザーのみ音声ON
+							audio: false, // 初期状態では全員音声OFF
 							photoURL: member.photoURL,
 							local: member.uid === currentUserUid
 						}));
@@ -209,7 +209,8 @@ const CarNavigation = () => {
 							participants: fallbackParticipants.map(p => ({ 
 								user_name: p.user_name, 
 								photoURL: p.photoURL, 
-								local: p.local 
+								local: p.local,
+								audio: p.audio
 							}))
 						});
 						

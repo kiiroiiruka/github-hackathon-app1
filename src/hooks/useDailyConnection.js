@@ -1232,7 +1232,24 @@ export const useDailyConnection = (
 	}, []);
 
 	// 参加者データを配列化（デバッグログ付き）
-	const participantsArray = Array.from(participants.values());
+	const participantsArray = Array.from(participants.values()).map(participant => {
+		// Daily.coから取得した参加者データのlocalプロパティを確実に保持
+		// ただし、localプロパティが明示的にfalseの場合は、それを尊重する
+		const isLocal = participant.local === true;
+		
+		console.log("🔍 参加者のlocal判定:", {
+			user_name: participant.user_name,
+			participantLocal: participant.local,
+			isLocal: isLocal,
+			session_id: participant.session_id
+		});
+		
+		return {
+			...participant,
+			local: isLocal
+		};
+	});
+	
 	console.log("👥 useDailyConnection participantsArray:", {
 		totalParticipants: participantsArray.length,
 		participants: participantsArray.map(p => ({

@@ -4,12 +4,14 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 	const { user_name, audio, photoURL, uid } = participant;
 	const [imageError, setImageError] = useState(false);
 	
-	// デバッグログを追加
+	// デバッグログを追加（より詳細に）
 	console.log("ParticipantCard Debug:", {
 		user_name,
 		photoURL,
 		uid,
 		isLocal,
+		participantLocal: participant.local,
+		audio,
 		participant
 	});
 	
@@ -31,6 +33,7 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		audio,
 		cardColor: audio ? "green" : "red",
 		isLocal,
+		participantLocal: participant.local,
 		session_id: participant.session_id,
 		photoURL,
 		hasPhotoURL: !!photoURL,
