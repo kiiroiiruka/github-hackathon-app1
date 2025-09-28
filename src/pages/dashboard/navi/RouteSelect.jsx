@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import HeaderComponent2 from "../../../components/Header/Header2";
+import HeaderComponent from "../../../components/Header/Header";
 import LocationSearch from "../../../components/ui/LocationSearch";
 import MapSearch from "../../../components/ui/MapSearch";
 import { useState, useEffect, useCallback } from "react";
