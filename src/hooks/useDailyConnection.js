@@ -69,8 +69,16 @@ export const useDailyConnection = (
 		
 		// メンバーが見つからない場合は、デフォルトのアバターURLを返す
 		if (!photoURL && userName) {
-			console.log("🖼️ メンバーが見つからないため、デフォルトアバターを使用:", userName);
-			return `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random&color=fff&size=96`;
+			// FirebaseドキュメントIDのような長い文字列の場合は、より短い表示名を使用
+			let displayName = userName;
+			if (userName.length > 20 || /^[a-zA-Z0-9_-]{20,}$/.test(userName)) {
+				// 長いIDのような文字列の場合は、最初の文字を使用
+				displayName = userName.charAt(0).toUpperCase();
+				console.log("🖼️ 長いID文字列を検出、短縮表示名を使用:", { userName, displayName });
+			}
+			
+			console.log("🖼️ メンバーが見つからないため、デフォルトアバターを使用:", { userName, displayName });
+			return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff&size=96`;
 		}
 		
 		return photoURL;
@@ -115,7 +123,12 @@ export const useDailyConnection = (
 					// 既存のphotoURLを保持し、新しいphotoURLが取得できる場合はそれを使用
 					let photoURL = existingParticipant?.photoURL;
 					if (!photoURL) {
-						photoURL = getMemberPhotoURL(participantData.user_name, participantData.session_id);
+						// ローカル参加者の場合は特別処理
+						if (participantData.local && currentUserUid) {
+							photoURL = getMemberPhotoURL(participantData.user_name, currentUserUid);
+						} else {
+							photoURL = getMemberPhotoURL(participantData.user_name, participantData.session_id);
+						}
 					}
 					
 					const participantWithPhoto = {
@@ -127,13 +140,14 @@ export const useDailyConnection = (
 					console.log(`🔄 デバウンス: 参加者 ${participantData.user_name} の状態を更新しました`, {
 						audio: participantData.audio,
 						photoURL: photoURL,
-						keptExistingPhotoURL: !!existingParticipant?.photoURL
+						keptExistingPhotoURL: !!existingParticipant?.photoURL,
+						isLocal: participantData.local
 					});
 				}
 				return newMap;
 			});
 		}, delay);
-	}, [getMemberPhotoURL]);
+	}, [getMemberPhotoURL, currentUserUid]);
 
 	// イベントリスナーの設定
 	const setupEventListeners = useCallback((callObject) => {
@@ -305,8 +319,19 @@ export const useDailyConnection = (
 							local: participant.local
 						});
 						
-						// photoURLを追加
-						const photoURL = getMemberPhotoURL(participant.user_name, participant.session_id);
+						// photoURLを追加（ローカル参加者の場合は特別処理）
+						let photoURL = getMemberPhotoURL(participant.user_name, participant.session_id);
+						
+						// ローカル参加者でphotoURLが見つからない場合は、currentUserUidを使用して再試行
+						if (!photoURL && participant.local && currentUserUid) {
+							console.log("🖼️ ローカル参加者のphotoURLが見つからないため、currentUserUidで再試行:", {
+								user_name: participant.user_name,
+								session_id: participant.session_id,
+								currentUserUid: currentUserUid
+							});
+							photoURL = getMemberPhotoURL(participant.user_name, currentUserUid);
+						}
+						
 						const participantWithPhoto = {
 							...participant,
 							photoURL: photoURL
@@ -642,7 +667,12 @@ export const useDailyConnection = (
 								// 既存のphotoURLを保持し、新しいphotoURLが取得できる場合はそれを使用
 								let photoURL = participant?.photoURL;
 								if (!photoURL) {
-									photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
+									// ローカル参加者の場合は特別処理
+									if (event.participant.local && currentUserUid) {
+										photoURL = getMemberPhotoURL(event.participant.user_name, currentUserUid);
+									} else {
+										photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
+									}
 								}
 								
 								const participantWithPhoto = {
