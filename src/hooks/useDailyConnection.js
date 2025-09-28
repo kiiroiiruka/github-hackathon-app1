@@ -20,6 +20,7 @@ export const useDailyConnection = (
 	const callStartTimeRef = useRef(null);
 	const durationIntervalRef = useRef(null);
 	const currentUserUid = useUserUid();
+	const participantUpdateTimeoutRef = useRef(null);
 
 	// 通話時間の更新
 	const startDurationTimer = useCallback(() => {
@@ -40,6 +41,27 @@ export const useDailyConnection = (
 			durationIntervalRef.current = null;
 		}
 		callStartTimeRef.current = null;
+	}, []);
+
+	// 参加者の状態更新をデバウンスする関数
+	const debouncedParticipantUpdate = useCallback((participantData, delay = 100) => {
+		// 既存のタイムアウトをクリア
+		if (participantUpdateTimeoutRef.current) {
+			clearTimeout(participantUpdateTimeoutRef.current);
+		}
+		
+		// 新しいタイムアウトを設定
+		participantUpdateTimeoutRef.current = setTimeout(() => {
+			setParticipants((prev) => {
+				const newMap = new Map(prev);
+				// 既存の参加者のみ更新（新しい参加者は追加しない）
+				if (newMap.has(participantData.session_id)) {
+					newMap.set(participantData.session_id, participantData);
+					console.log(`🔄 デバウンス: 参加者 ${participantData.user_name} の状態を更新しました`);
+				}
+				return newMap;
+			});
+		}, delay);
 	}, []);
 
 	// イベントリスナーの設定
@@ -288,15 +310,8 @@ export const useDailyConnection = (
 										session_id: currentParticipant.session_id
 									});
 									
-									// 参加者の状態を更新（重複を防ぐため、既存の参加者のみ更新）
-									setParticipants((prev) => {
-										const newMap = new Map(prev);
-										// 既存の参加者のみ更新（新しい参加者は追加しない）
-										if (newMap.has(currentParticipant.session_id)) {
-											newMap.set(currentParticipant.session_id, currentParticipant);
-										}
-										return newMap;
-									});
+									// 参加者の状態を更新（デバウンスを使用して一瞬の重複を防ぐ）
+									debouncedParticipantUpdate(currentParticipant, 100);
 									
 									// 音声が有効になった場合
 									if (currentParticipant.audio) {
@@ -373,18 +388,8 @@ export const useDailyConnection = (
 					local: event.participant.local
 				});
 				
-				// 参加者の状態を更新（重複を防ぐため、既存の参加者のみ更新）
-				setParticipants((prev) => {
-					const newMap = new Map(prev);
-					// 既存の参加者のみ更新（新しい参加者は追加しない）
-					if (newMap.has(event.participant.session_id)) {
-						newMap.set(event.participant.session_id, event.participant);
-						console.log(`✅ 参加者 ${event.participant.user_name} の状態を更新しました`);
-					} else {
-						console.log(`⚠️ 未知の参加者 ${event.participant.user_name} の更新をスキップしました`);
-					}
-					return newMap;
-				});
+				// 参加者の状態を更新（デバウンスを使用して一瞬の重複を防ぐ）
+				debouncedParticipantUpdate(event.participant, 150);
 
 				if (onParticipantUpdate) {
 					onParticipantUpdate({
@@ -414,16 +419,9 @@ export const useDailyConnection = (
 						readyState: event.track.readyState
 					});
 					
-					// 参加者の状態を更新してUIに反映（重複を防ぐため、既存の参加者のみ更新）
+					// 参加者の状態を更新してUIに反映（デバウンスを使用して一瞬の重複を防ぐ）
 					if (event.participant) {
-						setParticipants((prev) => {
-							const newMap = new Map(prev);
-							// 既存の参加者のみ更新（新しい参加者は追加しない）
-							if (newMap.has(event.participant.session_id)) {
-								newMap.set(event.participant.session_id, event.participant);
-							}
-							return newMap;
-						});
+						debouncedParticipantUpdate(event.participant, 100);
 					}
 					
 					// 音声要素の確実な再生を保証
@@ -950,25 +948,6 @@ export const useDailyConnection = (
 			
 			console.log(`🎤 マイクを${newState ? '有効化' : '無効化'}しました`);
 			
-			// 参加者の状態を即座に更新（重複を防ぐため、ローカル参加者のみ更新）
-			setParticipants((prev) => {
-				const newMap = new Map(prev);
-				const currentParticipants = daily.participants();
-				const localParticipant = Object.values(currentParticipants).find(p => p.local);
-				
-				if (localParticipant) {
-					// ローカル参加者の状態のみ更新
-					newMap.set(localParticipant.session_id, localParticipant);
-					console.log("🔄 ローカル参加者の状態を更新:", {
-						user_name: localParticipant.user_name,
-						audio: localParticipant.audio,
-						session_id: localParticipant.session_id
-					});
-				}
-				
-				return newMap;
-			});
-			
 			// 音声状態の変更を他の参加者に確実に伝えるため、少し待ってから状態を再確認
 			setTimeout(() => {
 				try {
@@ -989,15 +968,8 @@ export const useDailyConnection = (
 							daily.setLocalAudio(newState);
 						}
 						
-						// 参加者の状態を再度更新（重複を防ぐため、既存のMapを更新）
-						setParticipants((prev) => {
-							const newMap = new Map(prev);
-							// 既存のローカル参加者を更新（新しい参加者を追加しない）
-							if (newMap.has(localParticipant.session_id)) {
-								newMap.set(localParticipant.session_id, localParticipant);
-							}
-							return newMap;
-						});
+						// デバウンスされた参加者状態更新を使用（一瞬の重複を防ぐ）
+						debouncedParticipantUpdate(localParticipant, 200);
 					}
 				} catch (error) {
 					console.error("❌ マイク状態再確認エラー:", error);
@@ -1022,6 +994,12 @@ export const useDailyConnection = (
 			daily.destroy();
 		}
 		stopDurationTimer();
+		
+		// 参加者更新のタイムアウトをクリア
+		if (participantUpdateTimeoutRef.current) {
+			clearTimeout(participantUpdateTimeoutRef.current);
+			participantUpdateTimeoutRef.current = null;
+		}
 	}, [daily, stopDurationTimer]);
 
 	// コンポーネントのアンマウント時のクリーンアップ
