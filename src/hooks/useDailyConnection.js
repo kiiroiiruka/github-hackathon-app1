@@ -45,7 +45,7 @@ export const useDailyConnection = (
 		return map;
 	}, [members]);
 
-	const getMemberPhotoURL = useCallback((userName, uid) => {
+	const getMemberPhotoURL = useCallback(async (userName, uid) => {
 		console.log("🔍 getMemberPhotoURL呼び出し:", {
 			userName,
 			uid,
@@ -58,6 +58,23 @@ export const useDailyConnection = (
 		// 名前で見つからない場合はUIDで検索
 		if (!photoURL && uid) {
 			photoURL = photoURLMap.get(uid);
+		}
+		
+		// photoURLMapで見つからない場合は、Firebaseから直接取得
+		if (!photoURL && roomId && uid) {
+			try {
+				const { ref, get } = await import("firebase/database");
+				const memberRef = ref(rtdb, `rooms/${roomId}/members/${uid}`);
+				const snapshot = await get(memberRef);
+				const memberData = snapshot.val();
+				
+				if (memberData && memberData.photoURL) {
+					photoURL = memberData.photoURL;
+					console.log("🖼️ Firebaseから直接photoURLを取得:", photoURL);
+				}
+			} catch (error) {
+				console.error("❌ FirebaseからphotoURL取得エラー:", error);
+			}
 		}
 		
 		console.log("🔍 getMemberPhotoURL結果:", {
@@ -82,7 +99,7 @@ export const useDailyConnection = (
 		}
 		
 		return photoURL;
-	}, [photoURLMap]);
+	}, [photoURLMap, roomId]);
 
 	// 通話時間の更新
 	const startDurationTimer = useCallback(() => {
@@ -125,9 +142,37 @@ export const useDailyConnection = (
 					if (!photoURL) {
 						// ローカル参加者の場合は特別処理
 						if (participantData.local && currentUserUid) {
-							photoURL = getMemberPhotoURL(participantData.user_name, currentUserUid);
+							getMemberPhotoURL(participantData.user_name, currentUserUid).then(url => {
+								if (url) {
+									setParticipants((prev) => {
+										const newMap = new Map(prev);
+										const existingParticipant = newMap.get(participantData.session_id);
+										if (existingParticipant) {
+											newMap.set(participantData.session_id, {
+												...existingParticipant,
+												photoURL: url
+											});
+										}
+										return newMap;
+									});
+								}
+							});
 						} else {
-							photoURL = getMemberPhotoURL(participantData.user_name, participantData.session_id);
+							getMemberPhotoURL(participantData.user_name, participantData.session_id).then(url => {
+								if (url) {
+									setParticipants((prev) => {
+										const newMap = new Map(prev);
+										const existingParticipant = newMap.get(participantData.session_id);
+										if (existingParticipant) {
+											newMap.set(participantData.session_id, {
+												...existingParticipant,
+												photoURL: url
+											});
+										}
+										return newMap;
+									});
+								}
+							});
 						}
 					}
 					
@@ -466,18 +511,43 @@ export const useDailyConnection = (
 					});
 					
 					// Firebaseのmembersデータを更新
-					import("firebase/database").then(({ ref, update }) => {
+					import("firebase/database").then(({ ref, update, get }) => {
 						const memberRef = ref(rtdb, `rooms/${roomId}/members/${event.participant.session_id}`);
-						update(memberRef, {
-							name: event.participant.user_name,
-							uid: event.participant.session_id,
-							photoURL: event.participant.photoURL || null, // nullを設定して、空文字列を避ける
-							accepted: true,
-							joinedAt: Date.now()
-						}).then(() => {
-							console.log("✅ リモート参加者のFirebase membersデータを更新完了");
+						
+						// 既存のメンバーデータを取得してphotoURLを保持
+						get(memberRef).then((snapshot) => {
+							const existingData = snapshot.val();
+							let photoURL = event.participant.photoURL;
+							
+							// Daily.coからphotoURLが取得できない場合は、既存のphotoURLを使用
+							if (!photoURL && existingData && existingData.photoURL) {
+								photoURL = existingData.photoURL;
+								console.log("🖼️ 既存のphotoURLを使用:", photoURL);
+							}
+							
+							update(memberRef, {
+								name: event.participant.user_name,
+								uid: event.participant.session_id,
+								photoURL: photoURL || null,
+								accepted: true,
+								joinedAt: Date.now()
+							}).then(() => {
+								console.log("✅ リモート参加者のFirebase membersデータを更新完了:", {
+									photoURL: photoURL
+								});
+							}).catch((error) => {
+								console.error("❌ リモート参加者のFirebase membersデータ更新エラー:", error);
+							});
 						}).catch((error) => {
-							console.error("❌ リモート参加者のFirebase membersデータ更新エラー:", error);
+							console.error("❌ 既存メンバーデータ取得エラー:", error);
+							// エラーの場合は、photoURLなしで更新
+							update(memberRef, {
+								name: event.participant.user_name,
+								uid: event.participant.session_id,
+								photoURL: event.participant.photoURL || null,
+								accepted: true,
+								joinedAt: Date.now()
+							});
 						});
 					});
 				}
@@ -492,19 +562,37 @@ export const useDailyConnection = (
 						local: event.participant.local
 					});
 					
-					const photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
+					// まず参加者を追加（photoURLは後で更新）
 					const participantWithPhoto = {
 						...event.participant,
-						photoURL: photoURL
+						photoURL: event.participant.photoURL || null
 					};
 					
-					console.log("🔍 participant-joined参加者にphotoURLを追加:", {
-						user_name: event.participant.user_name,
-						photoURL: photoURL,
-						local: event.participant.local
+					newMap.set(event.participant.session_id, participantWithPhoto);
+					
+					// photoURLを非同期で取得して更新
+					getMemberPhotoURL(event.participant.user_name, event.participant.session_id).then(photoURL => {
+						if (photoURL) {
+							setParticipants((prev) => {
+								const newMap = new Map(prev);
+								const existingParticipant = newMap.get(event.participant.session_id);
+								if (existingParticipant) {
+									newMap.set(event.participant.session_id, {
+										...existingParticipant,
+										photoURL: photoURL
+									});
+								}
+								return newMap;
+							});
+							
+							console.log("🔍 participant-joined参加者にphotoURLを追加:", {
+								user_name: event.participant.user_name,
+								photoURL: photoURL,
+								local: event.participant.local
+							});
+						}
 					});
 					
-					newMap.set(event.participant.session_id, participantWithPhoto);
 					return newMap;
 				});
 
