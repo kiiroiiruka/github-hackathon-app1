@@ -16,6 +16,7 @@ export const useDailyConnection = (
 	const [error, setError] = useState(null);
 	const [participants, setParticipants] = useState(new Map());
 	const [callDuration, setCallDuration] = useState(0);
+	const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(true);
 	const callStartTimeRef = useRef(null);
 	const durationIntervalRef = useRef(null);
 	const currentUserUid = useUserUid();
@@ -123,7 +124,7 @@ export const useDailyConnection = (
 					
 					// リモート参加者の音声状態を継続的に監視
 					const monitorAudioState = (attempts = 0) => {
-						if (attempts >= 10) {
+						if (attempts >= 15) {
 							console.log("🔄 音声状態の監視を終了しました");
 							return;
 						}
@@ -134,20 +135,46 @@ export const useDailyConnection = (
 								const currentParticipant = currentParticipants[event.participant.session_id];
 								
 								if (currentParticipant) {
-									console.log(`🔍 音声状態チェック (${attempts + 1}/10):`, {
+									console.log(`🔍 音声状態チェック (${attempts + 1}/15):`, {
 										user_name: currentParticipant.user_name,
 										audio: currentParticipant.audio,
-										video: currentParticipant.video
+										video: currentParticipant.video,
+										session_id: currentParticipant.session_id
 									});
 									
 									// 音声が有効になった場合
 									if (currentParticipant.audio) {
 										console.log("✅ 参加者の音声が有効になりました！");
+										
+										// 音声トラックの詳細確認
+										setTimeout(() => {
+											try {
+												const tracks = callObject.getTracks();
+												const audioTracks = tracks.filter(track => 
+													track.kind === 'audio' && 
+													track.participantId === event.participant.session_id
+												);
+												
+												if (audioTracks.length > 0) {
+													const audioTrack = audioTracks[0];
+													console.log("🎵 音声トラックの詳細:", {
+														trackId: audioTrack.id,
+														enabled: audioTrack.enabled,
+														muted: audioTrack.muted,
+														readyState: audioTrack.readyState,
+														kind: audioTrack.kind
+													});
+												}
+											} catch (error) {
+												console.error("❌ 音声トラック詳細取得エラー:", error);
+											}
+										}, 1000);
+										
 										return;
 									}
 									
 									// まだ無効な場合、再試行
-									if (attempts < 9) {
+									if (attempts < 14) {
 										monitorAudioState(attempts + 1);
 									} else {
 										console.log("💡 リモート参加者にマイクの許可を促してください");
@@ -155,15 +182,16 @@ export const useDailyConnection = (
 										console.log("   1. ブラウザのアドレスバー横のマイクアイコンをクリック");
 										console.log("   2. マイクの許可を選択");
 										console.log("   3. 他のアプリでマイクを使用していないか確認");
+										console.log("   4. ブラウザを再起動してから再度試行");
 									}
 								}
 							} catch (error) {
 								console.error("❌ 音声状態監視エラー:", error);
-								if (attempts < 9) {
+								if (attempts < 14) {
 									monitorAudioState(attempts + 1);
 								}
 							}
-						}, 3000 * (attempts + 1)); // 試行間隔を徐々に増やす
+						}, 2000 * (attempts + 1)); // 試行間隔を徐々に増やす
 					};
 					
 					// 音声状態の監視を開始
@@ -246,103 +274,106 @@ export const useDailyConnection = (
 					if (!event.participant?.local) {
 						console.log("🎧 リモート参加者の音声トラックが開始されました");
 						
-						// 音声トラックが無効な場合の対処法
-						if (!event.track.enabled) {
-							console.warn("⚠️ リモート参加者の音声トラックが無効です");
-							console.warn("💡 相手に以下を確認してもらってください：");
-							console.warn("   1. ブラウザでマイクの許可を確認");
-							console.warn("   2. マイクが他のアプリで使用されていないか確認");
-							console.warn("   3. ブラウザの音声設定を確認");
+						// 音声トラックの有効化を確実に行う
+						const ensureAudioEnabled = async (attempts = 0) => {
+							if (attempts >= 10) {
+								console.log("🔄 音声トラック有効化の最大試行回数に達しました");
+								return;
+							}
 							
-							// 音声トラックの有効化を複数回試行
-							const tryEnableAudio = (attempts = 0) => {
-								if (attempts >= 5) {
-									console.log("🔄 音声トラック有効化の再試行を終了しました");
-									return;
-								}
+							try {
+								// 現在の参加者情報を取得
+								const currentParticipants = callObject.participants();
+								const currentParticipant = currentParticipants[event.participant.session_id];
 								
-								setTimeout(() => {
-									try {
-										console.log(`🔄 リモート参加者の音声トラック有効化を試行中... (試行 ${attempts + 1}/5)`);
-										
-										// 音声トラックの状態を再確認
-										if (event.track && event.track.readyState === 'live') {
-											console.log("📊 現在の音声トラック状態:", {
-												enabled: event.track.enabled,
-												muted: event.track.muted,
-												readyState: event.track.readyState
-											});
-											
-											// 音声トラックが有効になった場合
-											if (event.track.enabled) {
-												console.log("✅ 音声トラックが有効になりました！");
-												return;
-											}
-										}
-										
-										// まだ無効な場合、再試行
-										if (attempts < 4) {
-											tryEnableAudio(attempts + 1);
-										} else {
-											console.log("💡 リモート参加者にマイクの許可を促してください");
-										}
-									} catch (error) {
-										console.error("❌ リモート参加者の音声有効化エラー:", error);
-										if (attempts < 4) {
-											tryEnableAudio(attempts + 1);
-										}
-									}
-								}, 2000 * (attempts + 1)); // 試行間隔を徐々に増やす
-							};
-							
-							// 初回試行を開始
-							tryEnableAudio();
-						} else {
-							console.log("✅ リモート参加者の音声トラックが有効です");
-							console.log("💡 もし音声が聞こえない場合：");
-							console.log("   1. ブラウザの音量設定を確認");
-							console.log("   2. システムの音量設定を確認");
-							console.log("   3. ヘッドフォン/スピーカーの接続を確認");
-							
-							// 音声トラックの実際の音声データを監視
-							setTimeout(() => {
-								try {
-									console.log("🔍 音声トラックの詳細分析を開始...");
-									console.log("📊 音声トラックのプロパティ:", {
-										trackId: event.track.id,
-										enabled: event.track.enabled,
-										muted: event.track.muted,
-										readyState: event.track.readyState,
-										kind: event.track.kind,
-										label: event.track.label,
-										id: event.track.id
+								if (currentParticipant) {
+									console.log(`🔍 音声状態チェック (${attempts + 1}/10):`, {
+										user_name: currentParticipant.user_name,
+										audio: currentParticipant.audio,
+										video: currentParticipant.video
 									});
 									
-									// 音声トラックの制約を確認（存在する場合のみ）
-									if (event.track && typeof event.track.getConstraints === 'function') {
-										try {
-											const constraints = event.track.getConstraints();
-											console.log("⚙️ 音声トラックの制約:", constraints);
-										} catch (err) {
-											console.log("⚙️ 制約の取得に失敗:", err);
-										}
+									// 音声が有効になった場合
+									if (currentParticipant.audio) {
+										console.log("✅ 参加者の音声が有効になりました！");
+										
+										// 音声トラックの詳細分析
+										setTimeout(() => {
+											try {
+												console.log("🔍 音声トラックの詳細分析を開始...");
+												console.log("📊 音声トラックのプロパティ:", {
+													trackId: event.track.id,
+													enabled: event.track.enabled,
+													muted: event.track.muted,
+													readyState: event.track.readyState,
+													kind: event.track.kind,
+													label: event.track.label,
+													id: event.track.id
+												});
+												
+												// 音声トラックの制約を確認（存在する場合のみ）
+												if (event.track && typeof event.track.getConstraints === 'function') {
+													try {
+														const constraints = event.track.getConstraints();
+														console.log("⚙️ 音声トラックの制約:", constraints);
+													} catch (err) {
+														console.log("⚙️ 制約の取得に失敗:", err);
+													}
+												}
+												
+												// 音声トラックの設定を確認（存在する場合のみ）
+												if (event.track && typeof event.track.getSettings === 'function') {
+													try {
+														const settings = event.track.getSettings();
+														console.log("🔧 音声トラックの設定:", settings);
+													} catch (err) {
+														console.log("🔧 設定の取得に失敗:", err);
+													}
+												}
+												
+												// 音声トラックの実際の音声データを監視
+												if (event.track && event.track.readyState === 'live') {
+													console.log("🎵 音声トラックが正常に動作しています");
+													console.log("💡 もし音声が聞こえない場合：");
+													console.log("   1. ブラウザの音量設定を確認");
+													console.log("   2. システムの音量設定を確認");
+													console.log("   3. ヘッドフォン/スピーカーの接続を確認");
+													console.log("   4. 他のアプリで音声が再生されるかテスト");
+												}
+												
+											} catch (error) {
+												console.error("❌ 音声トラック分析エラー:", error);
+											}
+										}, 1000);
+										
+										return;
 									}
 									
-									// 音声トラックの設定を確認（存在する場合のみ）
-									if (event.track && typeof event.track.getSettings === 'function') {
-										try {
-											const settings = event.track.getSettings();
-											console.log("🔧 音声トラックの設定:", settings);
-										} catch (err) {
-											console.log("🔧 設定の取得に失敗:", err);
-										}
+									// まだ無効な場合、再試行
+									if (attempts < 9) {
+										setTimeout(() => {
+											ensureAudioEnabled(attempts + 1);
+										}, 2000 * (attempts + 1)); // 試行間隔を徐々に増やす
+									} else {
+										console.log("💡 リモート参加者にマイクの許可を促してください");
+										console.log("📋 確認事項:");
+										console.log("   1. ブラウザのアドレスバー横のマイクアイコンをクリック");
+										console.log("   2. マイクの許可を選択");
+										console.log("   3. 他のアプリでマイクを使用していないか確認");
 									}
-									
-								} catch (error) {
-									console.error("❌ 音声トラック分析エラー:", error);
 								}
-							}, 1000);
-						}
+							} catch (error) {
+								console.error("❌ 音声状態監視エラー:", error);
+								if (attempts < 9) {
+									setTimeout(() => {
+										ensureAudioEnabled(attempts + 1);
+									}, 2000 * (attempts + 1));
+								}
+							}
+						};
+						
+						// 音声有効化の監視を開始
+						ensureAudioEnabled();
 					}
 				}
 			})
@@ -364,6 +395,47 @@ export const useDailyConnection = (
 					
 					if (!event.participant?.local) {
 						console.warn("💡 リモート参加者の音声が停止しました。ネットワーク接続を確認してください。");
+						
+						// 音声トラックの再開を試行
+						const tryRestartAudio = async (attempts = 0) => {
+							if (attempts >= 3) {
+								console.log("🔄 音声トラック再開の最大試行回数に達しました");
+								return;
+							}
+							
+							try {
+								// 現在の参加者情報を取得
+								const currentParticipants = callObject.participants();
+								const currentParticipant = currentParticipants[event.participant.session_id];
+								
+								if (currentParticipant && currentParticipant.audio) {
+									console.log("✅ 音声トラックが再開されました！");
+									return;
+								}
+								
+								// まだ停止している場合、再試行
+								if (attempts < 2) {
+									setTimeout(() => {
+										tryRestartAudio(attempts + 1);
+									}, 3000 * (attempts + 1));
+								} else {
+									console.log("💡 リモート参加者に以下を確認してもらってください：");
+									console.log("   1. ネットワーク接続の安定性");
+									console.log("   2. ブラウザのマイク許可設定");
+									console.log("   3. 他のアプリでマイクを使用していないか");
+								}
+							} catch (error) {
+								console.error("❌ 音声トラック再開エラー:", error);
+								if (attempts < 2) {
+									setTimeout(() => {
+										tryRestartAudio(attempts + 1);
+									}, 3000 * (attempts + 1));
+								}
+							}
+						};
+						
+						// 音声トラック再開を試行
+						tryRestartAudio();
 					}
 				}
 			})
@@ -384,6 +456,9 @@ export const useDailyConnection = (
 				} else if (event.error?.includes("network") || event.error?.includes("connection")) {
 					console.error("🌐 ネットワークエラー:", event.error);
 					setError("ネットワーク接続に問題があります。インターネット接続を確認してください。");
+				} else if (event.error?.includes("track") || event.error?.includes("audio")) {
+					console.error("🎵 音声トラックエラー:", event.error);
+					setError("音声トラックに問題があります。ページを再読み込みしてから再度試行してください。");
 				} else {
 					console.error("🔧 Daily.co エラー:", event.error);
 					setError(`通話エラー: ${event.error}`);
@@ -512,6 +587,21 @@ export const useDailyConnection = (
 					// 音声トラックの安定性を向上させる設定
 					audioSource: true,
 					videoSource: false,
+					// 音声品質と安定性の向上
+					audioBandwidth: 64000, // 64kbps
+					audioQuality: 'high',
+					// 接続の安定性向上
+					receiveSettings: {
+						audio: {
+							enabled: true,
+							volume: 1.0
+						}
+					},
+					// 音声トラックの自動復旧
+					audioTrackSettings: {
+						enabled: true,
+						volume: 1.0
+					}
 				});
 				
 				// Dailyインスタンスを設定
@@ -541,6 +631,23 @@ export const useDailyConnection = (
 			console.error("Failed to leave room:", err);
 		}
 	}, [daily, isJoined]);
+
+	// マイクの切り替え
+	const toggleMicrophone = useCallback(async () => {
+		if (!daily || !isJoined) return;
+
+		try {
+			const newState = !isMicrophoneEnabled;
+			await daily.setLocalAudio(newState);
+			setIsMicrophoneEnabled(newState);
+			
+			console.log(`🎤 マイクを${newState ? '有効化' : '無効化'}しました`);
+			return newState;
+		} catch (err) {
+			console.error("❌ マイク切り替えエラー:", err);
+			throw err;
+		}
+	}, [daily, isJoined, isMicrophoneEnabled]);
 
 	// クリーンアップ
 	const destroyDaily = useCallback(() => {
@@ -577,9 +684,11 @@ export const useDailyConnection = (
 		participants: Array.from(participants.values()),
 		callDuration,
 		formattedDuration: formatDuration(callDuration),
+		isMicrophoneEnabled,
 		joinRoom,
 		leaveRoom,
 		destroyDaily,
+		toggleMicrophone,
 		showAudioTroubleshootingGuide,
 	};
 };

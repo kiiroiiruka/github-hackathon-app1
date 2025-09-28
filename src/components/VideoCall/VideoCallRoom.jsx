@@ -37,9 +37,11 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 		participants,
 		callDuration,
 		formattedDuration,
+		isMicrophoneEnabled: dailyMicrophoneEnabled,
 		joinRoom,
 		leaveRoom,
 		destroyDaily,
+		toggleMicrophone,
 	} = useDailyConnection(roomId, dailyRoomUrl, handleParticipantUpdate);
 
 	// 通話時間の定期更新
@@ -192,6 +194,18 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 		}
 		await leaveRoom();
 		onCallEnd?.();
+	};
+
+	// マイク切り替えハンドラー
+	const handleToggleMicrophone = async () => {
+		if (!daily || !isJoined) return;
+
+		try {
+			await toggleMicrophone();
+		} catch (error) {
+			console.error("❌ マイク切り替えエラー:", error);
+			setError("マイクの切り替えに失敗しました。");
+		}
 	};
 
 	// マイク許可を再試行する関数
@@ -389,14 +403,18 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			{/* 音声制御ボタン */}
 			{isJoined && (
 				<div className="flex gap-4 mb-6">
-					{/* マイク切り替えボタンを一時的に無効化（音声トラックの安定性のため） */}
+					{/* マイク切り替えボタン */}
 					<button
 						type="button"
-						disabled
-						className="px-6 py-3 bg-gray-400 text-white rounded-full cursor-not-allowed shadow-lg"
-						title="マイク切り替えは一時的に無効化されています"
+						onClick={handleToggleMicrophone}
+						className={`px-6 py-3 rounded-full shadow-lg transition-colors ${
+							dailyMicrophoneEnabled 
+								? 'bg-green-500 hover:bg-green-600 text-white' 
+								: 'bg-red-500 hover:bg-red-600 text-white'
+						}`}
+						title={dailyMicrophoneEnabled ? 'マイクをミュート' : 'マイクを有効化'}
 					>
-						マイク切り替え (無効)
+						{dailyMicrophoneEnabled ? '🎤 マイクON' : '🔇 マイクOFF'}
 					</button>
 					<button
 						type="button"
@@ -418,14 +436,37 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 						{participants.map((participant) => (
 							<div
 								key={participant.session_id}
-								className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+								className={`flex items-center gap-2 px-3 py-1 text-xs rounded-full ${
+									participant.local 
+										? 'bg-blue-100 text-blue-800' 
+										: participant.audio 
+											? 'bg-green-100 text-green-800' 
+											: 'bg-red-100 text-red-800'
+								}`}
 							>
 								{participant.user_name || "Anonymous"}
 								{participant.local && (
 									<span className="text-blue-600">(あなた)</span>
 								)}
+								{!participant.local && (
+									<span className="text-xs">
+										{participant.audio ? '🎤' : '🔇'}
+									</span>
+								)}
 							</div>
 						))}
+					</div>
+					
+					{/* 音声状態の説明 */}
+					<div className="mt-3 text-xs text-gray-500 text-center">
+						<span className="inline-flex items-center gap-1 mr-3">
+							<span className="w-2 h-2 bg-green-500 rounded-full"></span>
+							音声ON
+						</span>
+						<span className="inline-flex items-center gap-1">
+							<span className="w-2 h-2 bg-red-500 rounded-full"></span>
+							音声OFF
+						</span>
 					</div>
 				</div>
 			)}
