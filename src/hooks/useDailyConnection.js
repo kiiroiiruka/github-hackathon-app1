@@ -172,6 +172,19 @@ export const useDailyConnection = (
 				
 				// 参加成功をログに記録
 				console.log("✅ Daily.coルームに正常に参加しました");
+				
+				// 音声受信設定を確実に有効にする
+				try {
+					await callObject.setReceiveSettings({
+						audio: {
+							enabled: true,
+							volume: 1.0
+						}
+					});
+					console.log("🔊 joined-meeting時に音声受信設定を有効にしました");
+				} catch (receiveError) {
+					console.warn("⚠️ joined-meeting時の音声受信設定に失敗:", receiveError);
+				}
 
 				// ローカル参加者のデータにphotoURLを追加
 				setParticipants((prev) => {
@@ -193,6 +206,19 @@ export const useDailyConnection = (
 				// 音声を明示的に有効化
 				await callObject.setLocalAudio(true);
 				console.log("🎤 通話開始時は音声有効状態で開始");
+				
+				// 音声受信設定を確実に有効にする
+				try {
+					await callObject.setReceiveSettings({
+						audio: {
+							enabled: true,
+							volume: 1.0
+						}
+					});
+					console.log("🔊 ルーム参加時に音声受信設定を有効にしました");
+				} catch (receiveError) {
+					console.warn("⚠️ 音声受信設定の初期化に失敗:", receiveError);
+				}
 				
 				// 設定後の状態を確認して、実際の状態に合わせて内部状態を更新
 				setTimeout(() => {
@@ -1319,7 +1345,7 @@ export const useDailyConnection = (
 					// 音声トラックの安定性を向上させる設定
 					audioSource: true,
 					videoSource: false,
-					// 接続の安定性向上
+					// 音声受信設定（マイクの状態に関係なく常に有効）
 					receiveSettings: {
 						audio: {
 							enabled: true,
@@ -1363,6 +1389,19 @@ export const useDailyConnection = (
 		try {
 			const newState = !isMicrophoneEnabled;
 			await daily.setLocalAudio(newState);
+			
+			// 音声受信設定を確実に有効にする（マイクの状態に関係なく）
+			try {
+				await daily.setReceiveSettings({
+					audio: {
+						enabled: true,
+						volume: 1.0
+					}
+				});
+				console.log("🔊 音声受信設定を有効にしました");
+			} catch (receiveError) {
+				console.warn("⚠️ 音声受信設定の更新に失敗:", receiveError);
+			}
 			
 			// 状態を即座に更新
 			setIsMicrophoneEnabled(newState);

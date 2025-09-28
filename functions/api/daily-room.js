@@ -176,6 +176,13 @@ export async function onRequest(context) {
 					start_video_off: true, // ビデオオフ
 					start_audio_off: false, // 音声オン
 					max_participants: 10, // 参加者数を削減
+					// 音声受信設定（マイクの状態に関係なく常に有効）
+					receive_settings: {
+						audio: {
+							enabled: true,
+							volume: 1.0
+						}
+					}
 				},
 			}),
 		});
