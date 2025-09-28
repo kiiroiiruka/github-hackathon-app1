@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import HeaderComponent2 from "../../../components/Header/Header2";
+import HeaderComponent from "../../../components/Header/Header";
 import LocationSearch from "../../../components/ui/LocationSearch";
 import { useState, useCallback } from "react";
 import { useFavorites } from "../../../hooks/useFavorites";
@@ -149,11 +149,11 @@ const PurlieuLocation = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50">
-      <HeaderComponent2 title="通信" />
+      <HeaderComponent title="通信" />
       
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 pt-24">
         <div className="max-w-2xl mx-auto">
-          {/* ヘッダーセクション */}
+          {/* メインタイトルセクション */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full mb-4 shadow-lg">
               <span className="text-2xl text-white">📍</span>
