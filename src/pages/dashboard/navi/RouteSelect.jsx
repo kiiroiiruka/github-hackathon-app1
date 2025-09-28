@@ -75,7 +75,7 @@ const RouteSelect = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <HeaderComponent title="通信" />
       
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 pt-20">
         <div className="max-w-2xl mx-auto">
           {/* ヘッダーセクション */}
           <div className="text-center mb-8">

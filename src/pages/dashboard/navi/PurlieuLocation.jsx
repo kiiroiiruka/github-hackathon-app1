@@ -329,8 +329,7 @@ const PurlieuLocation = () => {
             ) : (
               <div className="grid gap-3">
                 {favorites.map((favorite) => (
-                  <button 
-                    type="button"
+                  <div 
                     key={favorite.id}
                     className={`w-full text-left group relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
                       selectedFavorite?.id === favorite.id 
@@ -384,7 +383,7 @@ const PurlieuLocation = () => {
                         🗑️
                       </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
