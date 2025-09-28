@@ -25,8 +25,25 @@ export const useDailyConnection = (
 
 	// メンバーデータからphotoURLを取得する関数
 	const getMemberPhotoURL = useCallback((userName, uid) => {
+		console.log("🔍 getMemberPhotoURL呼び出し:", {
+			userName,
+			uid,
+			membersCount: members.length,
+			members: members.map(m => ({ name: m.name, uid: m.uid, photoURL: m.photoURL }))
+		});
+		
 		const member = members.find(m => m.name === userName || m.uid === uid);
-		return member?.photoURL || null;
+		const photoURL = member?.photoURL || null;
+		
+		console.log("🔍 getMemberPhotoURL結果:", {
+			userName,
+			uid,
+			foundMember: !!member,
+			photoURL,
+			memberData: member ? { name: member.name, uid: member.uid, photoURL: member.photoURL } : null
+		});
+		
+		return photoURL;
 	}, [members]);
 
 	// 通話時間の更新

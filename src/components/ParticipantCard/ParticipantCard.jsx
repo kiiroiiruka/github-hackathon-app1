@@ -25,13 +25,16 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		borderColor: audio ? "#28a745" : "#dc3545", // ボーダー色も変更
 	};
 	
-	// デバッグログを追加（音声状態の確認）
-	console.log("ParticipantCard audio state:", {
+	// デバッグログを追加（音声状態とphotoURLの確認）
+	console.log("ParticipantCard state:", {
 		user_name,
 		audio,
 		cardColor: audio ? "green" : "red",
 		isLocal,
-		session_id: participant.session_id
+		session_id: participant.session_id,
+		photoURL,
+		hasPhotoURL: !!photoURL,
+		imageError
 	});
 
 	return (
