@@ -70,17 +70,33 @@ export const useDailyConnection = (
 							console.log("🔊 利用可能な音声出力デバイス:", audioOutputs.length);
 						}
 						
-						// 音声要素の自動再生を有効化
-						const audioElements = document.querySelectorAll('audio');
-						audioElements.forEach(audio => {
-							audio.muted = false;
-							audio.volume = 1.0;
-							if (audio.paused) {
-								audio.play().catch(error => {
-									console.warn("⚠️ 音声の自動再生が制限されています:", error);
+						// Daily.coの音声要素を確実に作成・設定
+						setTimeout(() => {
+							const audioElements = document.querySelectorAll('audio');
+							console.log(`🎵 Daily.co音声要素数: ${audioElements.length}`);
+							
+							audioElements.forEach((audio, index) => {
+								console.log(`🎵 音声要素 ${index + 1}:`, {
+									src: audio.src || 'MediaStream',
+									muted: audio.muted,
+									volume: audio.volume,
+									paused: audio.paused,
+									autoplay: audio.autoplay
 								});
-							}
-						});
+								
+								// 音声要素の設定を最適化
+								audio.muted = false;
+								audio.volume = 1.0;
+								audio.autoplay = true;
+								
+								// 音声の再生を試行
+								if (audio.paused) {
+									audio.play().catch(error => {
+										console.warn("⚠️ 音声の自動再生が制限されています:", error);
+									});
+								}
+							});
+						}, 1000);
 						
 						console.log("🔊 音声出力設定を完了しました");
 					} catch (audioError) {
@@ -194,14 +210,20 @@ export const useDailyConnection = (
 					local: event.participant.local
 				});
 				
-				// 参加者の音声がオフの場合は警告を表示
-				if (!event.participant.local && !event.participant.audio) {
-					console.warn("⚠️ 参加者の音声がオフです:", event.participant.user_name);
-					console.warn("💡 参加者がブラウザでマイクを許可していない可能性があります");
+				// 参加者を即座に状態管理に追加
+				setParticipants((prev) => {
+					const newMap = new Map(prev);
+					newMap.set(event.participant.session_id, event.participant);
+					return newMap;
+				});
+
+				// リモート参加者の音声状態を監視（初期状態に関係なく）
+				if (!event.participant.local) {
+					console.log("🔍 リモート参加者の音声状態を監視開始:", event.participant.user_name);
 					
-					// リモート参加者の音声状態を継続的に監視
+					// 音声状態の監視（より短い間隔で）
 					const monitorAudioState = (attempts = 0) => {
-						if (attempts >= 15) {
+						if (attempts >= 10) {
 							console.log("🔄 音声状態の監視を終了しました");
 							return;
 						}
@@ -212,25 +234,41 @@ export const useDailyConnection = (
 								const currentParticipant = currentParticipants[event.participant.session_id];
 								
 								if (currentParticipant) {
-									console.log(`🔍 音声状態チェック (${attempts + 1}/15):`, {
+									console.log(`🔍 音声状態チェック (${attempts + 1}/10):`, {
 										user_name: currentParticipant.user_name,
 										audio: currentParticipant.audio,
 										video: currentParticipant.video,
 										session_id: currentParticipant.session_id
 									});
 									
+									// 参加者の状態を更新
+									setParticipants((prev) => {
+										const newMap = new Map(prev);
+										newMap.set(currentParticipant.session_id, currentParticipant);
+										return newMap;
+									});
+									
 									// 音声が有効になった場合
 									if (currentParticipant.audio) {
 										console.log("✅ 参加者の音声が有効になりました！");
 										
-										// 音声トラックの詳細確認（Daily.coのtrack-startedイベントで処理される）
-										console.log("🎵 音声トラックの詳細は track-started イベントで確認されます");
+										// 音声要素の確認
+										setTimeout(() => {
+											const audioElements = document.querySelectorAll('audio');
+											console.log(`🎵 音声要素数: ${audioElements.length}`);
+											
+											audioElements.forEach((audio, index) => {
+												if (!audio.muted && audio.volume > 0) {
+													console.log(`🔊 音声要素 ${index + 1} は正常に設定されています`);
+												}
+											});
+										}, 500);
 										
 										return;
 									}
 									
 									// まだ無効な場合、再試行
-									if (attempts < 14) {
+									if (attempts < 9) {
 										monitorAudioState(attempts + 1);
 									} else {
 										console.log("💡 リモート参加者にマイクの許可を促してください");
@@ -243,22 +281,16 @@ export const useDailyConnection = (
 								}
 							} catch (error) {
 								console.error("❌ 音声状態監視エラー:", error);
-								if (attempts < 14) {
+								if (attempts < 9) {
 									monitorAudioState(attempts + 1);
 								}
 							}
-						}, 2000 * (attempts + 1)); // 試行間隔を徐々に増やす
+						}, 1000); // より短い間隔で監視
 					};
 					
 					// 音声状態の監視を開始
 					monitorAudioState();
 				}
-				
-				setParticipants((prev) => {
-					const newMap = new Map(prev);
-					newMap.set(event.participant.session_id, event.participant);
-					return newMap;
-				});
 
 				if (onParticipantUpdate) {
 					onParticipantUpdate({
@@ -339,48 +371,70 @@ export const useDailyConnection = (
 					if (event.track && event.track.readyState === 'live') {
 						console.log("🔊 音声トラックの再生を確認中...");
 						
-						// 少し待ってから音声要素の状態を確認
-						setTimeout(() => {
-							try {
-								// 音声要素の存在確認
-								const audioElements = document.querySelectorAll('audio');
-								console.log(`🎵 ページ内の音声要素数: ${audioElements.length}`);
-								
-								audioElements.forEach((audio, index) => {
-									console.log(`🎵 音声要素 ${index + 1}:`, {
-										src: audio.src || 'MediaStream',
-										muted: audio.muted,
-										volume: audio.volume,
-										paused: audio.paused,
-										currentTime: audio.currentTime,
-										duration: audio.duration || 'N/A'
+						// 音声要素の確認と設定を複数回試行
+						const ensureAudioPlayback = (attempts = 0) => {
+							if (attempts >= 5) {
+								console.log("🔄 音声要素確認の最大試行回数に達しました");
+								return;
+							}
+							
+							setTimeout(() => {
+								try {
+									// 音声要素の存在確認
+									const audioElements = document.querySelectorAll('audio');
+									console.log(`🎵 ページ内の音声要素数: ${audioElements.length}`);
+									
+									if (audioElements.length === 0 && attempts < 4) {
+										console.log(`🔄 音声要素が見つかりません。再試行中... (${attempts + 1}/5)`);
+										ensureAudioPlayback(attempts + 1);
+										return;
+									}
+									
+									audioElements.forEach((audio, index) => {
+										console.log(`🎵 音声要素 ${index + 1}:`, {
+											src: audio.src || 'MediaStream',
+											muted: audio.muted,
+											volume: audio.volume,
+											paused: audio.paused,
+											currentTime: audio.currentTime,
+											duration: audio.duration || 'N/A',
+											autoplay: audio.autoplay
+										});
+										
+										// 音声要素の設定を最適化
+										audio.muted = false;
+										audio.volume = 1.0;
+										audio.autoplay = true;
+										
+										// 音声要素が一時停止されている場合は再生
+										if (audio.paused) {
+											console.log("▶️ 音声要素の再生を開始します");
+											audio.play().catch(error => {
+												console.warn("⚠️ 音声の自動再生が失敗しました:", error);
+											});
+										}
 									});
 									
-									// 音声要素がミュートされている場合は解除
-									if (audio.muted) {
-										console.log("🔊 音声要素のミュートを解除します");
-										audio.muted = false;
-									}
-									
-									// 音声要素が一時停止されている場合は再生
-									if (audio.paused) {
-										console.log("▶️ 音声要素の再生を開始します");
-										audio.play().catch(error => {
-											console.warn("⚠️ 音声の自動再生が失敗しました:", error);
+									// Daily.coの音声出力レベルを確認
+									if (callObject && typeof callObject.getReceiveSettings === 'function') {
+										callObject.getReceiveSettings().then(receiveSettings => {
+											console.log("🔊 Daily.co音声受信設定:", receiveSettings);
+										}).catch(error => {
+											console.warn("⚠️ 音声受信設定の取得に失敗:", error);
 										});
 									}
-								});
-								
-								// Daily.coの音声出力レベルを確認
-								if (callObject && typeof callObject.getReceiveSettings === 'function') {
-									const receiveSettings = callObject.getReceiveSettings();
-									console.log("🔊 Daily.co音声受信設定:", receiveSettings);
+									
+								} catch (error) {
+									console.error("❌ 音声要素確認エラー:", error);
+									if (attempts < 4) {
+										ensureAudioPlayback(attempts + 1);
+									}
 								}
-								
-							} catch (error) {
-								console.error("❌ 音声要素確認エラー:", error);
-							}
-						}, 1000);
+							}, 1000 * (attempts + 1)); // 試行間隔を徐々に増やす
+						};
+						
+						// 音声要素の確認を開始
+						ensureAudioPlayback();
 					}
 					
 					// 音声トラックの安定性を監視
@@ -743,12 +797,6 @@ export const useDailyConnection = (
 					// 音声トラックの安定性を向上させる設定
 					audioSource: true,
 					videoSource: false,
-					// 音声再生の確実な設定
-					audioSettings: {
-						enabled: true,
-						volume: 1.0,
-						autoplay: true
-					},
 					// 接続の安定性向上
 					receiveSettings: {
 						audio: {
@@ -920,5 +968,49 @@ export const useDailyConnection = (
 				console.error("❌ 音声テストエラー:", error);
 			}
 		}, []),
+		// 音声要素の強制作成機能を追加
+		forceAudioElements: useCallback(() => {
+			console.log("🔧 音声要素の強制作成を試行中...");
+			
+			if (daily && isJoined) {
+				try {
+					// Daily.coの音声トラックを取得
+					const participants = daily.participants();
+					Object.values(participants).forEach(participant => {
+						if (!participant.local && participant.audio) {
+							console.log(`🎧 参加者 ${participant.user_name} の音声トラックを確認中...`);
+							
+							// 音声トラックの詳細を取得
+							const tracks = daily.getRemoteAudioTracks();
+							console.log("🎵 リモート音声トラック:", tracks);
+							
+							// 音声要素を手動で作成（必要に応じて）
+							const audioElement = document.createElement('audio');
+							audioElement.autoplay = true;
+							audioElement.muted = false;
+							audioElement.volume = 1.0;
+							audioElement.style.display = 'none';
+							
+							// 音声トラックを音声要素に接続
+							if (tracks.length > 0) {
+								const track = tracks.find(t => t.participantId === participant.session_id);
+								if (track) {
+									audioElement.srcObject = new MediaStream([track]);
+									document.body.appendChild(audioElement);
+									
+									audioElement.play().catch(error => {
+										console.warn("⚠️ 手動作成音声要素の再生に失敗:", error);
+									});
+									
+									console.log(`✅ 参加者 ${participant.user_name} の音声要素を作成しました`);
+								}
+							}
+						}
+					});
+				} catch (error) {
+					console.error("❌ 音声要素強制作成エラー:", error);
+				}
+			}
+		}, [daily, isJoined]),
 	};
 };
