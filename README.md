@@ -1,12 +1,108 @@
-# React + Vite
+# GitHub Hackathon App - Car Navigation with Voice Chat
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is a React application built with Vite that provides car navigation functionality with integrated voice chat using Daily.co.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🚗 Car navigation with real-time routing
+- 🎤 Voice chat integration using Daily.co
+- 👥 Friend management and room creation
+- 🔐 Firebase authentication
+- 📱 Responsive mobile-first design
 
-## Expanding the ESLint configuration
+## Development Setup
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+
+- Node.js (v18 or higher)
+- npm or yarn
+- Firebase project setup
+- Daily.co API key
+
+### Installation
+
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Install Cloudflare Workers dependencies:
+   ```bash
+   cd functions
+   npm install
+   cd ..
+   ```
+
+### Running the Development Server
+
+#### Option 1: Run both frontend and backend together
+```bash
+npm run dev:all
+```
+
+#### Option 2: Run separately
+Terminal 1 (Frontend):
+```bash
+npm run dev
+```
+
+Terminal 2 (Cloudflare Workers):
+```bash
+npm run dev:functions
+```
+
+### Environment Setup
+
+1. **Firebase Configuration**: Update `src/firebase/firebaseConfig.js` with your Firebase project credentials
+2. **Daily.co API Key**: Set up your Daily.co API key in Cloudflare Workers environment variables
+3. **Cloudflare Workers**: The functions are located in the `functions/` directory
+
+### Troubleshooting
+
+#### Voice Chat Issues
+
+If you encounter connection errors when starting voice calls:
+
+1. **Development Environment**: Make sure Cloudflare Workers dev server is running on port 8787
+2. **Microphone Permissions**: Ensure browser has microphone access
+3. **API Endpoints**: Check that Daily.co API endpoints are properly configured
+
+#### Common Error Messages
+
+- `ERR_CONNECTION_REFUSED`: Cloudflare Workers dev server is not running
+- `マイクエラー`: Browser microphone permissions are denied
+- `APIサーバーエラー`: Daily.co API configuration issues
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+The built files will be in the `dist/` directory, ready for deployment to Cloudflare Pages.
+
+## Project Structure
+
+```
+src/
+├── components/          # Reusable UI components
+├── firebase/           # Firebase configuration and utilities
+├── hooks/              # Custom React hooks
+├── pages/              # Page components
+├── atom/               # Jotai state management
+└── assets/             # Static assets
+
+functions/
+├── api/                # Cloudflare Workers API endpoints
+└── package.json        # Workers dependencies
+```
+
+## Technologies Used
+
+- **Frontend**: React 19, Vite, Tailwind CSS
+- **Backend**: Cloudflare Workers, Firebase
+- **Voice Chat**: Daily.co
+- **Maps**: Leaflet, React Leaflet
+- **State Management**: Jotai
+- **Authentication**: Firebase Auth

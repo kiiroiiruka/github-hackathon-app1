@@ -1,0 +1,9 @@
+{
+  "name": "cloudflare-functions",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Cloudflare Pages Functions for Daily.co integration",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240909.0"
+  }
+}
