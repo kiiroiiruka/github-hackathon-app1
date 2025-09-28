@@ -54,16 +54,20 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 	const getIconURL = () => {
 		// ローカル参加者でGoogleアイコンが利用可能な場合はそれを使用
 		if (isLocal && currentUser?.photoURL) {
+			console.log("🖼️ ローカル参加者のGoogleアイコンを使用:", currentUser.photoURL);
 			return currentUser.photoURL;
 		}
 		
 		// FirebaseのmembersデータからphotoURLが取得できる場合はそれを使用
-		if (photoURL) {
+		if (photoURL && photoURL !== "" && photoURL !== null) {
+			console.log("🖼️ Firebase photoURLを使用:", photoURL);
 			return photoURL;
 		}
 		
 		// それ以外の場合は生成されたアイコンを使用
-		return generateIconURL(user_name, uid || session_id);
+		const generatedURL = generateIconURL(user_name, uid || session_id);
+		console.log("🖼️ 生成されたアイコンを使用:", generatedURL);
+		return generatedURL;
 	};
 	
 	const iconURL = getIconURL();

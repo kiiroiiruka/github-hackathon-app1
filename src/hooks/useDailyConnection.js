@@ -461,6 +461,7 @@ export const useDailyConnection = (
 					console.log("🔥 リモート参加者のFirebase membersデータを更新:", {
 						user_name: event.participant.user_name,
 						session_id: event.participant.session_id,
+						photoURL: event.participant.photoURL,
 						roomId: roomId
 					});
 					
@@ -470,7 +471,7 @@ export const useDailyConnection = (
 						update(memberRef, {
 							name: event.participant.user_name,
 							uid: event.participant.session_id,
-							photoURL: event.participant.photoURL || "",
+							photoURL: event.participant.photoURL || null, // nullを設定して、空文字列を避ける
 							accepted: true,
 							joinedAt: Date.now()
 						}).then(() => {
