@@ -87,13 +87,23 @@ export const useDailyConnection = (
 				const newMap = new Map(prev);
 				// 既存の参加者のみ更新（新しい参加者は追加しない）
 				if (newMap.has(participantData.session_id)) {
-					newMap.set(participantData.session_id, participantData);
-					console.log(`🔄 デバウンス: 参加者 ${participantData.user_name} の状態を更新しました`);
+					// photoURLを保持して更新
+					const photoURL = getMemberPhotoURL(participantData.user_name, participantData.session_id);
+					const participantWithPhoto = {
+						...participantData,
+						photoURL: photoURL
+					};
+					
+					newMap.set(participantData.session_id, participantWithPhoto);
+					console.log(`🔄 デバウンス: 参加者 ${participantData.user_name} の状態を更新しました`, {
+						audio: participantData.audio,
+						photoURL: photoURL
+					});
 				}
 				return newMap;
 			});
 		}, delay);
-	}, []);
+	}, [getMemberPhotoURL]);
 
 	// イベントリスナーの設定
 	const setupEventListeners = useCallback((callObject) => {
@@ -466,7 +476,13 @@ export const useDailyConnection = (
 									});
 									
 									// 参加者の状態を更新（デバウンスを使用して一瞬の重複を防ぐ）
-									debouncedParticipantUpdate(currentParticipant, 100);
+									// photoURLを保持して参加者データを更新
+									const photoURL = getMemberPhotoURL(currentParticipant.user_name, currentParticipant.session_id);
+									const participantWithPhoto = {
+										...currentParticipant,
+										photoURL: photoURL
+									};
+									debouncedParticipantUpdate(participantWithPhoto, 100);
 									
 									// 音声が有効になった場合
 									if (currentParticipant.audio) {
@@ -654,7 +670,13 @@ export const useDailyConnection = (
 					
 					// 参加者の状態を更新してUIに反映（デバウンスを使用して一瞬の重複を防ぐ）
 					if (event.participant) {
-						debouncedParticipantUpdate(event.participant, 100);
+						// photoURLを保持して参加者データを更新
+						const photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
+						const participantWithPhoto = {
+							...event.participant,
+							photoURL: photoURL
+						};
+						debouncedParticipantUpdate(participantWithPhoto, 100);
 					}
 					
 					// 音声要素の確実な再生を保証
