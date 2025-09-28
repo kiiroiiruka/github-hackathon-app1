@@ -9,7 +9,11 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 	useEffect(() => {
 		if (photoURL && imageErrorRef.current.has(photoURL)) {
 			setImageError(true);
+		} else if (photoURL) {
+			// 新しい画像URLの場合は、一度リセットしてから再試行
+			setImageError(false);
 		} else {
+			// photoURLが存在しない場合はエラー状態にしない
 			setImageError(false);
 		}
 	}, [photoURL]);
@@ -20,7 +24,11 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		isLocal,
 		participantLocal: participant.local,
 		audio,
-		session_id: participant.session_id
+		session_id: participant.session_id,
+		photoURL,
+		hasPhotoURL: !!photoURL,
+		imageError,
+		willShowImage: photoURL && !imageError
 	});
 	
 	// ユーザー名が長すぎる場合は省略
@@ -65,11 +73,24 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 						src={photoURL}
 						alt={user_name || "User"}
 						style={styles.profileImg}
+						onLoad={() => {
+							console.log("🖼️ 画像読み込み成功:", {
+								user_name,
+								photoURL,
+								session_id: participant.session_id
+							});
+						}}
 						onError={() => {
-							console.log("Image load error for:", photoURL);
+							console.log("🖼️ 画像読み込みエラー:", {
+								user_name,
+								photoURL,
+								hasPhotoURL: !!photoURL,
+								session_id: participant.session_id
+							});
 							// エラー状態を永続化
 							if (photoURL) {
 								imageErrorRef.current.add(photoURL);
+								console.log("🖼️ エラー状態を永続化:", photoURL);
 							}
 							setImageError(true);
 						}}

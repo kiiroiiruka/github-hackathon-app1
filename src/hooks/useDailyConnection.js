@@ -40,6 +40,7 @@ export const useDailyConnection = (
 			uid,
 			foundMember: !!member,
 			photoURL,
+			photoURLValid: !!photoURL,
 			memberData: member ? { name: member.name, uid: member.uid, photoURL: member.photoURL } : null
 		});
 		
@@ -122,18 +123,19 @@ export const useDailyConnection = (
 				await callObject.setLocalAudio(true);
 				console.log("🎤 通話開始時は音声有効状態で開始");
 				
-				// 設定後の状態を確認
+				// 設定後の状態を確認して、実際の状態に合わせて内部状態を更新
 				setTimeout(() => {
+					const actualAudioState = callObject.localAudio();
 					console.log("🔍 setLocalAudio(true)後の状態確認:", {
-						dailyLocalAudio: callObject.localAudio(),
+						dailyLocalAudio: actualAudioState,
 						participants: callObject.participants(),
 						timestamp: new Date().toISOString()
 					});
-				}, 100);
 					
-					// マイク状態を明示的に有効に設定（初期状態の問題を回避）
-					setIsMicrophoneEnabled(true);
-					console.log("🎤 マイク状態を明示的に有効に設定しました");
+					// Daily.coの実際の状態に合わせて内部状態を更新
+					setIsMicrophoneEnabled(actualAudioState);
+					console.log("🎤 マイク状態をDaily.coの実際の状態に合わせて更新:", actualAudioState);
+				}, 100);
 					
 					// 音声状態の変化を詳細に監視
 					console.log("🔍 音声状態監視を開始 - 初期状態:", {
@@ -302,22 +304,14 @@ export const useDailyConnection = (
 					
 					setParticipants(participantMap);
 					
-					// 音声状態の定期監視を開始
+					// 音声状態の定期監視を開始（頻度を下げてログを削減）
 					const audioStateMonitor = setInterval(() => {
 						try {
 							const participants = callObject.participants();
 							const localParticipant = Object.values(participants).find(p => p.local);
 							
 							if (localParticipant) {
-								// 毎回の状態チェック（詳細ログ付き）
-								console.log("🔍 定期音声状態チェック:", {
-									user_name: localParticipant.user_name,
-									dailyAudio: localParticipant.audio,
-									stateAudio: isMicrophoneEnabled,
-									timeSinceStart: callDuration,
-									audioChanged: localParticipant.audio !== isMicrophoneEnabled
-								});
-								
+								// 音声状態の不一致がある場合のみログ出力
 								if (localParticipant.audio !== isMicrophoneEnabled) {
 									console.log("🚨 音声状態の不一致を検出！修正します:", {
 										user_name: localParticipant.user_name,
