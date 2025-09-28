@@ -8,8 +8,15 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		? `${user_name.substring(0, 8)}...` 
 		: user_name || "ユーザー名";
 
+	// カードの色を音声状態に応じて変更
+	const cardStyle = {
+		...styles.card,
+		backgroundColor: audio ? "#e8f5e8" : "#ffeaea", // 音声ON: 薄緑、OFF: 薄赤
+		borderColor: audio ? "#28a745" : "#dc3545", // ボーダー色も変更
+	};
+
 	return (
-		<div style={styles.card}>
+		<div style={cardStyle}>
 			{/* マイク状態アイコン */}
 			<div style={styles.micIcon}>
 				{audio ? (
