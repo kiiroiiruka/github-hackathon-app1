@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useCurrentUser } from "../../hooks/useUser";
 
 const ParticipantCard = ({ participant, isLocal = false }) => {
 	const { user_name, audio, photoURL, uid, session_id } = participant;
 	const [imageError, setImageError] = useState(false);
 	const imageErrorRef = useRef(new Set()); // 画像エラー状態を永続化
+	const currentUser = useCurrentUser(); // 現在のユーザー情報を取得
 	
 	// ユーザーIDを基にアイコンURLを生成する関数
 	const generateIconURL = (userName, userId) => {
@@ -20,11 +22,51 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 			displayName = (userId || session_id || "?").charAt(0).toUpperCase();
 		}
 		
-		return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff&size=96`;
+		// ユーザーIDを基に一貫した色を生成
+		const userIdentifier = userId || session_id || userName || "default";
+		const colors = [
+			"6366f1", // indigo
+			"8b5cf6", // purple
+			"ec4899", // pink
+			"ef4444", // red
+			"f97316", // orange
+			"eab308", // yellow
+			"22c55e", // green
+			"06b6d4", // cyan
+			"3b82f6", // blue
+			"84cc16", // lime
+			"f59e0b", // amber
+			"10b981", // emerald
+		];
+		
+		// ユーザーIDのハッシュ値を計算して色を決定
+		let hash = 0;
+		for (let i = 0; i < userIdentifier.length; i++) {
+			hash = ((hash << 5) - hash + userIdentifier.charCodeAt(i)) & 0xffffffff;
+		}
+		const colorIndex = Math.abs(hash) % colors.length;
+		const backgroundColor = colors[colorIndex];
+		
+		return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=${backgroundColor}&color=fff&size=96`;
 	};
 	
-	// アイコンURLを生成
-	const iconURL = generateIconURL(user_name, uid || session_id);
+	// アイコンURLを生成（Googleアイコンを優先）
+	const getIconURL = () => {
+		// ローカル参加者でGoogleアイコンが利用可能な場合はそれを使用
+		if (isLocal && currentUser?.photoURL) {
+			return currentUser.photoURL;
+		}
+		
+		// FirebaseのmembersデータからphotoURLが取得できる場合はそれを使用
+		if (photoURL) {
+			return photoURL;
+		}
+		
+		// それ以外の場合は生成されたアイコンを使用
+		return generateIconURL(user_name, uid || session_id);
+	};
+	
+	const iconURL = getIconURL();
 	
 	// 画像エラー状態を初期化
 	useEffect(() => {
@@ -45,7 +87,10 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		uid: uid,
 		iconURL,
 		imageError,
-		willShowImage: !imageError
+		willShowImage: !imageError,
+		hasGooglePhoto: !!(isLocal && currentUser?.photoURL),
+		hasFirebasePhoto: !!photoURL,
+		usingGeneratedIcon: !(isLocal && currentUser?.photoURL) && !photoURL
 	});
 	
 	// ユーザー名が長すぎる場合は省略
