@@ -389,16 +389,14 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			{/* 音声制御ボタン */}
 			{isJoined && (
 				<div className="flex gap-4 mb-6">
+					{/* マイク切り替えボタンを一時的に無効化（音声トラックの安定性のため） */}
 					<button
 						type="button"
-						onClick={() => {
-							if (daily) {
-								daily.setLocalAudio(!daily.localAudio());
-							}
-						}}
-						className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-lg"
+						disabled
+						className="px-6 py-3 bg-gray-400 text-white rounded-full cursor-not-allowed shadow-lg"
+						title="マイク切り替えは一時的に無効化されています"
 					>
-						マイク切り替え
+						マイク切り替え (無効)
 					</button>
 					<button
 						type="button"
