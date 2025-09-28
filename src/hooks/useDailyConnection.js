@@ -23,35 +23,58 @@ export const useDailyConnection = (
 	const currentUserUid = useUserUid();
 	const participantUpdateTimeoutRef = useRef(null);
 
-	// メンバーデータからphotoURLを取得する関数
+	// メンバーデータからphotoURLを取得する関数（useMemoで安定化）
+	const photoURLMap = useMemo(() => {
+		const map = new Map();
+		
+		// members配列からphotoURLマップを作成
+		members.forEach(member => {
+			if (member.name && member.uid) {
+				// 名前とUIDの両方でマッピング
+				map.set(member.name, member.photoURL);
+				map.set(member.uid, member.photoURL);
+			}
+		});
+		
+		console.log("🖼️ photoURLマップを更新:", {
+			membersCount: members.length,
+			mapSize: map.size,
+			members: members.map(m => ({ name: m.name, uid: m.uid, photoURL: m.photoURL }))
+		});
+		
+		return map;
+	}, [members]);
+
 	const getMemberPhotoURL = useCallback((userName, uid) => {
 		console.log("🔍 getMemberPhotoURL呼び出し:", {
 			userName,
 			uid,
-			membersCount: members.length,
-			members: members.map(m => ({ name: m.name, uid: m.uid, photoURL: m.photoURL }))
+			mapSize: photoURLMap.size
 		});
 		
-		const member = members.find(m => m.name === userName || m.uid === uid);
-		const photoURL = member?.photoURL || null;
+		// まず名前で検索
+		let photoURL = photoURLMap.get(userName);
+		
+		// 名前で見つからない場合はUIDで検索
+		if (!photoURL && uid) {
+			photoURL = photoURLMap.get(uid);
+		}
 		
 		console.log("🔍 getMemberPhotoURL結果:", {
 			userName,
 			uid,
-			foundMember: !!member,
-			photoURL,
-			photoURLValid: !!photoURL,
-			memberData: member ? { name: member.name, uid: member.uid, photoURL: member.photoURL } : null
+			foundPhotoURL: !!photoURL,
+			photoURL: photoURL
 		});
 		
 		// メンバーが見つからない場合は、デフォルトのアバターURLを返す
-		if (!member && userName) {
+		if (!photoURL && userName) {
 			console.log("🖼️ メンバーが見つからないため、デフォルトアバターを使用:", userName);
 			return `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random&color=fff&size=96`;
 		}
 		
 		return photoURL;
-	}, [members]);
+	}, [photoURLMap]);
 
 	// 通話時間の更新
 	const startDurationTimer = useCallback(() => {
@@ -87,8 +110,14 @@ export const useDailyConnection = (
 				const newMap = new Map(prev);
 				// 既存の参加者のみ更新（新しい参加者は追加しない）
 				if (newMap.has(participantData.session_id)) {
-					// photoURLを保持して更新
-					const photoURL = getMemberPhotoURL(participantData.user_name, participantData.session_id);
+					const existingParticipant = newMap.get(participantData.session_id);
+					
+					// 既存のphotoURLを保持し、新しいphotoURLが取得できる場合はそれを使用
+					let photoURL = existingParticipant?.photoURL;
+					if (!photoURL) {
+						photoURL = getMemberPhotoURL(participantData.user_name, participantData.session_id);
+					}
+					
 					const participantWithPhoto = {
 						...participantData,
 						photoURL: photoURL
@@ -97,7 +126,8 @@ export const useDailyConnection = (
 					newMap.set(participantData.session_id, participantWithPhoto);
 					console.log(`🔄 デバウンス: 参加者 ${participantData.user_name} の状態を更新しました`, {
 						audio: participantData.audio,
-						photoURL: photoURL
+						photoURL: photoURL,
+						keptExistingPhotoURL: !!existingParticipant?.photoURL
 					});
 				}
 				return newMap;
@@ -476,13 +506,8 @@ export const useDailyConnection = (
 									});
 									
 									// 参加者の状態を更新（デバウンスを使用して一瞬の重複を防ぐ）
-									// photoURLを保持して参加者データを更新
-									const photoURL = getMemberPhotoURL(currentParticipant.user_name, currentParticipant.session_id);
-									const participantWithPhoto = {
-										...currentParticipant,
-										photoURL: photoURL
-									};
-									debouncedParticipantUpdate(participantWithPhoto, 100);
+									// 既存のphotoURLを保持して参加者データを更新
+									debouncedParticipantUpdate(currentParticipant, 100);
 									
 									// 音声が有効になった場合
 									if (currentParticipant.audio) {
@@ -614,8 +639,12 @@ export const useDailyConnection = (
 						// 既存の参加者をコピーし、該当する参加者の状態のみ更新
 						for (const [sessionId, participant] of prev) {
 							if (sessionId === event.participant.session_id) {
-								// 該当する参加者の状態を更新（photoURLも再設定）
-								const photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
+								// 既存のphotoURLを保持し、新しいphotoURLが取得できる場合はそれを使用
+								let photoURL = participant?.photoURL;
+								if (!photoURL) {
+									photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
+								}
+								
 								const participantWithPhoto = {
 									...event.participant,
 									photoURL: photoURL
@@ -626,7 +655,8 @@ export const useDailyConnection = (
 									sessionId,
 									user_name: event.participant.user_name,
 									audio: event.participant.audio,
-									photoURL: photoURL
+									photoURL: photoURL,
+									keptExistingPhotoURL: !!participant?.photoURL
 								});
 							} else {
 								// 他の参加者はそのままコピー
@@ -670,13 +700,8 @@ export const useDailyConnection = (
 					
 					// 参加者の状態を更新してUIに反映（デバウンスを使用して一瞬の重複を防ぐ）
 					if (event.participant) {
-						// photoURLを保持して参加者データを更新
-						const photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
-						const participantWithPhoto = {
-							...event.participant,
-							photoURL: photoURL
-						};
-						debouncedParticipantUpdate(participantWithPhoto, 100);
+						// 既存のphotoURLを保持して参加者データを更新
+						debouncedParticipantUpdate(event.participant, 100);
 					}
 					
 					// 音声要素の確実な再生を保証
