@@ -1129,12 +1129,24 @@ export const useDailyConnection = (
 		return `${minutes}:${secs.toString().padStart(2, "0")}`;
 	}, []);
 
+	// 参加者データを配列化（デバッグログ付き）
+	const participantsArray = Array.from(participants.values());
+	console.log("👥 useDailyConnection participantsArray:", {
+		totalParticipants: participantsArray.length,
+		participants: participantsArray.map(p => ({
+			user_name: p.user_name,
+			audio: p.audio,
+			local: p.local,
+			session_id: p.session_id
+		}))
+	});
+
 	return {
 		daily,
 		isJoined,
 		isConnecting,
 		error,
-		participants: Array.from(participants.values()),
+		participants: participantsArray,
 		callDuration,
 		formattedDuration: formatDuration(callDuration),
 		isMicrophoneEnabled,

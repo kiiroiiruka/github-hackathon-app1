@@ -29,7 +29,9 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 	console.log("ParticipantCard audio state:", {
 		user_name,
 		audio,
-		cardColor: audio ? "green" : "red"
+		cardColor: audio ? "green" : "red",
+		isLocal,
+		session_id: participant.session_id
 	});
 
 	return (

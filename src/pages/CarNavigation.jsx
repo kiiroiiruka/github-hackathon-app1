@@ -179,17 +179,29 @@ const CarNavigation = () => {
 			
 			{/* Audio Call Footer */}
 			<AudioCallFooter
-				participants={callParticipants.length > 0 ? callParticipants : members.map(member => {
-					// デバッグログを追加
-					console.log("Member data:", member);
-					return {
-						session_id: member.uid,
-						user_name: member.name,
-						audio: true, // デフォルトで音声ON
-						photoURL: member.photoURL,
-						local: member.uid === currentUserUid
-					};
-				})}
+				participants={(() => {
+					// 通話参加者がいる場合はそれを使用
+					if (callParticipants.length > 0) {
+						console.log("🎤 通話参加者データを使用:", callParticipants.length);
+						return callParticipants;
+					}
+					
+					// 通話参加者がいない場合は、メンバーから参加者データを作成
+					// ただし、音声状態は適切に初期化
+					const fallbackParticipants = members.map(member => {
+						console.log("📝 フォールバック参加者データを作成:", member.name);
+						return {
+							session_id: member.uid,
+							user_name: member.name,
+							audio: member.uid === currentUserUid ? true : false, // ローカルユーザーのみ音声ON
+							photoURL: member.photoURL,
+							local: member.uid === currentUserUid
+						};
+					});
+					
+					console.log("📝 フォールバック参加者数:", fallbackParticipants.length);
+					return fallbackParticipants;
+				})()}
 			/>
 		</div>
 	);

@@ -56,13 +56,26 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
 	// participantsをメモ化して無限ループを防ぐ
 	const memoizedParticipants = useMemo(() => {
-		return participants.map(p => ({
+		const mappedParticipants = participants.map(p => ({
 			session_id: p.session_id,
 			user_name: p.user_name,
 			audio: p.audio,
 			photoURL: p.photoURL,
 			local: p.local
 		}));
+		
+		// デバッグログを追加
+		console.log("🎤 memoizedParticipants更新:", {
+			totalParticipants: mappedParticipants.length,
+			participants: mappedParticipants.map(p => ({
+				user_name: p.user_name,
+				audio: p.audio,
+				local: p.local,
+				session_id: p.session_id
+			}))
+		});
+		
+		return mappedParticipants;
 	}, [participants]);
 
 	// デバウンス用のタイマー
