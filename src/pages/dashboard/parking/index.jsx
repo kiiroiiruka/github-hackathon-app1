@@ -62,6 +62,23 @@ const ParkingInfoDisplay = () => {
   const [isDebugMode, setIsDebugMode] = useState(false);
   const navigate = useNavigate();
 
+  // カスタムアイコンの作成
+  const createCustomIcon = (color = '#3388ff', emoji = '📍') => {
+    const svgIcon = `
+      <svg width="25" height="41" viewBox="0 0 25 41" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12.5 0C5.6 0 0 5.6 0 12.5c0 12.5 12.5 28.5 12.5 28.5s12.5-16 12.5-28.5C25 5.6 19.4 0 12.5 0z" fill="${color}"/>
+        <text x="12.5" y="20" text-anchor="middle" font-size="12" fill="white">${emoji}</text>
+      </svg>
+    `;
+    
+    return new Icon({
+      iconUrl: `data:image/svg+xml;base64,${btoa(svgIcon)}`,
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34]
+    });
+  };
+
   // 現在地をずらす関数（デバッグ用）
   const shiftCurrentLocation = (direction) => {
     if (!nowPosition) return;
@@ -381,14 +398,7 @@ const ParkingInfoDisplay = () => {
                       return (
                         <Marker 
                           position={nowPosition} 
-                          icon={new Icon({
-                            iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-                            shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41],
-                            popupAnchor: [1, -34],
-                            shadowSize: [41, 41]
-                          })}
+                          icon={createCustomIcon('#3388ff', '📍')}
                         >
                           <Popup>
                             <div className="text-center">
@@ -405,14 +415,7 @@ const ParkingInfoDisplay = () => {
                         <>
                           <Marker 
                             position={nowPosition} 
-                            icon={new Icon({
-                              iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-                              shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-                              iconSize: [25, 41],
-                              iconAnchor: [12, 41],
-                              popupAnchor: [1, -34],
-                              shadowSize: [41, 41]
-                            })}
+                            icon={createCustomIcon('#3388ff', '📍')}
                           >
                             <Popup>
                               <div className="text-center">
@@ -426,14 +429,7 @@ const ParkingInfoDisplay = () => {
                           </Marker>
                           <Marker 
                             position={parkingInfo.position} 
-                            icon={new Icon({
-                              iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-                              shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-                              iconSize: [25, 41],
-                              iconAnchor: [12, 41],
-                              popupAnchor: [1, -34],
-                              shadowSize: [41, 41]
-                            })}
+                            icon={createCustomIcon('#ff6b6b', '🅿️')}
                           >
                             <Popup>
                               <div className="text-center">
