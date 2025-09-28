@@ -8,7 +8,7 @@ import EmptyState from "../../../components/ui/EmptyState";
 import { getLatestParkingInfo } from "../../../firebase/parkingget";
 
 // Leaflet関連
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { Icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -59,7 +59,59 @@ const ParkingInfoDisplay = () => {
   const [timeDiff, setTimeDiff] = useState("");
   const [walkingTime, setWalkingTime] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isDebugMode, setIsDebugMode] = useState(false);
   const navigate = useNavigate();
+
+  // 現在地をずらす関数（デバッグ用）
+  const shiftCurrentLocation = (direction) => {
+    if (!nowPosition) return;
+    
+    const shiftAmount = 0.001; // 約100m程度のずれ
+    let newLat = nowPosition.lat;
+    let newLng = nowPosition.lng;
+    
+    switch (direction) {
+      case 'north':
+        newLat += shiftAmount;
+        break;
+      case 'south':
+        newLat -= shiftAmount;
+        break;
+      case 'east':
+        newLng += shiftAmount;
+        break;
+      case 'west':
+        newLng -= shiftAmount;
+        break;
+    }
+    
+    setNowPosition({ lat: newLat, lng: newLng });
+    console.log(`現在地を${direction}にずらしました:`, { lat: newLat, lng: newLng });
+  };
+
+  // 現在地をリセットする関数（デバッグ用）
+  const resetCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setNowPosition({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          });
+          console.log("現在地をリセットしました:", { lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        (err) => {
+          console.error("位置情報の取得に失敗しました:", err);
+          // デフォルト位置（東京）にリセット
+          setNowPosition({
+            lat: 35.6762,
+            lng: 139.6503,
+          });
+          console.log("デフォルト位置にリセットしました");
+        }
+      );
+    }
+  };
 
   // Firestoreから最新の駐車情報を取得
   useEffect(() => {
@@ -241,6 +293,64 @@ const ParkingInfoDisplay = () => {
             </div>
           </Card>
 
+          {/* デバッグ用の現在地調整ボタン */}
+          {nowPosition && (
+            <Card className="mb-6">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">🔧 デバッグモード</h3>
+                <p className="text-sm text-gray-600 mb-4">現在地を意図的にずらしてテストできます</p>
+                
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => shiftCurrentLocation('north')}
+                    className="w-full"
+                  >
+                    ↑ 北にずらす
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => shiftCurrentLocation('south')}
+                    className="w-full"
+                  >
+                    ↓ 南にずらす
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => shiftCurrentLocation('west')}
+                    className="w-full"
+                  >
+                    ← 西にずらす
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => shiftCurrentLocation('east')}
+                    className="w-full"
+                  >
+                    → 東にずらす
+                  </Button>
+                </div>
+                
+                <div className="text-xs text-gray-500 mb-3">
+                  現在地: {nowPosition.lat.toFixed(6)}, {nowPosition.lng.toFixed(6)}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetCurrentLocation}
+                  className="w-full"
+                >
+                  🔄 現在地をリセット
+                </Button>
+              </div>
+            </Card>
+          )}
+
           {/* 地図カード */}
           {nowPosition && parkingInfo?.position && (
             <Card className="mb-6">
@@ -260,29 +370,96 @@ const ParkingInfoDisplay = () => {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
                   />
-                  <Marker 
-                    position={nowPosition} 
-                    icon={new Icon({
-                      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-                      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-                      iconSize: [25, 41],
-                      iconAnchor: [12, 41],
-                      popupAnchor: [1, -34],
-                      shadowSize: [41, 41]
-                    })}
-                  />
-                  <Marker 
-                    position={parkingInfo.position} 
-                    icon={new Icon({
-                      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-                      shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-                      iconSize: [25, 41],
-                      iconAnchor: [12, 41],
-                      popupAnchor: [1, -34],
-                      shadowSize: [41, 41]
-                    })}
-                  />
-                  <RoutingControl from={nowPosition} to={parkingInfo.position} />
+                  {/* 現在地と駐車場の位置を比較して適切に表示 */}
+                  {(() => {
+                    const isSameLocation = 
+                      Math.abs(nowPosition.lat - parkingInfo.position.lat) < 0.0001 && 
+                      Math.abs(nowPosition.lng - parkingInfo.position.lng) < 0.0001;
+                    
+                    if (isSameLocation) {
+                      // 同じ位置の場合は1つのピンのみ表示
+                      return (
+                        <Marker 
+                          position={nowPosition} 
+                          icon={new Icon({
+                            iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+                            shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                          })}
+                        >
+                          <Popup>
+                            <div className="text-center">
+                              <div className="text-lg mb-1">📍</div>
+                              <div className="font-semibold">現在地・駐車場</div>
+                              <div className="text-sm text-gray-600">同じ場所です</div>
+                            </div>
+                          </Popup>
+                        </Marker>
+                      );
+                    } else {
+                      // 異なる位置の場合は2つのピンを表示
+                      return (
+                        <>
+                          <Marker 
+                            position={nowPosition} 
+                            icon={new Icon({
+                              iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+                              shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+                              iconSize: [25, 41],
+                              iconAnchor: [12, 41],
+                              popupAnchor: [1, -34],
+                              shadowSize: [41, 41]
+                            })}
+                          >
+                            <Popup>
+                              <div className="text-center">
+                                <div className="text-lg mb-1">📍</div>
+                                <div className="font-semibold">現在地</div>
+                                <div className="text-sm text-gray-600">
+                                  {nowPosition.lat.toFixed(6)}, {nowPosition.lng.toFixed(6)}
+                                </div>
+                              </div>
+                            </Popup>
+                          </Marker>
+                          <Marker 
+                            position={parkingInfo.position} 
+                            icon={new Icon({
+                              iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+                              shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+                              iconSize: [25, 41],
+                              iconAnchor: [12, 41],
+                              popupAnchor: [1, -34],
+                              shadowSize: [41, 41]
+                            })}
+                          >
+                            <Popup>
+                              <div className="text-center">
+                                <div className="text-lg mb-1">🅿️</div>
+                                <div className="font-semibold">駐車場</div>
+                                <div className="text-sm text-gray-600">
+                                  {parkingInfo.position.lat.toFixed(6)}, {parkingInfo.position.lng.toFixed(6)}
+                                </div>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        </>
+                      );
+                    }
+                  })()}
+                  {/* ルート描画は異なる位置の場合のみ表示 */}
+                  {(() => {
+                    const isSameLocation = 
+                      Math.abs(nowPosition.lat - parkingInfo.position.lat) < 0.0001 && 
+                      Math.abs(nowPosition.lng - parkingInfo.position.lng) < 0.0001;
+                    
+                    if (!isSameLocation) {
+                      return <RoutingControl from={nowPosition} to={parkingInfo.position} />;
+                    }
+                    return null;
+                  })()}
                 </MapContainer>
               </div>
             </Card>
