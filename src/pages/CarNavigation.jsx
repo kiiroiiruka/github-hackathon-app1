@@ -110,7 +110,52 @@ const CarNavigation = () => {
 				sessionIds: uniqueParticipants.map(p => p.session_id)
 			});
 			
-			setCallParticipants(uniqueParticipants);
+			// 参加者データの安定性を向上させるため、既存のデータと比較して変更がある場合のみ更新
+			setCallParticipants(prevParticipants => {
+				// 参加者数が変わった場合は更新
+				if (prevParticipants.length !== uniqueParticipants.length) {
+					console.log("🔄 参加者数の変更を検出、データを更新:", {
+						previous: prevParticipants.length,
+						current: uniqueParticipants.length
+					});
+					return uniqueParticipants;
+				}
+				
+				// 参加者のsession_idが変わった場合は更新
+				const prevSessionIds = prevParticipants.map(p => p.session_id).sort();
+				const currentSessionIds = uniqueParticipants.map(p => p.session_id).sort();
+				if (JSON.stringify(prevSessionIds) !== JSON.stringify(currentSessionIds)) {
+					console.log("🔄 参加者構成の変更を検出、データを更新:", {
+						previous: prevSessionIds,
+						current: currentSessionIds
+					});
+					return uniqueParticipants;
+				}
+				
+				// 参加者の状態（audio等）が変わった場合は更新
+				let hasStateChange = false;
+				for (let i = 0; i < uniqueParticipants.length; i++) {
+					const current = uniqueParticipants[i];
+					const previous = prevParticipants.find(p => p.session_id === current.session_id);
+					if (previous && (
+						previous.audio !== current.audio ||
+						previous.local !== current.local ||
+						previous.user_name !== current.user_name
+					)) {
+						hasStateChange = true;
+						break;
+					}
+				}
+				
+				if (hasStateChange) {
+					console.log("🔄 参加者状態の変更を検出、データを更新");
+					return uniqueParticipants;
+				}
+				
+				// 変更がない場合は既存のデータを保持
+				console.log("✅ 参加者データに変更なし、既存データを保持");
+				return prevParticipants;
+			});
 		}, 50); // 50msのデバウンス
 	}, []);
 

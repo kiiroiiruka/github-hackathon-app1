@@ -39,13 +39,20 @@ const AudioCallFooter = ({
 					</div>
 					<div style={styles.cardsContainer}>
 						<div style={styles.cardsScroll}>
-							{participants.map((participant, index) => (
-								<ParticipantCard
-									key={participant.session_id || index}
-									participant={participant}
-									isLocal={participant.local}
-								/>
-							))}
+							{participants.map((participant, index) => {
+								// 安定したkeyを生成（session_id、user_name、indexを組み合わせ）
+								const stableKey = participant.session_id || 
+									`${participant.user_name}-${index}` || 
+									`participant-${index}`;
+								
+								return (
+									<ParticipantCard
+										key={stableKey}
+										participant={participant}
+										isLocal={participant.local}
+									/>
+								);
+							})}
 						</div>
 					</div>
 				</div>

@@ -1,18 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const ParticipantCard = ({ participant, isLocal = false }) => {
 	const { user_name, audio, photoURL, uid } = participant;
 	const [imageError, setImageError] = useState(false);
+	const imageErrorRef = useRef(new Set()); // 画像エラー状態を永続化
 	
-	// デバッグログを追加（より詳細に）
+	// 画像エラー状態を初期化
+	useEffect(() => {
+		if (photoURL && imageErrorRef.current.has(photoURL)) {
+			setImageError(true);
+		} else {
+			setImageError(false);
+		}
+	}, [photoURL]);
+	
+	// デバッグログを追加（重要な情報のみ）
 	console.log("ParticipantCard Debug:", {
 		user_name,
-		photoURL,
-		uid,
 		isLocal,
 		participantLocal: participant.local,
 		audio,
-		participant
+		session_id: participant.session_id
 	});
 	
 	// ユーザー名が長すぎる場合は省略
@@ -27,7 +35,7 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		borderColor: audio ? "#28a745" : "#dc3545", // ボーダー色も変更
 	};
 	
-	// デバッグログを追加（音声状態とphotoURLの確認）
+	// デバッグログを追加（音声状態の確認）
 	console.log("ParticipantCard state:", {
 		user_name,
 		audio,
@@ -35,7 +43,6 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		isLocal,
 		participantLocal: participant.local,
 		session_id: participant.session_id,
-		photoURL,
 		hasPhotoURL: !!photoURL,
 		imageError
 	});
@@ -60,6 +67,10 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 						style={styles.profileImg}
 						onError={() => {
 							console.log("Image load error for:", photoURL);
+							// エラー状態を永続化
+							if (photoURL) {
+								imageErrorRef.current.add(photoURL);
+							}
 							setImageError(true);
 						}}
 					/>
