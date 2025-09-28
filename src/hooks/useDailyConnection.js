@@ -101,13 +101,29 @@ export const useDailyConnection = (
 
 				// 音声トラックの確実な初期化
 				try {
-					// 音声を明示的に有効化
-					await callObject.setLocalAudio(true);
-					console.log("🎤 通話開始時は音声有効状態で開始");
+				// 音声を明示的に有効化
+				await callObject.setLocalAudio(true);
+				console.log("🎤 通話開始時は音声有効状態で開始");
+				
+				// 設定後の状態を確認
+				setTimeout(() => {
+					console.log("🔍 setLocalAudio(true)後の状態確認:", {
+						dailyLocalAudio: callObject.localAudio(),
+						participants: callObject.participants(),
+						timestamp: new Date().toISOString()
+					});
+				}, 100);
 					
 					// マイク状態を明示的に有効に設定（初期状態の問題を回避）
 					setIsMicrophoneEnabled(true);
 					console.log("🎤 マイク状態を明示的に有効に設定しました");
+					
+					// 音声状態の変化を詳細に監視
+					console.log("🔍 音声状態監視を開始 - 初期状態:", {
+						dailyLocalAudio: callObject.localAudio(),
+						stateMicrophoneEnabled: true,
+						participants: Object.keys(callObject.participants()).length
+					});
 					
 					// 音声出力の確認と設定
 					try {
@@ -253,13 +269,25 @@ export const useDailyConnection = (
 							const participants = callObject.participants();
 							const localParticipant = Object.values(participants).find(p => p.local);
 							
-							if (localParticipant && localParticipant.audio !== isMicrophoneEnabled) {
-								console.log("🔄 音声状態の変更を検出:", {
+							if (localParticipant) {
+								// 毎回の状態チェック（詳細ログ付き）
+								console.log("🔍 定期音声状態チェック:", {
 									user_name: localParticipant.user_name,
-									previousState: isMicrophoneEnabled,
-									currentState: localParticipant.audio
+									dailyAudio: localParticipant.audio,
+									stateAudio: isMicrophoneEnabled,
+									timeSinceStart: callDuration,
+									audioChanged: localParticipant.audio !== isMicrophoneEnabled
 								});
-								setIsMicrophoneEnabled(localParticipant.audio);
+								
+								if (localParticipant.audio !== isMicrophoneEnabled) {
+									console.log("🚨 音声状態の不一致を検出！修正します:", {
+										user_name: localParticipant.user_name,
+										previousState: isMicrophoneEnabled,
+										currentState: localParticipant.audio,
+										timeSinceStart: callDuration
+									});
+									setIsMicrophoneEnabled(localParticipant.audio);
+								}
 							}
 							
 							// 参加者の状態を同期（UIの更新を確実にするため）
@@ -434,8 +462,21 @@ export const useDailyConnection = (
 					user_name: event.participant.user_name,
 					audio: event.participant.audio,
 					video: event.participant.video,
-					local: event.participant.local
+					local: event.participant.local,
+					timestamp: new Date().toISOString(),
+					currentState: isMicrophoneEnabled
 				});
+				
+				// 音声状態の変化を特に詳細に追跡
+				if (event.participant.local) {
+					console.log("🚨 ローカル参加者の音声状態が変更されました！", {
+						user_name: event.participant.user_name,
+						newAudioState: event.participant.audio,
+						currentState: isMicrophoneEnabled,
+						timeSinceStart: callDuration,
+						reason: event.participant.audio !== isMicrophoneEnabled ? "状態不一致" : "状態一致"
+					});
+				}
 				
 				// ローカル参加者の音声状態が変更された場合、即座に状態を更新
 				if (event.participant.local) {

@@ -89,6 +89,17 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 		
 		updateTimeoutRef.current = setTimeout(() => {
 			if (onCallStateUpdate) {
+				console.log("📡 VideoCallRoom: 通話状態を親に通知:", {
+					isActive: isJoined,
+					participantCount: memoizedParticipants.length,
+					isMicrophoneEnabled: dailyMicrophoneEnabled,
+					participants: memoizedParticipants.map(p => ({
+						user_name: p.user_name,
+						audio: p.audio,
+						local: p.local
+					}))
+				});
+				
 				onCallStateUpdate({
 					isActive: isJoined,
 					participants: memoizedParticipants,
