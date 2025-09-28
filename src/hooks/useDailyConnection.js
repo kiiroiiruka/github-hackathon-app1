@@ -207,33 +207,45 @@ export const useDailyConnection = (
 						localVideo: callObject.localVideo()
 					});
 					
-					// 現在の参加者リストを更新
+					// 現在の参加者リストを更新（重複を防ぐ）
 					const currentParticipants = callObject.participants();
-					const participantMap = new Map();
-					Object.entries(currentParticipants).forEach(([id, participant]) => {
-						participantMap.set(id, participant);
+					setParticipants((prev) => {
+						const newMap = new Map();
 						
-						// ローカル参加者の音声トラック状態を確認
-						if (participant.local) {
-							console.log("🎤 ローカル参加者の音声状態:", {
-								user_name: participant.user_name,
-								audio: participant.audio,
-								video: participant.video,
-								local: participant.local
-							});
+						// 既存の参加者を保持しつつ、新しい参加者情報で更新
+						Object.entries(currentParticipants).forEach(([id, participant]) => {
+							newMap.set(id, participant);
 							
-							// ローカル参加者の音声状態を状態管理に反映
-							// ただし、初期接続時は明示的にtrueに設定済みなので、実際の状態と異なる場合のみ更新
-							if (participant.audio !== isMicrophoneEnabled) {
-								console.log("🔄 ローカル参加者の音声状態を更新:", {
-									previousState: isMicrophoneEnabled,
-									newState: participant.audio
+							// ローカル参加者の音声トラック状態を確認
+							if (participant.local) {
+								console.log("🎤 ローカル参加者の音声状態:", {
+									user_name: participant.user_name,
+									audio: participant.audio,
+									video: participant.video,
+									local: participant.local,
+									session_id: id
 								});
-								setIsMicrophoneEnabled(participant.audio);
+								
+								// ローカル参加者の音声状態を状態管理に反映
+								// ただし、初期接続時は明示的にtrueに設定済みなので、実際の状態と異なる場合のみ更新
+								if (participant.audio !== isMicrophoneEnabled) {
+									console.log("🔄 ローカル参加者の音声状態を更新:", {
+										previousState: isMicrophoneEnabled,
+										newState: participant.audio,
+										session_id: id
+									});
+									setIsMicrophoneEnabled(participant.audio);
+								}
 							}
-						}
+						});
+						
+						console.log("👥 参加者リストを更新:", {
+							totalParticipants: newMap.size,
+							participantIds: Array.from(newMap.keys())
+						});
+						
+						return newMap;
 					});
-					setParticipants(participantMap);
 					
 					// 音声状態の定期監視を開始
 					const audioStateMonitor = setInterval(() => {
@@ -430,16 +442,31 @@ export const useDailyConnection = (
 					console.log("🎤 ローカル参加者の音声状態が変更されました:", {
 						user_name: event.participant.user_name,
 						audio: event.participant.audio,
-						previousState: isMicrophoneEnabled
+						previousState: isMicrophoneEnabled,
+						session_id: event.participant.session_id
 					});
 					
 					// 音声状態を即座に更新（デバウンスしない）
 					setIsMicrophoneEnabled(event.participant.audio);
 					
-					// 参加者の状態も即座に更新
+					// 参加者の状態も即座に更新（重複を防ぐ）
 					setParticipants((prev) => {
-						const newMap = new Map(prev);
-						newMap.set(event.participant.session_id, event.participant);
+						const newMap = new Map();
+						// 既存の参加者をコピーし、該当する参加者の状態のみ更新
+						for (const [sessionId, participant] of prev) {
+							if (sessionId === event.participant.session_id) {
+								// 該当する参加者の状態を更新
+								newMap.set(sessionId, event.participant);
+								console.log("🔄 参加者状態を更新:", {
+									sessionId,
+									user_name: event.participant.user_name,
+									audio: event.participant.audio
+								});
+							} else {
+								// 他の参加者はそのままコピー
+								newMap.set(sessionId, participant);
+							}
+						}
 						return newMap;
 					});
 				} else {
@@ -1006,17 +1033,25 @@ export const useDailyConnection = (
 			
 			console.log(`🎤 マイクを${newState ? '有効化' : '無効化'}しました`);
 			
-			// 参加者の状態も即座に更新
+			// 参加者の状態も即座に更新（重複を防ぐ）
 			setParticipants((prev) => {
-				const newMap = new Map(prev);
-				// ローカル参加者の状態を更新
-				for (const [sessionId, participant] of newMap) {
+				const newMap = new Map();
+				// 既存の参加者をコピーし、ローカル参加者の状態のみ更新
+				for (const [sessionId, participant] of prev) {
 					if (participant.local) {
+						// ローカル参加者の状態を更新
 						newMap.set(sessionId, {
 							...participant,
 							audio: newState
 						});
-						break;
+						console.log("🎤 ローカル参加者の状態を更新:", {
+							sessionId,
+							user_name: participant.user_name,
+							audio: newState
+						});
+					} else {
+						// リモート参加者はそのままコピー
+						newMap.set(sessionId, participant);
 					}
 				}
 				return newMap;

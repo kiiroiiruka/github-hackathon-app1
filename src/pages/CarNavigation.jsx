@@ -93,7 +93,24 @@ const CarNavigation = () => {
 		
 		updateTimeoutRef.current = setTimeout(() => {
 			setIsCallActive(state.isActive);
-			setCallParticipants(state.participants || []);
+			
+			// 参加者の重複を防ぐため、session_idでユニークにする
+			const uniqueParticipants = [];
+			const seenSessionIds = new Set();
+			
+			(state.participants || []).forEach(participant => {
+				if (!seenSessionIds.has(participant.session_id)) {
+					seenSessionIds.add(participant.session_id);
+					uniqueParticipants.push(participant);
+				}
+			});
+			
+			console.log("👥 通話参加者を更新:", {
+				totalParticipants: uniqueParticipants.length,
+				sessionIds: uniqueParticipants.map(p => p.session_id)
+			});
+			
+			setCallParticipants(uniqueParticipants);
 		}, 50); // 50msのデバウンス
 	}, []);
 
