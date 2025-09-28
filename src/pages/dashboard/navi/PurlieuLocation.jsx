@@ -11,6 +11,9 @@ const PurlieuLocation = () => {
   const [locationType, setLocationType] = useState("destination"); // "departure" or "destination"
   const [selectedDeparture, setSelectedDeparture] = useState(null);
   const [selectedDestination, setSelectedDestination] = useState(null);
+  const [manualAddress, setManualAddress] = useState('');
+  const [isManualMode, setIsManualMode] = useState(false);
+  const [isAddingFavorite, setIsAddingFavorite] = useState(false);
   
   // Firebase認証状態を監視
   useAuthState();
@@ -57,6 +60,93 @@ const PurlieuLocation = () => {
     }
   }, []);
 
+  // 手動で住所からお気に入りに追加
+  const handleManualAddFavorite = useCallback(async () => {
+    if (!manualAddress.trim()) {
+      alert('住所を入力してください');
+      return;
+    }
+
+    setIsAddingFavorite(true);
+    
+    try {
+      // Google Maps APIが利用できない場合はNominatim APIを使用
+      if (window.google && window.google.maps && window.google.maps.Geocoder) {
+        // Google Maps Geocoding APIを使用
+        const geocoder = new window.google.maps.Geocoder();
+        
+        geocoder.geocode({ address: manualAddress }, async (results, status) => {
+          try {
+            if (status === 'OK' && results[0]) {
+              const location = results[0].geometry.location;
+              const coordinates = [location.lat(), location.lng()];
+              const formattedAddress = results[0].formatted_address;
+              
+              console.log('住所から変換された座標 (Google):', { address: formattedAddress, coordinates });
+              
+              const success = await addToFavorites(formattedAddress, coordinates);
+              if (success) {
+                setManualAddress('');
+                setIsManualMode(false);
+                alert(`お気に入りに追加しました:\n住所: ${formattedAddress}\n座標: ${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`);
+              } else {
+                alert('お気に入りの追加に失敗しました（重複の可能性があります）');
+              }
+            } else {
+              alert('住所が見つかりませんでした。正しい住所を入力してください。');
+            }
+          } catch (error) {
+            console.error('お気に入り追加エラー:', error);
+            alert('お気に入りの追加に失敗しました');
+          } finally {
+            setIsAddingFavorite(false);
+          }
+        });
+      } else {
+        // Nominatim APIを使用
+        const encodedAddress = encodeURIComponent(manualAddress);
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1&addressdetails=1`,
+          {
+            headers: {
+              'User-Agent': 'HakaApp/1.0 (contact@example.com)'
+            }
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          const result = data[0];
+          const coordinates = [parseFloat(result.lat), parseFloat(result.lon)];
+          const formattedAddress = result.display_name;
+          
+          console.log('住所から変換された座標 (Nominatim):', { address: formattedAddress, coordinates });
+          
+          const success = await addToFavorites(formattedAddress, coordinates);
+          if (success) {
+            setManualAddress('');
+            setIsManualMode(false);
+            alert(`お気に入りに追加しました:\n住所: ${formattedAddress}\n座標: ${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`);
+          } else {
+            alert('お気に入りの追加に失敗しました（重複の可能性があります）');
+          }
+        } else {
+          alert('住所が見つかりませんでした。正しい住所を入力してください。');
+        }
+        setIsAddingFavorite(false);
+      }
+    } catch (error) {
+      console.error('ジオコーディングエラー:', error);
+      alert('住所の変換に失敗しました');
+      setIsAddingFavorite(false);
+    }
+  }, [manualAddress, addToFavorites]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50">
       <HeaderComponent title="通信" />
@@ -88,6 +178,99 @@ const PurlieuLocation = () => {
             showCurrentSettings={true}
             className="mb-6"
           />
+
+          {/* 手動住所入力セクション */}
+          <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">✏️</span>
+                <h2 className="text-lg font-semibold text-gray-800">住所を直接追加</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsManualMode(!isManualMode);
+                  if (!isManualMode) {
+                    setManualAddress('');
+                  }
+                }}
+                disabled={isAddingFavorite}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${
+                  isManualMode 
+                    ? "bg-red-100 text-red-700 hover:bg-red-200" 
+                    : "bg-green-100 text-green-700 hover:bg-green-200"
+                }`}
+              >
+                {isManualMode ? "キャンセル" : "住所を入力"}
+              </button>
+            </div>
+
+            {isManualMode && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    住所を入力してください
+                  </label>
+                  <input
+                    type="text"
+                    value={manualAddress}
+                    onChange={(e) => setManualAddress(e.target.value)}
+                    placeholder="例: 東京都渋谷区渋谷1-1-1"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !isAddingFavorite) {
+                        handleManualAddFavorite();
+                      }
+                    }}
+                    disabled={isAddingFavorite}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleManualAddFavorite}
+                    disabled={!manualAddress.trim() || loading || isAddingFavorite}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isAddingFavorite ? (
+                      <>
+                        <span className="animate-spin">⏳</span>
+                        追加中...
+                      </>
+                    ) : (
+                      <>
+                        <span>⭐</span>
+                        お気に入りに追加
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualAddress('');
+                      setIsManualMode(false);
+                    }}
+                    disabled={isAddingFavorite}
+                    className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-all disabled:opacity-50"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-700 mb-2">
+                    💡 <strong>使い方：</strong>
+                  </p>
+                  <ul className="text-sm text-blue-600 space-y-1 ml-4">
+                    <li>• 住所を入力すると自動的に座標に変換されます</li>
+                    <li>• Google Maps APIまたはNominatim APIを使用します</li>
+                    <li>• 変換された住所と座標がお気に入りに保存されます</li>
+                    <li>• Enterキーでも追加できます</li>
+                    <li>• 重複する場所は追加されません</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* お気に入り一覧セクション */}
           <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">

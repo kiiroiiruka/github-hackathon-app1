@@ -4,6 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import RoutingControl from "../../../components/ui/RoutingControl";
 import MapSearch from "../../../components/ui/MapSearch";
+import { useAuthState } from "../../../hooks/useAuthState";
+import { useAtom } from "jotai";
+import { userUidAtom, isLoggedInAtom } from "../../../atom/userAtom";
+import { saveUserRoute, formatRouteData } from "../../../firebase/route";
 
 const RecenterMap = ({ position }) => {
     const map = useMap();
@@ -33,8 +37,15 @@ const RouteScreen = () => {
   const [departureName, setDepartureName] = useState("");
   const [destinationName, setDestinationName] = useState("");
   const [routeInfo, setRouteInfo] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
   const routeCalculatedRef = useRef(false); // ルート計算完了フラグ
   const routeKeyRef = useRef(null); // ルート用の安定したkey
+  
+  // Firebase認証状態を監視
+  useAuthState();
+  const [userUid] = useAtom(userUidAtom);
+  const [isLoggedIn] = useAtom(isLoggedInAtom);
 
   // RoomCreatから渡された出発地点と目的地を受け取る
   useEffect(() => {
@@ -76,6 +87,77 @@ const RouteScreen = () => {
       }
     }
   }, [departure, destination]);
+
+  // ルート保存関数
+  const handleSaveRoute = async () => {
+    if (!departure || !destination || !routeInfo) {
+      alert('ルートが計算されていません');
+      return;
+    }
+
+    if (!isLoggedIn || !userUid) {
+      // ログインしていない場合はローカルストレージに保存（1つまで）
+      const routeData = formatRouteData(
+        { name: departureName, coordinates: departure },
+        { name: destinationName, coordinates: destination },
+        routeInfo
+      );
+      
+      const savedRoutes = JSON.parse(localStorage.getItem('savedRoutes') || '[]');
+      
+      // 重複チェック
+      const isDuplicate = savedRoutes.some(route => 
+        Math.abs(route.departure.coordinates[0] - departure[0]) < 0.000001 &&
+        Math.abs(route.departure.coordinates[1] - departure[1]) < 0.000001 &&
+        Math.abs(route.destination.coordinates[0] - destination[0]) < 0.000001 &&
+        Math.abs(route.destination.coordinates[1] - destination[1]) < 0.000001
+      );
+      
+      if (isDuplicate) {
+        setSaveMessage('同じルートが既に保存されています');
+        setTimeout(() => setSaveMessage(''), 3000);
+        return;
+      }
+      
+      // 1つまでの制限：既存のルートを置き換え
+      const newSavedRoutes = [routeData]; // 常に1つだけ保存
+      localStorage.setItem('savedRoutes', JSON.stringify(newSavedRoutes));
+      
+      if (savedRoutes.length > 0) {
+        setSaveMessage('既存のルートを置き換えて保存しました');
+      } else {
+        setSaveMessage('ルートをローカルに保存しました');
+      }
+      setTimeout(() => setSaveMessage(''), 3000);
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage('');
+    
+    try {
+      const routeData = formatRouteData(
+        { name: departureName, coordinates: departure },
+        { name: destinationName, coordinates: destination },
+        routeInfo
+      );
+      
+      const docId = await saveUserRoute(userUid, routeData);
+      
+      if (docId) {
+        setSaveMessage('ルートを保存しました！');
+        console.log('ルート保存成功:', docId);
+      } else {
+        setSaveMessage('同じルートが既に保存されています');
+      }
+    } catch (error) {
+      console.error('ルート保存エラー:', error);
+      setSaveMessage('ルートの保存に失敗しました');
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
 
   // コンポーネントのアンマウント時にルートをクリーンアップ
   useEffect(() => {
@@ -120,16 +202,50 @@ const RouteScreen = () => {
         
         {/* ルート情報 */}
         {routeInfo ? (
-          <div className="flex justify-center gap-6 text-sm flex-wrap">
-            <span className="text-gray-700">
-              📏 距離: <strong>{typeof routeInfo.distanceKm === 'number' ? routeInfo.distanceKm.toFixed(2) : routeInfo.distanceKm}km</strong>
-            </span>
-            <span className="text-gray-700">
-              ⏱️ 所要時間: <strong>{routeInfo.durationMin}分</strong>
-            </span>
-            <span className="text-gray-700">
-              🕰️ 到着予定: <strong>{routeInfo.arrivalTime?.toLocaleTimeString?.() || '未定'}</strong>
-            </span>
+          <div className="space-y-3">
+            <div className="flex justify-center gap-6 text-sm flex-wrap">
+              <span className="text-gray-700">
+                📏 距離: <strong>{typeof routeInfo.distanceKm === 'number' ? routeInfo.distanceKm.toFixed(2) : routeInfo.distanceKm}km</strong>
+              </span>
+              <span className="text-gray-700">
+                ⏱️ 所要時間: <strong>{routeInfo.durationMin}分</strong>
+              </span>
+              <span className="text-gray-700">
+                🕰️ 到着予定: <strong>{routeInfo.arrivalTime?.toLocaleTimeString?.() || '未定'}</strong>
+              </span>
+            </div>
+            
+            {/* ルート保存ボタン */}
+            <div className="flex justify-center items-center gap-4">
+              <button
+                type="button"
+                onClick={handleSaveRoute}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    保存中...
+                  </>
+                ) : (
+                  <>
+                    <span>💾</span>
+                    ルートを保存
+                  </>
+                )}
+              </button>
+              
+              {saveMessage && (
+                <span className={`text-sm px-3 py-1 rounded-full ${
+                  saveMessage.includes('失敗') || saveMessage.includes('既に') 
+                    ? 'bg-red-100 text-red-700' 
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {saveMessage}
+                </span>
+              )}
+            </div>
           </div>
         ) : destination && (
           <div className="text-sm text-gray-500">
@@ -209,13 +325,15 @@ const RouteScreen = () => {
           </MapContainer>
         </div>
 
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard/navi/room")}
-          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-        >
-          戻る
-        </button>
+        <div className="flex justify-center gap-4 p-4">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/navi/room")}
+            className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            戻る
+          </button>
+        </div>
       </div>
     </div>
   );

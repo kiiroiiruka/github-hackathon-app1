@@ -5,7 +5,11 @@ import HeaderComponent2 from "../../../components/Header/Header2";
 const RoomCreat = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [roomName, setRoomName] = useState("");
+  const [roomName, setRoomName] = useState(() => {
+    // ローカルストレージから初期値を取得
+    const saved = localStorage.getItem("roomCreat_roomName");
+    return saved || "";
+  });
   const [selectedFriends, setSelectedFriends] = useState(() => {
     // ローカルストレージから初期値を取得
     const saved = localStorage.getItem("roomCreat_selectedFriends");
@@ -97,6 +101,15 @@ const RoomCreat = () => {
     }
   }, [selectedDeparture]);
 
+  // roomNameが変更されたときにローカルストレージに保存
+  useEffect(() => {
+    if (roomName.trim()) {
+      localStorage.setItem("roomCreat_roomName", roomName);
+    } else {
+      localStorage.removeItem("roomCreat_roomName");
+    }
+  }, [roomName]);
+
   // フレンド選択ページに移動
   const handleInviterNavigation = () => {
     navigate("/dashboard/navi/inviter", {
@@ -131,6 +144,7 @@ const RoomCreat = () => {
       localStorage.removeItem("roomCreat_selectedFriends");
       localStorage.removeItem("roomCreat_selectedLocation");
       localStorage.removeItem("roomCreat_selectedDeparture");
+      localStorage.removeItem("roomCreat_roomName");
 
       navigate("/dashboard/navi/confirmation", {
         state: {

@@ -2,39 +2,37 @@ import { useNavigate, useLocation } from "react-router-dom";
 import HeaderComponent from "../../../components/Header/Header";
 import LocationSearch from "../../../components/ui/LocationSearch";
 import { useState, useEffect, useCallback } from "react";
+import { useFavorites } from "../../../hooks/useFavorites";
+import { useAuthState } from "../../../hooks/useAuthState";
 
 const RouteSelect = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedDestination, setSelectedDestination] = useState(null);
   const [selectedDeparture, setSelectedDeparture] = useState(null);
-  const [savedFavorites, setSavedFavorites] = useState([]);
   const [locationType, setLocationType] = useState("destination"); // "departure" or "destination"
+  
+  // Firebase認証状態を監視
+  useAuthState();
+  
+  // Firebaseベースのお気に入り管理
+  const { 
+    favorites, 
+    loading, 
+    error, 
+    addFavorite, 
+    removeFavorite, 
+    removeAllFavorites 
+  } = useFavorites();
 
-  // お気に入りを読み込む
-  const loadFavorites = useCallback(() => {
-    const favorites = localStorage.getItem('favoriteLocations');
-    if (favorites) {
-      try {
-        const parsedFavorites = JSON.parse(favorites);
-        setSavedFavorites(parsedFavorites);
-        console.log('お気に入りを読み込み:', parsedFavorites.length, '件');
-      } catch (error) {
-        console.error('お気に入りの読み込みエラー:', error);
-      }
+  // お気に入り追加処理（Firebase対応）
+  const addToFavorites = useCallback(async (name, coordinates) => {
+    const success = await addFavorite(name, coordinates);
+    if (success) {
+      console.log("お気に入りに追加:", name, coordinates);
     }
-  }, []);
-
-  useEffect(() => {
-    loadFavorites();
-  }, [loadFavorites]);
-
-  // お気に入りが変更された時にlocalStorageに保存
-  useEffect(() => {
-    if (savedFavorites.length > 0) {
-      localStorage.setItem('favoriteLocations', JSON.stringify(savedFavorites));
-    }
-  }, [savedFavorites]);
+    return success;
+  }, [addFavorite]);
 
   // 既に選択された場所がある場合（RoomCreatから）
   useEffect(() => {
@@ -44,20 +42,10 @@ const RouteSelect = () => {
     }
   }, [location.state]);
 
-  // 共通のお気に入り追加処理
-  const addToFavorites = useCallback((name, coordinates) => {
-    const newFavorite = {
-      id: Date.now(),
-      name: name,
-      coordinates: coordinates,
-      addedAt: new Date().toISOString()
-    };
-    setSavedFavorites(prev => [...prev, newFavorite]);
-    console.log("お気に入りに追加:", name, coordinates);
-  }, []);
+
 
   // 場所タイプに応じた選択処理
-  const handleLocationSelect = useCallback((location) => {
+  const handleLocationSelect = useCallback(async (location) => {
     if (locationType === "departure") {
       setSelectedDeparture(location);
       localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(location));
@@ -66,7 +54,7 @@ const RouteSelect = () => {
       localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(location));
     }
     // 自動的にお気に入りに追加
-    addToFavorites(location.name, location.coordinates);
+    await addToFavorites(location.name, location.coordinates);
   }, [locationType, addToFavorites]);
 
   // 選択をクリア
@@ -80,25 +68,7 @@ const RouteSelect = () => {
     }
   }, []);
 
-  // お気に入りを全削除
-  const clearAllFavorites = useCallback(() => {
-    setSavedFavorites([]);
-    localStorage.removeItem('favoriteLocations');
-    console.log('お気に入りを全削除しました');
-  }, []);
 
-  // 個別のお気に入りを削除
-  const removeFavorite = useCallback((favoriteId) => {
-    const updatedFavorites = savedFavorites.filter(f => f.id !== favoriteId);
-    setSavedFavorites(updatedFavorites);
-    
-    if (updatedFavorites.length === 0) {
-      localStorage.removeItem('favoriteLocations');
-    } else {
-      localStorage.setItem('favoriteLocations', JSON.stringify(updatedFavorites));
-    }
-    console.log('お気に入りを削除:', favoriteId);
-  }, [savedFavorites]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -164,24 +134,47 @@ const RouteSelect = () => {
                 <h2 className="text-lg font-semibold text-gray-800">
                   お気に入り一覧
                 </h2>
-                {savedFavorites.length > 0 && (
+                {favorites.length > 0 && (
                   <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
-                    {savedFavorites.length}件
+                    {favorites.length}件
+                  </span>
+                )}
+                {loading && (
+                  <span className="bg-gray-100 text-gray-600 text-sm px-2 py-1 rounded-full">
+                    読み込み中...
                   </span>
                 )}
               </div>
-              {savedFavorites.length > 0 && (
+              {favorites.length > 0 && (
                 <button
                   type="button"
-                  onClick={clearAllFavorites}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+                  onClick={async () => {
+                    const success = await removeAllFavorites();
+                    if (success) {
+                      console.log('お気に入りを全削除しました');
+                    }
+                  }}
+                  disabled={loading}
+                  className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   全削除
                 </button>
               )}
             </div>
 
-            {savedFavorites.length === 0 ? (
+            {/* エラー表示 */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4 opacity-50">⏳</div>
+                <p className="text-gray-500 mb-2">お気に入りを読み込み中...</p>
+              </div>
+            ) : favorites.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4 opacity-50">📍</div>
                 <p className="text-gray-500 mb-2">まだお気に入りが登録されていません</p>
@@ -189,7 +182,7 @@ const RouteSelect = () => {
               </div>
             ) : (
               <div className="grid gap-3 max-h-64 overflow-y-auto">
-                {savedFavorites.map((favorite) => (
+                {favorites.map((favorite) => (
                   <div 
                     key={favorite.id}
                     className="group relative p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:bg-gray-50 transition-all duration-200"
@@ -225,11 +218,15 @@ const RouteSelect = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        removeFavorite(favorite.id);
+                        const success = await removeFavorite(favorite.id);
+                        if (success) {
+                          console.log('お気に入りを削除:', favorite.id);
+                        }
                       }}
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all duration-200 p-2 hover:bg-red-50 rounded-lg"
+                      disabled={loading}
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all duration-200 p-2 hover:bg-red-50 rounded-lg disabled:opacity-50"
                       title="削除"
                     >
                       🗑️

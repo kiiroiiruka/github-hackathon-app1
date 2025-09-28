@@ -17,35 +17,49 @@ export const useFavorites = () => {
   const [userUid] = useAtom(userUidAtom);
   const [isLoggedIn] = useAtom(isLoggedInAtom);
   const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // 初期状態をtrueに
   const [error, setError] = useState(null);
+  const [authInitialized, setAuthInitialized] = useState(false); // 認証初期化フラグ
 
   // お気に入りを読み込む
   const loadFavorites = useCallback(async () => {
+    console.log('loadFavorites called:', { isLoggedIn, userUid });
+    
+    setLoading(true);
+    setError(null);
+    
     if (!isLoggedIn || !userUid) {
       // ログインしていない場合はローカルストレージから読み込み
       const localFavorites = localStorage.getItem('favoriteLocations');
+      console.log('Loading from localStorage:', localFavorites);
+      
       if (localFavorites) {
         try {
           const parsedFavorites = JSON.parse(localFavorites);
+          console.log('Parsed local favorites:', parsedFavorites);
           setFavorites(parsedFavorites);
         } catch (error) {
           console.error('ローカルお気に入りの読み込みエラー:', error);
           setError('ローカルお気に入りの読み込みに失敗しました');
+          setFavorites([]);
         }
+      } else {
+        console.log('No local favorites found, setting empty array');
+        setFavorites([]);
       }
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
     try {
+      console.log('Loading favorites from Firebase for user:', userUid);
       const userFavorites = await getUserFavorites(userUid);
+      console.log('Firebase favorites loaded:', userFavorites);
       setFavorites(userFavorites);
     } catch (err) {
       console.error('お気に入りの読み込みエラー:', err);
       setError('お気に入りの読み込みに失敗しました');
+      setFavorites([]);
     } finally {
       setLoading(false);
     }
@@ -170,17 +184,40 @@ export const useFavorites = () => {
     }
   }, [userUid, isLoggedIn, loadFavorites]);
 
-  // ログイン状態が変わった時にお気に入りを読み込み
+  // 認証初期化の監視
   useEffect(() => {
-    loadFavorites();
-  }, [loadFavorites]);
-
-  // ログイン直後にローカルストレージから移行
-  useEffect(() => {
-    if (isLoggedIn && userUid) {
-      migrateFromLocalStorage();
+    // userUidがnullでもisLoggedInが確定していれば認証初期化完了とみなす
+    if (userUid !== undefined && isLoggedIn !== undefined) {
+      const timer = setTimeout(() => {
+        if (!authInitialized) {
+          console.log('Auth initialized:', { isLoggedIn, userUid });
+          setAuthInitialized(true);
+        }
+      }, 200);
+      
+      return () => clearTimeout(timer);
     }
-  }, [isLoggedIn, userUid, migrateFromLocalStorage]);
+  }, [userUid, isLoggedIn, authInitialized]);
+
+  // 認証初期化完了後にお気に入りを読み込み
+  useEffect(() => {
+    if (authInitialized) {
+      console.log('Loading favorites after auth initialization:', { isLoggedIn, userUid });
+      loadFavorites();
+    }
+  }, [authInitialized, loadFavorites]);
+
+  // ログイン直後にローカルストレージから移行（一度だけ実行）
+  useEffect(() => {
+    if (authInitialized && isLoggedIn && userUid) {
+      console.log('Migration triggered for user:', userUid);
+      const timer = setTimeout(() => {
+        migrateFromLocalStorage();
+      }, 500); // Firebaseからの読み込み完了を待つ
+      
+      return () => clearTimeout(timer);
+    }
+  }, [authInitialized, isLoggedIn, userUid, migrateFromLocalStorage]);
 
   return {
     favorites,

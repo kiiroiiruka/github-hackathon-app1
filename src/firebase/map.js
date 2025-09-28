@@ -33,8 +33,7 @@ export const getUserFavorites = async (userId) => {
   try {
     const q = query(
       collection(db, FAVORITES_COLLECTION),
-      where("userId", "==", userId),
-      orderBy("addedAt", "desc")
+      where("userId", "==", userId)
     );
     
     const querySnapshot = await getDocs(q);
@@ -45,6 +44,13 @@ export const getUserFavorites = async (userId) => {
         id: doc.id,
         ...doc.data()
       });
+    });
+    
+    // JavaScriptでソート（最新順）
+    favorites.sort((a, b) => {
+      const dateA = new Date(a.addedAt || a.createdAt || 0);
+      const dateB = new Date(b.addedAt || b.createdAt || 0);
+      return dateB - dateA; // 降順（新しい順）
     });
     
     console.log(`ユーザー ${userId} のお気に入りを取得:`, favorites.length, "件");
