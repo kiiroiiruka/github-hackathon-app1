@@ -60,7 +60,7 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
 		
 		// participantPhotoURLsから取得（最優先）
 		let cachedPhotoURL = participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name);
-		if (cachedPhotoURL && cachedPhotoURL !== "" && cachedPhotoURL !== null) {
+		if (cachedPhotoURL !== undefined && cachedPhotoURL !== null && cachedPhotoURL !== "") {
 			console.log("🖼️ キャッシュされたphotoURLを使用:", cachedPhotoURL);
 			return cachedPhotoURL;
 		}
@@ -113,7 +113,9 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
 		willShowImage: !imageError,
 		hasGooglePhoto: !!(isLocal && currentUser?.photoURL),
 		hasFirebasePhoto: !!photoURL,
-		usingGeneratedIcon: !(isLocal && currentUser?.photoURL) && !photoURL
+		hasCachedPhoto: !!(participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name)),
+		cachedPhotoURL: participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name),
+		usingGeneratedIcon: !(isLocal && currentUser?.photoURL) && !photoURL && !(participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name))
 	});
 	
 	// ユーザー名が長すぎる場合は省略

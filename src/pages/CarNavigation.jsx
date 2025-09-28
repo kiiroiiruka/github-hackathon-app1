@@ -48,9 +48,14 @@ const CarNavigation = () => {
 					// 参加者のphotoURL情報を初期化
 					const photoURLMap = new Map();
 					Object.values(membersValue).forEach(member => {
-						if (member?.uid && member?.photoURL) {
-							photoURLMap.set(member.uid, member.photoURL);
-							photoURLMap.set(member.name, member.photoURL);
+						if (member?.uid) {
+							// photoURLが存在する場合（空文字列も含む）は追加
+							if (member.photoURL !== undefined && member.photoURL !== null) {
+								photoURLMap.set(member.uid, member.photoURL);
+								if (member.name) {
+									photoURLMap.set(member.name, member.photoURL);
+								}
+							}
 						}
 					});
 					setParticipantPhotoURLs(photoURLMap);
@@ -58,7 +63,13 @@ const CarNavigation = () => {
 					console.log("🖼️ 参加者のphotoURL情報を初期化:", {
 						membersCount: list.length,
 						photoURLMapSize: photoURLMap.size,
-						photoURLs: Array.from(photoURLMap.entries())
+						photoURLs: Array.from(photoURLMap.entries()),
+						rawMembers: Object.values(membersValue).map(m => ({
+							uid: m?.uid,
+							name: m?.name,
+							photoURL: m?.photoURL,
+							photoURLType: typeof m?.photoURL
+						}))
 					});
 				}
 				setLoading(false);
@@ -138,8 +149,8 @@ const CarNavigation = () => {
 					const userName = participant.user_name;
 					const photoURL = participant.photoURL;
 					
-					// 新しいphotoURLが取得できた場合は更新
-					if (photoURL && photoURL !== "" && photoURL !== null) {
+					// 新しいphotoURLが取得できた場合は更新（空文字列も有効な値として扱う）
+					if (photoURL !== undefined && photoURL !== null) {
 						if (newPhotoURLs.get(sessionId) !== photoURL) {
 							newPhotoURLs.set(sessionId, photoURL);
 							newPhotoURLs.set(userName, photoURL);
@@ -147,7 +158,8 @@ const CarNavigation = () => {
 							console.log("🖼️ 参加者のphotoURLを更新:", {
 								sessionId,
 								userName,
-								photoURL
+								photoURL,
+								photoURLType: typeof photoURL
 							});
 						}
 					}
