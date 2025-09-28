@@ -11,7 +11,7 @@ import { useDailyConnection } from "@/hooks/useDailyConnection";
 import { useParticipantManager } from "@/hooks/useParticipantManager";
 import { useUserUid } from "@/hooks/useUserUid";
 
-const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
+const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd, onCallStateUpdate }) => {
 	const iframeRef = useRef(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState(null);
@@ -53,6 +53,17 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 			}
 		}
 	}, [isJoined, callDuration, currentUserUid, roomId]);
+
+	// 通話状態の更新を親コンポーネントに通知
+	useEffect(() => {
+		if (onCallStateUpdate) {
+			onCallStateUpdate({
+				isActive: isJoined,
+				participants: participants,
+				isMicrophoneEnabled: dailyMicrophoneEnabled
+			});
+		}
+	}, [isJoined, participants, dailyMicrophoneEnabled, onCallStateUpdate]);
 
 	// Daily iframeの設定
 	useEffect(() => {
@@ -423,54 +434,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd }) => {
 					>
 						通話を終了
 					</button>
-				</div>
-			)}
-
-			{/* 参加者情報 */}
-			{participants.length > 0 && (
-				<div className="w-full max-w-md p-4 bg-gray-50 rounded-lg">
-					<p className="text-sm text-gray-600 mb-3 text-center">
-						参加者: {participants.length}人
-					</p>
-					<div className="flex flex-wrap gap-2 justify-center">
-						{participants.map((participant) => (
-							<div
-								key={participant.session_id}
-								className={`flex items-center gap-2 px-3 py-1 text-xs rounded-full ${
-									participant.local 
-										? dailyMicrophoneEnabled 
-											? 'bg-green-100 text-green-800' 
-											: 'bg-red-100 text-red-800'
-										: participant.audio 
-											? 'bg-green-100 text-green-800' 
-											: 'bg-red-100 text-red-800'
-								}`}
-							>
-								{participant.user_name || "Anonymous"}
-								{participant.local && (
-									<span className="text-blue-600">(あなた)</span>
-								)}
-								<span className="text-xs">
-									{participant.local 
-										? (dailyMicrophoneEnabled ? '🎤' : '🔇')
-										: (participant.audio ? '🎤' : '🔇')
-									}
-								</span>
-							</div>
-						))}
-					</div>
-					
-					{/* 音声状態の説明 */}
-					<div className="mt-3 text-xs text-gray-500 text-center">
-						<span className="inline-flex items-center gap-1 mr-3">
-							<span className="w-2 h-2 bg-green-500 rounded-full"></span>
-							音声ON
-						</span>
-						<span className="inline-flex items-center gap-1">
-							<span className="w-2 h-2 bg-red-500 rounded-full"></span>
-							音声OFF
-						</span>
-					</div>
 				</div>
 			)}
 

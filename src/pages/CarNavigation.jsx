@@ -80,6 +80,8 @@ const CarNavigation = () => {
 		setShowAudioCall(false);
 		setIsCallActive(false);
 		setCallParticipants([]);
+		// 通話終了時にルームからも抜ける
+		handleLeaveRoom();
 	};
 
 	// 通話状態の更新ハンドラー

@@ -13,7 +13,7 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 			{/* マイク状態アイコン */}
 			<div style={styles.micIcon}>
 				{audio ? (
-					<div style={styles.micOnIcon}>🔊</div>
+					<div style={styles.micOnIcon}>🎤</div>
 				) : (
 					<div style={styles.micOffIcon}>🔇</div>
 				)}
