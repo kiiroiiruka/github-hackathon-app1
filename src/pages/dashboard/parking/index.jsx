@@ -70,22 +70,21 @@ const ParkingInfoDisplay = () => {
   const [isDebugMode, setIsDebugMode] = useState(false);
   const navigate = useNavigate();
 
-  // カスタムアイコンの作成（外部CDNから確実に読み込み）
+  // カスタムアイコンの作成（色分け対応）
   const createCustomIcon = (color = '#3388ff', type = 'current') => {
-    // 外部CDNから確実に読み込めるアイコンを使用
-    const iconUrl = type === 'parking' 
-      ? 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png'
-      : 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png';
-    
-    const shadowUrl = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png';
+    // 色に応じてSVGアイコンを生成
+    const svgIcon = `
+      <svg width="25" height="41" viewBox="0 0 25 41" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12.5 0C5.6 0 0 5.6 0 12.5c0 12.5 12.5 28.5 12.5 28.5s12.5-16 12.5-28.5C25 5.6 19.4 0 12.5 0z" fill="${color}"/>
+        <circle cx="12.5" cy="12.5" r="4" fill="white"/>
+      </svg>
+    `;
     
     return new Icon({
-      iconUrl: iconUrl,
-      shadowUrl: shadowUrl,
+      iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgIcon)}`,
       iconSize: [25, 41],
       iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
+      popupAnchor: [1, -34]
     });
   };
 
@@ -406,7 +405,10 @@ const ParkingInfoDisplay = () => {
                     if (isSameLocation) {
                       // 同じ位置の場合は1つのピンのみ表示
                       return (
-                        <Marker position={nowPosition}>
+                        <Marker 
+                          position={nowPosition} 
+                          icon={createCustomIcon('#3388ff', 'current')}
+                        >
                           <Popup>
                             <div className="text-center">
                               <div className="text-lg mb-1">📍</div>
@@ -420,7 +422,10 @@ const ParkingInfoDisplay = () => {
                       // 異なる位置の場合は2つのピンを表示
                       return (
                         <>
-                          <Marker position={nowPosition}>
+                          <Marker 
+                            position={nowPosition} 
+                            icon={createCustomIcon('#3388ff', 'current')}
+                          >
                             <Popup>
                               <div className="text-center">
                                 <div className="text-lg mb-1">📍</div>
@@ -431,7 +436,10 @@ const ParkingInfoDisplay = () => {
                               </div>
                             </Popup>
                           </Marker>
-                          <Marker position={parkingInfo.position}>
+                          <Marker 
+                            position={parkingInfo.position} 
+                            icon={createCustomIcon('#ff6b6b', 'parking')}
+                          >
                             <Popup>
                               <div className="text-center">
                                 <div className="text-lg mb-1">🅿️</div>
