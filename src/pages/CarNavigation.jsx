@@ -2,6 +2,7 @@ import { onValue, ref, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AudioCallRoom from "@/components/VideoCall/VideoCallRoom";
+import AudioCallFooter from "@/components/Footer/AudioCallFooter";
 import { auth, rtdb } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
 
@@ -11,7 +12,9 @@ const CarNavigation = () => {
 	const [members, setMembers] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [roomData, setRoomData] = useState(null);
-	const [showAudioCall, setShowAudioCall] = useState(false);
+	const [showAudioCall, setShowAudioCall] = useState(true); // デフォルトで通話開始
+	const [isCallActive, setIsCallActive] = useState(false); // 通話状態
+	const [callParticipants, setCallParticipants] = useState([]); // 通話参加者
 	const currentUserUid = useUserUid();
 
 	useEffect(() => {
@@ -75,6 +78,14 @@ const CarNavigation = () => {
 
 	const handleCallEnd = () => {
 		setShowAudioCall(false);
+		setIsCallActive(false);
+		setCallParticipants([]);
+	};
+
+	// 通話状態の更新ハンドラー
+	const handleCallStateUpdate = (state) => {
+		setIsCallActive(state.isActive);
+		setCallParticipants(state.participants || []);
 	};
 
 	const handleLeaveRoom = () => {
@@ -82,68 +93,33 @@ const CarNavigation = () => {
 	};
 
 	return (
-		<div className="p-4 space-y-4">
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-bold">カーナビ</h1>
-					{roomData && (
-						<p className="text-gray-600">ルーム: {roomData.name || roomId}</p>
-					)}
+		<div className="min-h-screen bg-gray-50">
+			{/* Main Content with bottom padding to account for footer */}
+			<div className="pb-24 p-4 space-y-4">
+				<div className="flex items-center justify-between">
+					<div>
+						<h1 className="text-2xl font-bold">カーナビ</h1>
+						{roomData && (
+							<p className="text-gray-600">ルーム: {roomData.name || roomId}</p>
+						)}
+					</div>
+					<button
+						type="button"
+						onClick={handleLeaveRoom}
+						className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+					>
+						ルームを出る
+					</button>
 				</div>
-				<button
-					type="button"
-					onClick={handleLeaveRoom}
-					className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-				>
-					ルームを出る
-				</button>
-			</div>
 
 			{loading ? (
 				<p className="text-gray-600">読み込み中...</p>
 			) : (
 				<>
-					{/* 参加者一覧 */}
-					<div className="bg-white rounded-lg shadow-md p-4">
-						<h2 className="text-lg font-semibold mb-3">
-							参加中のメンバー ({members.length}人)
-						</h2>
-						{members.length === 0 ? (
-							<p className="text-gray-600">参加中のユーザーはいません。</p>
-						) : (
-							<ul className="space-y-2">
-								{members.map((m) => (
-									<li key={m.uid} className="flex items-center gap-3">
-										<img
-											src={m.photoURL || "/vite.svg"}
-											alt={m.name || "user"}
-											className="w-8 h-8 rounded-full"
-										/>
-										<span className="font-medium">{m.name || "(名無し)"}</span>
-										{m.uid === roomData?.ownerUid && (
-											<span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-												作成者
-											</span>
-										)}
-									</li>
-								))}
-							</ul>
-						)}
-					</div>
-
 					{/* 音声通話機能 */}
 					<div className="bg-white rounded-lg shadow-md p-4">
 						<div className="flex items-center justify-between mb-4">
 							<h2 className="text-lg font-semibold">🎤 音声通話</h2>
-							{!showAudioCall && roomData?.dailyRoom && (
-								<button
-									type="button"
-									onClick={() => setShowAudioCall(true)}
-									className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-								>
-									通話を開始
-								</button>
-							)}
 							{!roomData?.dailyRoom && (
 								<p className="text-gray-500 text-sm">
 									Daily.coルームが準備されていません
@@ -151,17 +127,30 @@ const CarNavigation = () => {
 							)}
 						</div>
 
-						{showAudioCall && roomData?.dailyRoom && (
+						{roomData?.dailyRoom && (
 							<AudioCallRoom
 								roomId={roomId}
 								roomName={roomData?.name || "カーナビルーム"}
 								ownerUid={roomData?.ownerUid || ""}
 								onCallEnd={handleCallEnd}
+								onCallStateUpdate={handleCallStateUpdate}
 							/>
 						)}
 					</div>
 				</>
 			)}
+			</div>
+			
+			{/* Audio Call Footer */}
+			<AudioCallFooter
+				participants={callParticipants.length > 0 ? callParticipants : members.map(member => ({
+					session_id: member.uid,
+					user_name: member.name,
+					audio: true, // デフォルトで音声ON
+					photoURL: member.photoURL,
+					local: member.uid === currentUserUid
+				}))}
+			/>
 		</div>
 	);
 };
