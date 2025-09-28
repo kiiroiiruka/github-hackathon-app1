@@ -42,6 +42,7 @@ export async function onRequest(context) {
 			// Delete Daily room using REST API
 			console.log(`🗑️ Daily.coルーム削除を試行: ${roomId}`);
 			console.log(`🔑 API Key exists: ${!!env.DAILY_API_KEY}`);
+			console.log(`🔑 API Key prefix: ${env.DAILY_API_KEY ? env.DAILY_API_KEY.substring(0, 10) + '...' : 'undefined'}`);
 			
 			const dailyResponse = await fetch(`https://api.daily.co/v1/rooms/${roomId}`, {
 				method: "DELETE",
@@ -53,12 +54,15 @@ export async function onRequest(context) {
 			console.log(`📊 Daily API Response Status: ${dailyResponse.status}`);
 			console.log(`📊 Daily API Response Headers:`, Object.fromEntries(dailyResponse.headers.entries()));
 
+			// レスポンスの内容を取得（成功・失敗に関わらず）
+			const responseText = await dailyResponse.text();
+			console.log(`📊 Daily API Response Body:`, responseText);
+
 			if (!dailyResponse.ok) {
-				const errorData = await dailyResponse.text();
 				console.log(`📊 Daily API Error Details:`, {
 					status: dailyResponse.status,
 					statusText: dailyResponse.statusText,
-					errorData: errorData,
+					responseText: responseText,
 					roomId: roomId
 				});
 				
@@ -84,14 +88,24 @@ export async function onRequest(context) {
 				console.error(`❌ Daily API Error (非404):`, {
 					status: dailyResponse.status,
 					statusText: dailyResponse.statusText,
-					errorData: errorData,
+					responseText: responseText,
 					roomId: roomId
 				});
-				throw new Error(`Daily API error: ${dailyResponse.status} - ${errorData}`);
+				throw new Error(`Daily API error: ${dailyResponse.status} - ${responseText}`);
 			}
 
-			const result = await dailyResponse.json();
-			console.log(`✅ Daily.coルーム削除成功:`, result);
+			// 成功時のレスポンスを解析
+			let result;
+			try {
+				result = JSON.parse(responseText);
+				console.log(`✅ Daily.coルーム削除成功:`, result);
+			} catch (parseError) {
+				console.log(`📊 Daily.coルーム削除成功（JSON解析失敗）:`, {
+					responseText: responseText,
+					parseError: parseError.message
+				});
+				result = { success: true, message: "Room deleted successfully" };
+			}
 
 			return new Response(
 				JSON.stringify({
