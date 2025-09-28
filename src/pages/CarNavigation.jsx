@@ -5,6 +5,7 @@ import AudioCallRoom from "@/components/VideoCall/VideoCallRoom";
 import AudioCallFooter from "@/components/Footer/AudioCallFooter";
 import { auth, rtdb } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
+import { getGooglePhotoURL } from "@/hooks/useUser";
 
 const CarNavigation = () => {
 	const { roomId } = useParams();
@@ -147,7 +148,31 @@ const CarNavigation = () => {
 				uniqueParticipants.forEach(participant => {
 					const sessionId = participant.session_id;
 					const userName = participant.user_name;
-					const photoURL = participant.photoURL;
+					let photoURL = participant.photoURL;
+					
+					// photoURLが取得できない場合は、既存のmembers配列から同じ名前のユーザーのphotoURLを取得
+					if ((!photoURL || photoURL === "" || photoURL === null) && userName) {
+						const existingMember = members.find(member => member.name === userName);
+						if (existingMember && existingMember.photoURL && existingMember.photoURL !== "") {
+							photoURL = existingMember.photoURL;
+							console.log("🖼️ 既存のmembers配列からphotoURLを取得:", {
+								userName,
+								photoURL,
+								sessionId
+							});
+						} else {
+							// Google認証からphotoURLを取得を試行
+							const googlePhotoURL = getGooglePhotoURL(userName);
+							if (googlePhotoURL) {
+								photoURL = googlePhotoURL;
+								console.log("🖼️ Google認証からphotoURLを取得:", {
+									userName,
+									photoURL,
+									sessionId
+								});
+							}
+						}
+					}
 					
 					// 新しいphotoURLが取得できた場合は更新（空文字列も有効な値として扱う）
 					if (photoURL !== undefined && photoURL !== null) {

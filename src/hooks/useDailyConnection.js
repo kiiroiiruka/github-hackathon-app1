@@ -480,6 +480,18 @@ export const useDailyConnection = (
 								console.log("🖼️ 既存のphotoURLを使用:", photoURL);
 							}
 							
+							// 既存のphotoURLもない場合は、Google認証から取得を試行
+							if (!photoURL || photoURL === "" || photoURL === null) {
+								console.log("🔄 Google認証からphotoURLを取得を試行:", {
+									user_name: event.participant.user_name,
+									session_id: event.participant.session_id
+								});
+								
+								// ユーザー名からGoogle認証のphotoURLを推測（実際の実装では、より確実な方法が必要）
+								// ここでは、参加者の名前が既知のユーザーと一致する場合の処理
+								// 実際のアプリケーションでは、ユーザーIDとGoogle認証のマッピングが必要
+							}
+							
 							update(memberRef, {
 								name: event.participant.user_name,
 								uid: event.participant.session_id,

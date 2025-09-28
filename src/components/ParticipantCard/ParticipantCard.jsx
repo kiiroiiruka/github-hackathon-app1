@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useCurrentUser } from "../../hooks/useUser";
+import { useCurrentUser, getGooglePhotoURL } from "../../hooks/useUser";
 
 const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = new Map() }) => {
 	const { user_name, audio, photoURL, uid, session_id } = participant;
@@ -69,6 +69,13 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
 		if (photoURL && photoURL !== "" && photoURL !== null) {
 			console.log("🖼️ Firebase photoURLを使用:", photoURL);
 			return photoURL;
+		}
+		
+		// Google認証からphotoURLを取得を試行
+		const googlePhotoURL = getGooglePhotoURL(user_name);
+		if (googlePhotoURL) {
+			console.log("🖼️ Google認証からphotoURLを取得:", googlePhotoURL);
+			return googlePhotoURL;
 		}
 		
 		// それ以外の場合は生成されたアイコンを使用
