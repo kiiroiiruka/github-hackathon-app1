@@ -309,6 +309,12 @@ const deleteDailyRoom = async (dailyRoomId) => {
 			? "http://localhost:8787"  // ローカル開発環境（Cloudflare Workers）
 			: window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
 		
+		console.log("🌐 Daily.coルーム削除API呼び出し:", {
+			apiBaseUrl,
+			dailyRoomId,
+			isDevelopment
+		});
+		
 		const response = await fetch(`${apiBaseUrl}/api/daily-room`, {
 			method: "DELETE",
 			headers: {
@@ -319,27 +325,54 @@ const deleteDailyRoom = async (dailyRoomId) => {
 			}),
 		});
 
+		console.log("📊 API Response Status:", response.status);
+		console.log("📊 API Response Headers:", Object.fromEntries(response.headers.entries()));
+
 		if (!response.ok) {
-			throw new Error(`Daily room deletion failed: ${response.status} ${response.statusText}`);
+			const errorText = await response.text();
+			console.error("❌ API Response Error:", {
+				status: response.status,
+				statusText: response.statusText,
+				errorText: errorText,
+				dailyRoomId: dailyRoomId
+			});
+			throw new Error(`Daily room deletion failed: ${response.status} ${response.statusText} - ${errorText}`);
 		}
 
 		const result = await response.json();
+		console.log("✅ API Response Success:", result);
+		
 		if (!result.success) {
 			throw new Error(`Daily room deletion failed: ${result.error}`);
 		}
 
 		return result;
 	} catch (error) {
-		console.error("❌ Daily.coルーム削除エラー:", error);
+		console.error("❌ Daily.coルーム削除エラー:", {
+			error: error.message,
+			dailyRoomId: dailyRoomId,
+			stack: error.stack
+		});
 		throw error;
 	}
 };
+
+// ルーム削除処理の重複実行を防ぐためのMap
+const roomDeletionInProgress = new Map();
 
 /**
  * ルームの全メンバーの参加状態をチェックし、全員がfalseの場合はルームを削除する
  * @param {string} roomId Firebase room ID
  */
 export const checkAndDeleteRoomIfEmpty = async (roomId) => {
+	// 既に削除処理が進行中の場合はスキップ
+	if (roomDeletionInProgress.has(roomId)) {
+		console.log("🔄 ルーム削除処理が既に進行中です:", roomId);
+		return;
+	}
+	
+	// 削除処理開始をマーク
+	roomDeletionInProgress.set(roomId, true);
 	try {
 		const roomRef = ref(rtdb, `rooms/${roomId}`);
 		const snapshot = await get(roomRef);
@@ -392,5 +425,8 @@ export const checkAndDeleteRoomIfEmpty = async (roomId) => {
 		}
 	} catch (error) {
 		console.error("❌ ルーム削除チェックエラー:", error);
+	} finally {
+		// 削除処理完了をマーク
+		roomDeletionInProgress.delete(roomId);
 	}
 };

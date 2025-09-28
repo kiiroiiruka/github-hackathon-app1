@@ -40,6 +40,9 @@ export async function onRequest(context) {
 			}
 
 			// Delete Daily room using REST API
+			console.log(`🗑️ Daily.coルーム削除を試行: ${roomId}`);
+			console.log(`🔑 API Key exists: ${!!env.DAILY_API_KEY}`);
+			
 			const dailyResponse = await fetch(`https://api.daily.co/v1/rooms/${roomId}`, {
 				method: "DELETE",
 				headers: {
@@ -47,10 +50,22 @@ export async function onRequest(context) {
 				},
 			});
 
+			console.log(`📊 Daily API Response Status: ${dailyResponse.status}`);
+			console.log(`📊 Daily API Response Headers:`, Object.fromEntries(dailyResponse.headers.entries()));
+
 			if (!dailyResponse.ok) {
 				const errorData = await dailyResponse.text();
+				console.error(`❌ Daily API Error Details:`, {
+					status: dailyResponse.status,
+					statusText: dailyResponse.statusText,
+					errorData: errorData,
+					roomId: roomId
+				});
 				throw new Error(`Daily API error: ${dailyResponse.status} - ${errorData}`);
 			}
+
+			const result = await dailyResponse.json();
+			console.log(`✅ Daily.coルーム削除成功:`, result);
 
 			return new Response(
 				JSON.stringify({
