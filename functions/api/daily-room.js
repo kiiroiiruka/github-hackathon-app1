@@ -57,6 +57,16 @@ export async function onRequest(context) {
 			// レスポンスの内容を取得（成功・失敗に関わらず）
 			const responseText = await dailyResponse.text();
 			console.log(`📊 Daily API Response Body:`, responseText);
+			
+			// Cloudflare Functionsのログに出力（ブラウザのコンソールでは見えない）
+			console.log(`🔍 CLOUDFLARE LOG - Daily API Response:`, {
+				status: dailyResponse.status,
+				statusText: dailyResponse.statusText,
+				headers: Object.fromEntries(dailyResponse.headers.entries()),
+				body: responseText,
+				roomId: roomId,
+				timestamp: new Date().toISOString()
+			});
 
 			if (!dailyResponse.ok) {
 				console.log(`📊 Daily API Error Details:`, {
@@ -143,6 +153,13 @@ export async function onRequest(context) {
 		}
 
 		// Create Daily room using REST API
+		console.log(`🏗️ Daily.coルーム作成を試行:`, {
+			roomId: roomId,
+			roomName: roomName,
+			ownerUid: ownerUid,
+			timestamp: new Date().toISOString()
+		});
+		
 		const dailyResponse = await fetch("https://api.daily.co/v1/rooms", {
 			method: "POST",
 			headers: {
@@ -163,12 +180,26 @@ export async function onRequest(context) {
 			}),
 		});
 
+		console.log(`📊 Daily Room Creation Response Status: ${dailyResponse.status}`);
+		console.log(`📊 Daily Room Creation Response Headers:`, Object.fromEntries(dailyResponse.headers.entries()));
+
 		if (!dailyResponse.ok) {
 			const errorData = await dailyResponse.text();
+			console.error(`❌ Daily Room Creation Error:`, {
+				status: dailyResponse.status,
+				statusText: dailyResponse.statusText,
+				errorData: errorData,
+				roomId: roomId
+			});
 			throw new Error(`Daily API error: ${dailyResponse.status} - ${errorData}`);
 		}
 
 		const dailyRoom = await dailyResponse.json();
+		console.log(`✅ Daily Room Created Successfully:`, {
+			roomId: roomId,
+			dailyRoom: dailyRoom,
+			timestamp: new Date().toISOString()
+		});
 
 		return new Response(
 			JSON.stringify({
