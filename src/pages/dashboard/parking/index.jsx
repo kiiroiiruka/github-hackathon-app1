@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import PageLayout from "../../../components/layout/PageLayout";
+import HeaderComponent2 from "../../../components/Header/Header2";
 import Card from "../../../components/ui/Card";
 import Button from "../../../components/ui/Button";
 import LoadingSpinner from "../../../components/ui/LoadingSpinner";
@@ -330,13 +330,12 @@ const ParkingInfoDisplay = () => {
   };
 
   return (
-    <PageLayout title="駐車場情報">
-      {/* タイトルセクション */}
-      <div className="text-center mb-8">
-        <div className="text-6xl mb-4">🚗</div>
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">駐車場情報</h1>
-        <p className="text-gray-600">現在の駐車状況と位置情報を確認できます</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <HeaderComponent2 title="駐車場"/>
+      
+      {/* メインコンテンツ */}
+      <div className="container mx-auto px-4 py-6" style={{ paddingTop: '100px' }}>
+        {/* タイトルセクション */}
 
       {loading ? (
         <LoadingSpinner text="駐車情報を読み込み中..." />
@@ -573,7 +572,8 @@ const ParkingInfoDisplay = () => {
           actionOnClick={handleGoInput}
         />
       )}
-    </PageLayout>
+      </div>
+    </div>
   );
 };
 
