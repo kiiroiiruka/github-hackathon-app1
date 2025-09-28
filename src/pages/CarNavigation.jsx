@@ -15,6 +15,7 @@ const CarNavigation = () => {
 	const [showAudioCall, setShowAudioCall] = useState(true); // デフォルトで通話開始
 	const [isCallActive, setIsCallActive] = useState(false); // 通話状態
 	const [callParticipants, setCallParticipants] = useState([]); // 通話参加者
+	const [participantPhotoURLs, setParticipantPhotoURLs] = useState(new Map()); // 参加者のphotoURL情報
 	const currentUserUid = useUserUid();
 	const updateTimeoutRef = useRef(null);
 
@@ -43,6 +44,22 @@ const CarNavigation = () => {
 					const membersValue = room.members || {};
 					const list = Object.values(membersValue).filter((m) => m?.accepted);
 					setMembers(list);
+					
+					// 参加者のphotoURL情報を初期化
+					const photoURLMap = new Map();
+					Object.values(membersValue).forEach(member => {
+						if (member?.uid && member?.photoURL) {
+							photoURLMap.set(member.uid, member.photoURL);
+							photoURLMap.set(member.name, member.photoURL);
+						}
+					});
+					setParticipantPhotoURLs(photoURLMap);
+					
+					console.log("🖼️ 参加者のphotoURL情報を初期化:", {
+						membersCount: list.length,
+						photoURLMapSize: photoURLMap.size,
+						photoURLs: Array.from(photoURLMap.entries())
+					});
 				}
 				setLoading(false);
 			},
@@ -109,6 +126,42 @@ const CarNavigation = () => {
 			console.log("👥 通話参加者を更新:", {
 				totalParticipants: uniqueParticipants.length,
 				sessionIds: uniqueParticipants.map(p => p.session_id)
+			});
+			
+			// 参加者のphotoURL情報を更新
+			setParticipantPhotoURLs(prevPhotoURLs => {
+				const newPhotoURLs = new Map(prevPhotoURLs);
+				let hasChanges = false;
+				
+				uniqueParticipants.forEach(participant => {
+					const sessionId = participant.session_id;
+					const userName = participant.user_name;
+					const photoURL = participant.photoURL;
+					
+					// 新しいphotoURLが取得できた場合は更新
+					if (photoURL && photoURL !== "" && photoURL !== null) {
+						if (newPhotoURLs.get(sessionId) !== photoURL) {
+							newPhotoURLs.set(sessionId, photoURL);
+							newPhotoURLs.set(userName, photoURL);
+							hasChanges = true;
+							console.log("🖼️ 参加者のphotoURLを更新:", {
+								sessionId,
+								userName,
+								photoURL
+							});
+						}
+					}
+				});
+				
+				if (hasChanges) {
+					console.log("🖼️ 参加者のphotoURL情報を更新:", {
+						totalPhotoURLs: newPhotoURLs.size,
+						updatedPhotoURLs: Array.from(newPhotoURLs.entries())
+					});
+					return newPhotoURLs;
+				}
+				
+				return prevPhotoURLs;
 			});
 			
 			// 参加者データの安定性を向上させるため、既存のデータと比較して変更がある場合のみ更新
@@ -266,6 +319,7 @@ const CarNavigation = () => {
 					// メンバーもいない場合は空配列
 					return [];
 				})()}
+				participantPhotoURLs={participantPhotoURLs}
 			/>
 		</div>
 	);

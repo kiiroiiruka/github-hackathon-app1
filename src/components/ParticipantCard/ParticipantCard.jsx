@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useCurrentUser } from "../../hooks/useUser";
 
-const ParticipantCard = ({ participant, isLocal = false }) => {
+const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = new Map() }) => {
 	const { user_name, audio, photoURL, uid, session_id } = participant;
 	const [imageError, setImageError] = useState(false);
 	const imageErrorRef = useRef(new Set()); // 画像エラー状態を永続化
@@ -56,6 +56,13 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		if (isLocal && currentUser?.photoURL) {
 			console.log("🖼️ ローカル参加者のGoogleアイコンを使用:", currentUser.photoURL);
 			return currentUser.photoURL;
+		}
+		
+		// participantPhotoURLsから取得（最優先）
+		let cachedPhotoURL = participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name);
+		if (cachedPhotoURL && cachedPhotoURL !== "" && cachedPhotoURL !== null) {
+			console.log("🖼️ キャッシュされたphotoURLを使用:", cachedPhotoURL);
+			return cachedPhotoURL;
 		}
 		
 		// FirebaseのmembersデータからphotoURLが取得できる場合はそれを使用

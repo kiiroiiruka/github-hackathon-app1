@@ -45,7 +45,7 @@ export const useDailyConnection = (
 		return map;
 	}, [members]);
 
-	const getMemberPhotoURL = useCallback(async (userName, uid) => {
+	const getMemberPhotoURL = useCallback((userName, uid) => {
 		console.log("🔍 getMemberPhotoURL呼び出し:", {
 			userName,
 			uid,
@@ -58,23 +58,6 @@ export const useDailyConnection = (
 		// 名前で見つからない場合はUIDで検索
 		if (!photoURL && uid) {
 			photoURL = photoURLMap.get(uid);
-		}
-		
-		// photoURLMapで見つからない場合は、Firebaseから直接取得
-		if (!photoURL && roomId && uid) {
-			try {
-				const { ref, get } = await import("firebase/database");
-				const memberRef = ref(rtdb, `rooms/${roomId}/members/${uid}`);
-				const snapshot = await get(memberRef);
-				const memberData = snapshot.val();
-				
-				if (memberData && memberData.photoURL) {
-					photoURL = memberData.photoURL;
-					console.log("🖼️ Firebaseから直接photoURLを取得:", photoURL);
-				}
-			} catch (error) {
-				console.error("❌ FirebaseからphotoURL取得エラー:", error);
-			}
 		}
 		
 		console.log("🔍 getMemberPhotoURL結果:", {
@@ -99,7 +82,7 @@ export const useDailyConnection = (
 		}
 		
 		return photoURL;
-	}, [photoURLMap, roomId]);
+	}, [photoURLMap]);
 
 	// 通話時間の更新
 	const startDurationTimer = useCallback(() => {
@@ -142,37 +125,9 @@ export const useDailyConnection = (
 					if (!photoURL) {
 						// ローカル参加者の場合は特別処理
 						if (participantData.local && currentUserUid) {
-							getMemberPhotoURL(participantData.user_name, currentUserUid).then(url => {
-								if (url) {
-									setParticipants((prev) => {
-										const newMap = new Map(prev);
-										const existingParticipant = newMap.get(participantData.session_id);
-										if (existingParticipant) {
-											newMap.set(participantData.session_id, {
-												...existingParticipant,
-												photoURL: url
-											});
-										}
-										return newMap;
-									});
-								}
-							});
+							photoURL = getMemberPhotoURL(participantData.user_name, currentUserUid);
 						} else {
-							getMemberPhotoURL(participantData.user_name, participantData.session_id).then(url => {
-								if (url) {
-									setParticipants((prev) => {
-										const newMap = new Map(prev);
-										const existingParticipant = newMap.get(participantData.session_id);
-										if (existingParticipant) {
-											newMap.set(participantData.session_id, {
-												...existingParticipant,
-												photoURL: url
-											});
-										}
-										return newMap;
-									});
-								}
-							});
+							photoURL = getMemberPhotoURL(participantData.user_name, participantData.session_id);
 						}
 					}
 					
@@ -570,57 +525,27 @@ export const useDailyConnection = (
 					
 					newMap.set(event.participant.session_id, participantWithPhoto);
 					
-					// photoURLを非同期で取得して更新
-					getMemberPhotoURL(event.participant.user_name, event.participant.session_id).then(photoURL => {
-						if (photoURL) {
-							setParticipants((prev) => {
-								const newMap = new Map(prev);
-								const existingParticipant = newMap.get(event.participant.session_id);
-								if (existingParticipant) {
-									newMap.set(event.participant.session_id, {
-										...existingParticipant,
-										photoURL: photoURL
-									});
-								}
-								return newMap;
-							});
-							
-							console.log("🔍 participant-joined参加者にphotoURLを追加:", {
-								user_name: event.participant.user_name,
-								photoURL: photoURL,
-								local: event.participant.local
-							});
-						} else {
-							console.log("⚠️ participant-joined参加者のphotoURLが取得できませんでした:", {
-								user_name: event.participant.user_name,
-								session_id: event.participant.session_id
-							});
-							
-							// photoURLが取得できない場合は、少し待ってから再試行
-							setTimeout(() => {
-								getMemberPhotoURL(event.participant.user_name, event.participant.session_id).then(retryPhotoURL => {
-									if (retryPhotoURL) {
-										setParticipants((prev) => {
-											const newMap = new Map(prev);
-											const existingParticipant = newMap.get(event.participant.session_id);
-											if (existingParticipant) {
-												newMap.set(event.participant.session_id, {
-													...existingParticipant,
-													photoURL: retryPhotoURL
-												});
-											}
-											return newMap;
-										});
-										
-										console.log("🔄 participant-joined参加者のphotoURL再取得成功:", {
-											user_name: event.participant.user_name,
-											photoURL: retryPhotoURL
-										});
-									}
+					// photoURLを取得して更新
+					const photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
+					if (photoURL) {
+						setParticipants((prev) => {
+							const newMap = new Map(prev);
+							const existingParticipant = newMap.get(event.participant.session_id);
+							if (existingParticipant) {
+								newMap.set(event.participant.session_id, {
+									...existingParticipant,
+									photoURL: photoURL
 								});
-							}, 1000); // 1秒後に再試行
-						}
-					});
+							}
+							return newMap;
+						});
+						
+						console.log("🔍 participant-joined参加者にphotoURLを追加:", {
+							user_name: event.participant.user_name,
+							photoURL: photoURL,
+							local: event.participant.local
+						});
+					}
 					
 					return newMap;
 				});
@@ -825,28 +750,25 @@ export const useDailyConnection = (
 							session_id: event.participant.session_id
 						});
 						
-						setTimeout(() => {
-							getMemberPhotoURL(event.participant.user_name, event.participant.session_id).then(photoURL => {
-								if (photoURL) {
-									setParticipants((prev) => {
-										const newMap = new Map(prev);
-										const existingParticipant = newMap.get(event.participant.session_id);
-										if (existingParticipant) {
-											newMap.set(event.participant.session_id, {
-												...existingParticipant,
-												photoURL: photoURL
-											});
-										}
-										return newMap;
-									});
-									
-									console.log("🔄 participant-updated参加者のphotoURL再取得成功:", {
-										user_name: event.participant.user_name,
+						const photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
+						if (photoURL) {
+							setParticipants((prev) => {
+								const newMap = new Map(prev);
+								const existingParticipant = newMap.get(event.participant.session_id);
+								if (existingParticipant) {
+									newMap.set(event.participant.session_id, {
+										...existingParticipant,
 										photoURL: photoURL
 									});
 								}
+								return newMap;
 							});
-						}, 500); // 0.5秒後に再試行
+							
+							console.log("🔄 participant-updated参加者のphotoURL再取得成功:", {
+								user_name: event.participant.user_name,
+								photoURL: photoURL
+							});
+						}
 					}
 				}
 

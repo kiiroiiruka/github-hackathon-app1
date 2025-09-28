@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import ParticipantCard from "../ParticipantCard/ParticipantCard";
 
 const AudioCallFooter = ({ 
-	participants = []
+	participants = [],
+	participantPhotoURLs = new Map()
 }) => {
 	const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -50,6 +51,7 @@ const AudioCallFooter = ({
 										key={stableKey}
 										participant={participant}
 										isLocal={participant.local}
+										participantPhotoURLs={participantPhotoURLs}
 									/>
 								);
 							})}
