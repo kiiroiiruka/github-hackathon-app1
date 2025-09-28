@@ -250,11 +250,26 @@ export const useDailyConnection = (
 					// 参加者リストを確実に更新
 					const participantMap = new Map();
 					Object.entries(currentParticipants).forEach(([id, participant]) => {
+						console.log("🔍 joined-meeting参加者処理:", {
+							id,
+							user_name: participant.user_name,
+							session_id: participant.session_id,
+							local: participant.local
+						});
+						
 						// photoURLを追加
+						const photoURL = getMemberPhotoURL(participant.user_name, participant.session_id);
 						const participantWithPhoto = {
 							...participant,
-							photoURL: getMemberPhotoURL(participant.user_name, participant.session_id)
+							photoURL: photoURL
 						};
+						
+						console.log("🔍 参加者にphotoURLを追加:", {
+							user_name: participant.user_name,
+							photoURL: photoURL,
+							local: participant.local
+						});
+						
 						participantMap.set(id, participantWithPhoto);
 						
 						// ローカル参加者の音声トラック状態を確認
@@ -379,10 +394,25 @@ export const useDailyConnection = (
 				// 参加者を即座に状態管理に追加（photoURLを含む）
 				setParticipants((prev) => {
 					const newMap = new Map(prev);
+					
+					console.log("🔍 participant-joined参加者処理:", {
+						user_name: event.participant.user_name,
+						session_id: event.participant.session_id,
+						local: event.participant.local
+					});
+					
+					const photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
 					const participantWithPhoto = {
 						...event.participant,
-						photoURL: getMemberPhotoURL(event.participant.user_name, event.participant.session_id)
+						photoURL: photoURL
 					};
+					
+					console.log("🔍 participant-joined参加者にphotoURLを追加:", {
+						user_name: event.participant.user_name,
+						photoURL: photoURL,
+						local: event.participant.local
+					});
+					
 					newMap.set(event.participant.session_id, participantWithPhoto);
 					return newMap;
 				});
@@ -520,12 +550,19 @@ export const useDailyConnection = (
 						// 既存の参加者をコピーし、該当する参加者の状態のみ更新
 						for (const [sessionId, participant] of prev) {
 							if (sessionId === event.participant.session_id) {
-								// 該当する参加者の状態を更新
-								newMap.set(sessionId, event.participant);
+								// 該当する参加者の状態を更新（photoURLも再設定）
+								const photoURL = getMemberPhotoURL(event.participant.user_name, event.participant.session_id);
+								const participantWithPhoto = {
+									...event.participant,
+									photoURL: photoURL
+								};
+								
+								newMap.set(sessionId, participantWithPhoto);
 								console.log("🔄 参加者状態を更新:", {
 									sessionId,
 									user_name: event.participant.user_name,
-									audio: event.participant.audio
+									audio: event.participant.audio,
+									photoURL: photoURL
 								});
 							} else {
 								// 他の参加者はそのままコピー
