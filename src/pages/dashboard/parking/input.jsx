@@ -24,7 +24,35 @@ const Parkinginput = () => {
                     });
                 },
                 (err) => {
-                    alert("位置情報の取得に失敗しました");
+                    console.error("位置情報の取得に失敗しました:", err);
+                    
+                    // エラーの種類に応じて適切なメッセージを表示
+                    let errorMessage = "現在地を取得できませんでした。";
+                    
+                    switch (err.code) {
+                        case err.PERMISSION_DENIED:
+                            errorMessage = "位置情報の許可が必要です。ブラウザの設定で位置情報を許可してください。";
+                            break;
+                        case err.POSITION_UNAVAILABLE:
+                            errorMessage = "位置情報が利用できません。";
+                            break;
+                        case err.TIMEOUT:
+                            errorMessage = "位置情報の取得がタイムアウトしました。";
+                            break;
+                    }
+                    
+                    console.warn("⚠️ 位置情報エラー:", errorMessage);
+                    
+                    // デフォルト位置（東京）を設定
+                    setPosition({
+                        lat: 35.6762,
+                        lng: 139.6503,
+                    });
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000, // 10秒でタイムアウト
+                    maximumAge: 300000 // 5分間キャッシュ
                 }
             );
         }

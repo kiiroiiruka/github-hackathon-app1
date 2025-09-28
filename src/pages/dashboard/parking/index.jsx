@@ -93,9 +93,36 @@ const ParkingInfoDisplay = () => {
       },
       (err) => {
         console.error("位置情報の取得に失敗しました:", err);
-        alert("現在地を取得できませんでした。");
+        
+        // エラーの種類に応じて適切なメッセージを表示
+        let errorMessage = "現在地を取得できませんでした。";
+        
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            errorMessage = "位置情報の許可が必要です。ブラウザの設定で位置情報を許可してください。";
+            break;
+          case err.POSITION_UNAVAILABLE:
+            errorMessage = "位置情報が利用できません。";
+            break;
+          case err.TIMEOUT:
+            errorMessage = "位置情報の取得がタイムアウトしました。";
+            break;
+        }
+        
+        // アラートではなく、より優しい通知に変更
+        console.warn("⚠️ 位置情報エラー:", errorMessage);
+        
+        // デフォルト位置（東京）を設定
+        setNowPosition({
+          lat: 35.6762,
+          lng: 139.6503,
+        });
       },
-      { enableHighAccuracy: true } // 高精度を有効に
+      { 
+        enableHighAccuracy: true,
+        timeout: 10000, // 10秒でタイムアウト
+        maximumAge: 300000 // 5分間キャッシュ
+      }
     );
   }, []);
 
