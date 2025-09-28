@@ -1,22 +1,39 @@
 import React, { useState, useEffect, useRef } from "react";
 
 const ParticipantCard = ({ participant, isLocal = false }) => {
-	const { user_name, audio, photoURL, uid } = participant;
+	const { user_name, audio, photoURL, uid, session_id } = participant;
 	const [imageError, setImageError] = useState(false);
 	const imageErrorRef = useRef(new Set()); // 画像エラー状態を永続化
 	
+	// ユーザーIDを基にアイコンURLを生成する関数
+	const generateIconURL = (userName, userId) => {
+		// FirebaseドキュメントIDのような長い文字列の場合は、より短い表示名を使用
+		let displayName = userName;
+		if (userName && (userName.length > 20 || /^[a-zA-Z0-9_-]{20,}$/.test(userName))) {
+			// 長いIDのような文字列の場合は、最初の文字を使用
+			displayName = userName.charAt(0).toUpperCase();
+		} else if (userName) {
+			// 通常のユーザー名の場合は、最初の文字を使用
+			displayName = userName.charAt(0).toUpperCase();
+		} else {
+			// ユーザー名がない場合は、UIDの最初の文字を使用
+			displayName = (userId || session_id || "?").charAt(0).toUpperCase();
+		}
+		
+		return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff&size=96`;
+	};
+	
+	// アイコンURLを生成
+	const iconURL = generateIconURL(user_name, uid || session_id);
+	
 	// 画像エラー状態を初期化
 	useEffect(() => {
-		if (photoURL && imageErrorRef.current.has(photoURL)) {
+		if (iconURL && imageErrorRef.current.has(iconURL)) {
 			setImageError(true);
-		} else if (photoURL) {
-			// 新しい画像URLの場合は、一度リセットしてから再試行
-			setImageError(false);
 		} else {
-			// photoURLが存在しない場合はエラー状態にしない
 			setImageError(false);
 		}
-	}, [photoURL]);
+	}, [iconURL]);
 	
 	// デバッグログを追加（重要な情報のみ）
 	console.log("ParticipantCard Debug:", {
@@ -25,10 +42,10 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		participantLocal: participant.local,
 		audio,
 		session_id: participant.session_id,
-		photoURL,
-		hasPhotoURL: !!photoURL,
+		uid: uid,
+		iconURL,
 		imageError,
-		willShowImage: photoURL && !imageError
+		willShowImage: !imageError
 	});
 	
 	// ユーザー名が長すぎる場合は省略
@@ -68,29 +85,28 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 			
 			{/* プロフィール画像 */}
 			<div style={styles.profileImage}>
-				{photoURL && !imageError ? (
+				{!imageError ? (
 					<img
-						src={photoURL}
+						src={iconURL}
 						alt={user_name || "User"}
 						style={styles.profileImg}
 						onLoad={() => {
-							console.log("🖼️ 画像読み込み成功:", {
+							console.log("🖼️ アイコン読み込み成功:", {
 								user_name,
-								photoURL,
+								iconURL,
 								session_id: participant.session_id
 							});
 						}}
 						onError={() => {
-							console.log("🖼️ 画像読み込みエラー:", {
+							console.log("🖼️ アイコン読み込みエラー:", {
 								user_name,
-								photoURL,
-								hasPhotoURL: !!photoURL,
+								iconURL,
 								session_id: participant.session_id
 							});
 							// エラー状態を永続化
-							if (photoURL) {
-								imageErrorRef.current.add(photoURL);
-								console.log("🖼️ エラー状態を永続化:", photoURL);
+							if (iconURL) {
+								imageErrorRef.current.add(iconURL);
+								console.log("🖼️ エラー状態を永続化:", iconURL);
 							}
 							setImageError(true);
 						}}
