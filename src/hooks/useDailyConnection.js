@@ -105,6 +105,10 @@ export const useDailyConnection = (
 					await callObject.setLocalAudio(true);
 					console.log("🎤 通話開始時は音声有効状態で開始");
 					
+					// マイク状態を明示的に有効に設定（初期状態の問題を回避）
+					setIsMicrophoneEnabled(true);
+					console.log("🎤 マイク状態を明示的に有効に設定しました");
+					
 					// 音声出力の確認と設定
 					try {
 						// 音声出力デバイスの確認
@@ -219,7 +223,14 @@ export const useDailyConnection = (
 							});
 							
 							// ローカル参加者の音声状態を状態管理に反映
-							setIsMicrophoneEnabled(participant.audio);
+							// ただし、初期接続時は明示的にtrueに設定済みなので、実際の状態と異なる場合のみ更新
+							if (participant.audio !== isMicrophoneEnabled) {
+								console.log("🔄 ローカル参加者の音声状態を更新:", {
+									previousState: isMicrophoneEnabled,
+									newState: participant.audio
+								});
+								setIsMicrophoneEnabled(participant.audio);
+							}
 						}
 					});
 					setParticipants(participantMap);
@@ -414,8 +425,27 @@ export const useDailyConnection = (
 					local: event.participant.local
 				});
 				
-				// 参加者の状態を更新（デバウンスを使用して一瞬の重複を防ぐ）
-				debouncedParticipantUpdate(event.participant, 150);
+				// ローカル参加者の音声状態が変更された場合、即座に状態を更新
+				if (event.participant.local) {
+					console.log("🎤 ローカル参加者の音声状態が変更されました:", {
+						user_name: event.participant.user_name,
+						audio: event.participant.audio,
+						previousState: isMicrophoneEnabled
+					});
+					
+					// 音声状態を即座に更新（デバウンスしない）
+					setIsMicrophoneEnabled(event.participant.audio);
+					
+					// 参加者の状態も即座に更新
+					setParticipants((prev) => {
+						const newMap = new Map(prev);
+						newMap.set(event.participant.session_id, event.participant);
+						return newMap;
+					});
+				} else {
+					// リモート参加者の場合はデバウンスを使用
+					debouncedParticipantUpdate(event.participant, 150);
+				}
 
 				if (onParticipantUpdate) {
 					onParticipantUpdate({
@@ -970,9 +1000,27 @@ export const useDailyConnection = (
 		try {
 			const newState = !isMicrophoneEnabled;
 			await daily.setLocalAudio(newState);
+			
+			// 状態を即座に更新
 			setIsMicrophoneEnabled(newState);
 			
 			console.log(`🎤 マイクを${newState ? '有効化' : '無効化'}しました`);
+			
+			// 参加者の状態も即座に更新
+			setParticipants((prev) => {
+				const newMap = new Map(prev);
+				// ローカル参加者の状態を更新
+				for (const [sessionId, participant] of newMap) {
+					if (participant.local) {
+						newMap.set(sessionId, {
+							...participant,
+							audio: newState
+						});
+						break;
+					}
+				}
+				return newMap;
+			});
 			
 			// 音声状態の変更を他の参加者に確実に伝えるため、少し待ってから状態を再確認
 			setTimeout(() => {
@@ -992,15 +1040,14 @@ export const useDailyConnection = (
 						if (localParticipant.audio !== newState) {
 							console.warn("⚠️ マイク状態の不整合を検出。修正を試行します。");
 							daily.setLocalAudio(newState);
+							// 状態を再設定
+							setIsMicrophoneEnabled(newState);
 						}
-						
-						// デバウンスされた参加者状態更新を使用（一瞬の重複を防ぐ）
-						debouncedParticipantUpdate(localParticipant, 200);
 					}
 				} catch (error) {
 					console.error("❌ マイク状態再確認エラー:", error);
 				}
-			}, 1000);
+			}, 500); // タイムアウトを短縮
 			
 			return newState;
 		} catch (err) {

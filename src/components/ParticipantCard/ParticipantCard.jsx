@@ -24,6 +24,13 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 		backgroundColor: audio ? "#e8f5e8" : "#ffeaea", // 音声ON: 薄緑、OFF: 薄赤
 		borderColor: audio ? "#28a745" : "#dc3545", // ボーダー色も変更
 	};
+	
+	// デバッグログを追加（音声状態の確認）
+	console.log("ParticipantCard audio state:", {
+		user_name,
+		audio,
+		cardColor: audio ? "green" : "red"
+	});
 
 	return (
 		<div style={cardStyle}>
