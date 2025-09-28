@@ -9,6 +9,7 @@ export const useDailyConnection = (
 	roomId,
 	dailyRoomUrl,
 	onParticipantUpdate,
+	members = [],
 ) => {
 	const [daily, setDaily] = useState(null);
 	const [isJoined, setIsJoined] = useState(false);
@@ -21,6 +22,12 @@ export const useDailyConnection = (
 	const durationIntervalRef = useRef(null);
 	const currentUserUid = useUserUid();
 	const participantUpdateTimeoutRef = useRef(null);
+
+	// メンバーデータからphotoURLを取得する関数
+	const getMemberPhotoURL = useCallback((userName, uid) => {
+		const member = members.find(m => m.name === userName || m.uid === uid);
+		return member?.photoURL || null;
+	}, [members]);
 
 	// 通話時間の更新
 	const startDurationTimer = useCallback(() => {
@@ -76,6 +83,21 @@ export const useDailyConnection = (
 				
 				// 参加成功をログに記録
 				console.log("✅ Daily.coルームに正常に参加しました");
+
+				// ローカル参加者のデータにphotoURLを追加
+				setParticipants((prev) => {
+					const newMap = new Map(prev);
+					// 既存の参加者データを更新
+					for (const [sessionId, participant] of newMap) {
+						if (participant.local) {
+							newMap.set(sessionId, {
+								...participant,
+								photoURL: getMemberPhotoURL(participant.user_name, sessionId)
+							});
+						}
+					}
+					return newMap;
+				});
 
 				// 音声トラックの確実な初期化
 				try {
@@ -279,10 +301,14 @@ export const useDailyConnection = (
 					local: event.participant.local
 				});
 				
-				// 参加者を即座に状態管理に追加
+				// 参加者を即座に状態管理に追加（photoURLを含む）
 				setParticipants((prev) => {
 					const newMap = new Map(prev);
-					newMap.set(event.participant.session_id, event.participant);
+					const participantWithPhoto = {
+						...event.participant,
+						photoURL: getMemberPhotoURL(event.participant.user_name, event.participant.session_id)
+					};
+					newMap.set(event.participant.session_id, participantWithPhoto);
 					return newMap;
 				});
 

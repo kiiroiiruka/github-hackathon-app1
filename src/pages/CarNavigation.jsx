@@ -150,6 +150,7 @@ const CarNavigation = () => {
 								roomId={roomId}
 								roomName={roomData?.name || "カーナビルーム"}
 								ownerUid={roomData?.ownerUid || ""}
+								members={members}
 								onCallEnd={handleCallEnd}
 								onCallStateUpdate={handleCallStateUpdate}
 							/>
@@ -161,13 +162,17 @@ const CarNavigation = () => {
 			
 			{/* Audio Call Footer */}
 			<AudioCallFooter
-				participants={callParticipants.length > 0 ? callParticipants : members.map(member => ({
-					session_id: member.uid,
-					user_name: member.name,
-					audio: true, // デフォルトで音声ON
-					photoURL: member.photoURL,
-					local: member.uid === currentUserUid
-				}))}
+				participants={callParticipants.length > 0 ? callParticipants : members.map(member => {
+					// デバッグログを追加
+					console.log("Member data:", member);
+					return {
+						session_id: member.uid,
+						user_name: member.name,
+						audio: true, // デフォルトで音声ON
+						photoURL: member.photoURL,
+						local: member.uid === currentUserUid
+					};
+				})}
 			/>
 		</div>
 	);

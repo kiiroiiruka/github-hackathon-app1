@@ -1,7 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 
 const ParticipantCard = ({ participant, isLocal = false }) => {
 	const { user_name, audio, photoURL, uid } = participant;
+	const [imageError, setImageError] = useState(false);
+	
+	// デバッグログを追加
+	console.log("ParticipantCard Debug:", {
+		user_name,
+		photoURL,
+		uid,
+		isLocal,
+		participant
+	});
 	
 	// ユーザー名が長すぎる場合は省略
 	const displayName = user_name && user_name.length > 8 
@@ -28,11 +38,15 @@ const ParticipantCard = ({ participant, isLocal = false }) => {
 			
 			{/* プロフィール画像 */}
 			<div style={styles.profileImage}>
-				{photoURL ? (
+				{photoURL && !imageError ? (
 					<img
 						src={photoURL}
 						alt={user_name || "User"}
 						style={styles.profileImg}
+						onError={() => {
+							console.log("Image load error for:", photoURL);
+							setImageError(true);
+						}}
 					/>
 				) : (
 					<div style={styles.defaultAvatar}>

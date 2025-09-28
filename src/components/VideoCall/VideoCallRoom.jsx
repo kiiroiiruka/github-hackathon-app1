@@ -11,7 +11,7 @@ import { useDailyConnection } from "@/hooks/useDailyConnection";
 import { useParticipantManager } from "@/hooks/useParticipantManager";
 import { useUserUid } from "@/hooks/useUserUid";
 
-const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd, onCallStateUpdate }) => {
+const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallStateUpdate }) => {
 	const iframeRef = useRef(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState(null);
@@ -42,7 +42,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, onCallEnd, onCallStateUpdat
 		leaveRoom,
 		destroyDaily,
 		toggleMicrophone,
-	} = useDailyConnection(roomId, dailyRoomUrl, handleParticipantUpdate);
+	} = useDailyConnection(roomId, dailyRoomUrl, handleParticipantUpdate, members);
 
 	// 通話時間の定期更新
 	useEffect(() => {
