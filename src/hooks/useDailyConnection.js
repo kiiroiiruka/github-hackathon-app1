@@ -121,17 +121,53 @@ export const useDailyConnection = (
 					console.warn("⚠️ 参加者の音声がオフです:", event.participant.user_name);
 					console.warn("💡 参加者がブラウザでマイクを許可していない可能性があります");
 					
-					// リモート参加者の音声を有効にする試み
-					setTimeout(() => {
-						try {
-							console.log("🔄 リモート参加者の音声を有効にしようとしています...");
-							// 注意: リモート参加者の音声は直接制御できません
-							// これは参加者自身がマイクを許可する必要があります
-							console.log("💡 リモート参加者にマイクの許可を促してください");
-						} catch (error) {
-							console.error("❌ リモート参加者の音声有効化エラー:", error);
+					// リモート参加者の音声状態を継続的に監視
+					const monitorAudioState = (attempts = 0) => {
+						if (attempts >= 10) {
+							console.log("🔄 音声状態の監視を終了しました");
+							return;
 						}
-					}, 3000);
+						
+						setTimeout(() => {
+							try {
+								const currentParticipants = callObject.participants();
+								const currentParticipant = currentParticipants[event.participant.session_id];
+								
+								if (currentParticipant) {
+									console.log(`🔍 音声状態チェック (${attempts + 1}/10):`, {
+										user_name: currentParticipant.user_name,
+										audio: currentParticipant.audio,
+										video: currentParticipant.video
+									});
+									
+									// 音声が有効になった場合
+									if (currentParticipant.audio) {
+										console.log("✅ 参加者の音声が有効になりました！");
+										return;
+									}
+									
+									// まだ無効な場合、再試行
+									if (attempts < 9) {
+										monitorAudioState(attempts + 1);
+									} else {
+										console.log("💡 リモート参加者にマイクの許可を促してください");
+										console.log("📋 確認事項:");
+										console.log("   1. ブラウザのアドレスバー横のマイクアイコンをクリック");
+										console.log("   2. マイクの許可を選択");
+										console.log("   3. 他のアプリでマイクを使用していないか確認");
+									}
+								}
+							} catch (error) {
+								console.error("❌ 音声状態監視エラー:", error);
+								if (attempts < 9) {
+									monitorAudioState(attempts + 1);
+								}
+							}
+						}, 3000 * (attempts + 1)); // 試行間隔を徐々に増やす
+					};
+					
+					// 音声状態の監視を開始
+					monitorAudioState();
 				}
 				
 				setParticipants((prev) => {
@@ -218,17 +254,49 @@ export const useDailyConnection = (
 							console.warn("   2. マイクが他のアプリで使用されていないか確認");
 							console.warn("   3. ブラウザの音声設定を確認");
 							
-							// 音声トラックの有効化を試行（3秒後に再試行）
-							setTimeout(() => {
-								try {
-									console.log("🔄 リモート参加者の音声トラックを有効化しようとしています...");
-									// 注意: リモート参加者の音声は直接制御できません
-									// これは参加者自身がマイクを許可する必要があります
-									console.log("💡 リモート参加者にマイクの許可を促してください");
-								} catch (error) {
-									console.error("❌ リモート参加者の音声有効化エラー:", error);
+							// 音声トラックの有効化を複数回試行
+							const tryEnableAudio = (attempts = 0) => {
+								if (attempts >= 5) {
+									console.log("🔄 音声トラック有効化の再試行を終了しました");
+									return;
 								}
-							}, 3000);
+								
+								setTimeout(() => {
+									try {
+										console.log(`🔄 リモート参加者の音声トラック有効化を試行中... (試行 ${attempts + 1}/5)`);
+										
+										// 音声トラックの状態を再確認
+										if (event.track && event.track.readyState === 'live') {
+											console.log("📊 現在の音声トラック状態:", {
+												enabled: event.track.enabled,
+												muted: event.track.muted,
+												readyState: event.track.readyState
+											});
+											
+											// 音声トラックが有効になった場合
+											if (event.track.enabled) {
+												console.log("✅ 音声トラックが有効になりました！");
+												return;
+											}
+										}
+										
+										// まだ無効な場合、再試行
+										if (attempts < 4) {
+											tryEnableAudio(attempts + 1);
+										} else {
+											console.log("💡 リモート参加者にマイクの許可を促してください");
+										}
+									} catch (error) {
+										console.error("❌ リモート参加者の音声有効化エラー:", error);
+										if (attempts < 4) {
+											tryEnableAudio(attempts + 1);
+										}
+									}
+								}, 2000 * (attempts + 1)); // 試行間隔を徐々に増やす
+							};
+							
+							// 初回試行を開始
+							tryEnableAudio();
 						} else {
 							console.log("✅ リモート参加者の音声トラックが有効です");
 							console.log("💡 もし音声が聞こえない場合：");
@@ -311,6 +379,8 @@ export const useDailyConnection = (
 					setError(
 						"マイクのアクセス許可が必要です。ブラウザの設定でマイクを許可してください。",
 					);
+					// トラブルシューティングガイドを表示
+					showAudioTroubleshootingGuide();
 				} else if (event.error?.includes("network") || event.error?.includes("connection")) {
 					console.error("🌐 ネットワークエラー:", event.error);
 					setError("ネットワーク接続に問題があります。インターネット接続を確認してください。");
@@ -335,6 +405,28 @@ export const useDailyConnection = (
 		onParticipantUpdate,
 		currentUserUid,
 	]);
+
+	// 音声トラブルシューティングガイドを表示
+	const showAudioTroubleshootingGuide = useCallback(() => {
+		console.log("🔧 音声通話トラブルシューティングガイド:");
+		console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+		console.log("🎤 マイクの問題:");
+		console.log("   1. ブラウザのアドレスバー横の🔒アイコンをクリック");
+		console.log("   2. マイクの許可を「許可」に設定");
+		console.log("   3. ページを再読み込み");
+		console.log("");
+		console.log("🔊 音声が聞こえない場合:");
+		console.log("   1. システムの音量を確認");
+		console.log("   2. ブラウザの音量を確認");
+		console.log("   3. ヘッドフォン/スピーカーの接続を確認");
+		console.log("   4. 他のアプリで音声が再生されるかテスト");
+		console.log("");
+		console.log("🌐 ネットワークの問題:");
+		console.log("   1. インターネット接続を確認");
+		console.log("   2. VPNを使用している場合は一時的に無効化");
+		console.log("   3. ファイアウォール設定を確認");
+		console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+	}, []);
 
 	// Daily.coインスタンスの初期化（簡素化）
 	const initializeDaily = useCallback(async () => {
@@ -488,5 +580,6 @@ export const useDailyConnection = (
 		joinRoom,
 		leaveRoom,
 		destroyDaily,
+		showAudioTroubleshootingGuide,
 	};
 };
