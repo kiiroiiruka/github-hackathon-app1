@@ -243,7 +243,6 @@ const styles = {
 		backgroundColor: "#f8f9fa",
 		borderRadius: "8px",
 		padding: "6px",
-		marginRight: "6px",
 		display: "flex",
 		flexDirection: "column",
 		alignItems: "center",
@@ -251,6 +250,7 @@ const styles = {
 		position: "relative",
 		border: "1px solid #e9ecef",
 		boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+		flexShrink: 0,
 	},
 	micIcon: {
 		position: "absolute",

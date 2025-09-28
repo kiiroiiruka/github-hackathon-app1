@@ -75,6 +75,7 @@ const styles = {
 		zIndex: 1000,
 		transition: "height 0.3s ease",
 		padding: "8px 12px",
+		paddingBottom: "14px",
 	},
 	collapseButton: {
 		position: "absolute",
@@ -108,24 +109,31 @@ const styles = {
 		transition: "transform 0.3s ease",
 	},
 	participantsSection: {
-		marginBottom: "6px",
+		marginBottom: "2px",
 	},
 	participantsLabel: {
-		fontSize: "12px",
+		fontSize: "11px",
 		fontWeight: "600",
 		color: "#495057",
-		marginBottom: "6px",
+		marginBottom: "2px",
+		lineHeight: "1.2",
 	},
 	cardsContainer: {
 		overflowX: "auto",
 		overflowY: "hidden",
 		scrollbarWidth: "thin",
+		marginLeft: "-12px",
+		marginRight: "-12px",
+		paddingLeft: "12px",
+		paddingRight: "12px",
 	},
 	cardsScroll: {
 		display: "flex",
 		flexDirection: "row",
 		gap: "6px",
 		paddingBottom: "2px",
+		minWidth: "fit-content",
+		marginBottom: "2px",
 	},
 };
 
