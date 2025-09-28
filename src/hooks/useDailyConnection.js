@@ -105,6 +105,32 @@ export const useDailyConnection = (
 								});
 								setIsMicrophoneEnabled(localParticipant.audio);
 							}
+							
+							// 参加者の状態を同期（UIの更新を確実にするため）
+							setParticipants((prev) => {
+								const newMap = new Map();
+								Object.entries(participants).forEach(([id, participant]) => {
+									newMap.set(id, participant);
+								});
+								
+								// 前の状態と比較して変更があった場合のみ更新
+								let hasChanges = false;
+								if (prev.size !== newMap.size) {
+									hasChanges = true;
+								} else {
+									for (const [id, participant] of newMap) {
+										const prevParticipant = prev.get(id);
+										if (!prevParticipant || 
+											prevParticipant.audio !== participant.audio ||
+											prevParticipant.video !== participant.video) {
+											hasChanges = true;
+											break;
+										}
+									}
+								}
+								
+								return hasChanges ? newMap : prev;
+							});
 						} catch (error) {
 							console.error("❌ 音声状態監視エラー:", error);
 						}
@@ -171,29 +197,8 @@ export const useDailyConnection = (
 									if (currentParticipant.audio) {
 										console.log("✅ 参加者の音声が有効になりました！");
 										
-										// 音声トラックの詳細確認
-										setTimeout(() => {
-											try {
-												const tracks = callObject.getTracks();
-												const audioTracks = tracks.filter(track => 
-													track.kind === 'audio' && 
-													track.participantId === event.participant.session_id
-												);
-												
-												if (audioTracks.length > 0) {
-													const audioTrack = audioTracks[0];
-													console.log("🎵 音声トラックの詳細:", {
-														trackId: audioTrack.id,
-														enabled: audioTrack.enabled,
-														muted: audioTrack.muted,
-														readyState: audioTrack.readyState,
-														kind: audioTrack.kind
-													});
-												}
-											} catch (error) {
-												console.error("❌ 音声トラック詳細取得エラー:", error);
-											}
-										}, 1000);
+										// 音声トラックの詳細確認（Daily.coのtrack-startedイベントで処理される）
+										console.log("🎵 音声トラックの詳細は track-started イベントで確認されます");
 										
 										return;
 									}
@@ -251,6 +256,29 @@ export const useDailyConnection = (
 					});
 				}
 			})
+			.on("participant-updated", (event) => {
+				console.log("🔄 Participant updated:", {
+					session_id: event.participant.session_id,
+					user_name: event.participant.user_name,
+					audio: event.participant.audio,
+					video: event.participant.video,
+					local: event.participant.local
+				});
+				
+				// 参加者の状態を更新
+				setParticipants((prev) => {
+					const newMap = new Map(prev);
+					newMap.set(event.participant.session_id, event.participant);
+					return newMap;
+				});
+
+				if (onParticipantUpdate) {
+					onParticipantUpdate({
+						type: "participant-updated",
+						participant: event.participant,
+					});
+				}
+			})
 			.on("camera-error", (event) => {
 				console.warn("Camera error (expected for audio-only):", event);
 				// カメラエラーは音声のみモードでは無視
@@ -271,6 +299,15 @@ export const useDailyConnection = (
 						muted: event.track.muted,
 						readyState: event.track.readyState
 					});
+					
+					// 参加者の状態を更新してUIに反映
+					if (event.participant) {
+						setParticipants((prev) => {
+							const newMap = new Map(prev);
+							newMap.set(event.participant.session_id, event.participant);
+							return newMap;
+						});
+					}
 					
 					// 音声トラックの安定性を監視
 					setTimeout(() => {
@@ -660,6 +697,16 @@ export const useDailyConnection = (
 			
 			console.log(`🎤 マイクを${newState ? '有効化' : '無効化'}しました`);
 			
+			// 参加者の状態を即座に更新
+			setParticipants((prev) => {
+				const newMap = new Map(prev);
+				const currentParticipants = daily.participants();
+				Object.entries(currentParticipants).forEach(([id, participant]) => {
+					newMap.set(id, participant);
+				});
+				return newMap;
+			});
+			
 			// 音声状態の変更を他の参加者に確実に伝えるため、少し待ってから状態を再確認
 			setTimeout(() => {
 				try {
@@ -679,6 +726,13 @@ export const useDailyConnection = (
 							console.warn("⚠️ マイク状態の不整合を検出。修正を試行します。");
 							daily.setLocalAudio(newState);
 						}
+						
+						// 参加者の状態を再度更新
+						setParticipants((prev) => {
+							const newMap = new Map(prev);
+							newMap.set(localParticipant.session_id, localParticipant);
+							return newMap;
+						});
 					}
 				} catch (error) {
 					console.error("❌ マイク状態再確認エラー:", error);
