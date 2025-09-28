@@ -109,10 +109,10 @@ const FriendPage = () => {
 										className="w-10 h-10 rounded-full mb-1 border"
 										fallbackText={friend.name?.charAt(0) || "?"}
 									/>
-									<p className="font-medium truncate text-xs w-full text-center px-1">{friend.name}</p>
+									<p className="font-medium truncate text-xs w-full text-center px-1" title={friend.name}>{friend.name}</p>
 								</button>
 								{friend.message && !friend.uid?.startsWith("dummy_") && (
-									<p className="text-xs text-blue-600 mt-1 italic truncate w-full text-center px-1">"{friend.message}"</p>
+									<p className="text-xs text-blue-600 mt-1 italic truncate w-full text-center px-1" title={friend.message}>"{friend.message}"</p>
 								)}
 							</div>
 						)}
@@ -139,9 +139,9 @@ const FriendPage = () => {
 									className="w-10 h-10 rounded-full mb-1 border"
 									fallbackText={friend.name?.charAt(0) || "?"}
 								/>
-								<p className="font-medium truncate text-xs w-full text-center px-1">{friend.name}</p>
+								<p className="font-medium truncate text-xs w-full text-center px-1" title={friend.name}>{friend.name}</p>
 								{friend.message && !friend.uid?.startsWith("dummy_") && (
-									<p className="text-xs text-blue-600 mt-1 italic truncate w-full text-center px-1">あなたのメッセージ: "{friend.message}"</p>
+									<p className="text-xs text-blue-600 mt-1 italic truncate w-full text-center px-1" title={`あなたのメッセージ: "${friend.message}"`}>あなたのメッセージ: "{friend.message}"</p>
 								)}
 								<span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded mt-1">承認待ち</span>
 							</div>

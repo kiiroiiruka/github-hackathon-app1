@@ -17,7 +17,6 @@ import RouteScreen from "./dashboard/navi/RouteScreen";
 import RouteSelect from "./dashboard/navi/RouteSelect";
 import TryPage from "./dashboard/navi/TryPage";
 import Confirmation from "./dashboard/navi/Confirmation";
-import Approval from "./dashboard/navi/Approval";
 import ParkingScreen from "./dashboard/parking";
 import ParkingDetail from "./dashboard/parking/Detail";
 import Parkinginput from "./dashboard/parking/input";
@@ -173,7 +172,6 @@ const Dashboard = () => {
                     <Route path="navi/route-screen" element={<RouteScreen />} />
                     <Route path="navi/purlieu-location" element={<PurlieuLocation />} />
                     <Route path="navi/confirmation" element={<Confirmation />} />
-                    <Route path="navi/approval" element={<Approval />} />
                     <Route path="navi/room" element={<RoomCreat />} />
                     <Route path="friends" element={<FriendsAddScreen />} />
                     <Route path="UserInformation" element={<UserInformation />} />

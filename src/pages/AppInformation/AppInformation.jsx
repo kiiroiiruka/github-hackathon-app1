@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import HeaderComponent2 from "@/components/Header/Header2";
+import PageLayout from "@/components/layout/PageLayout";
 
 const AppInformation = () => {
 	const navigate = useNavigate();
@@ -10,12 +10,8 @@ const AppInformation = () => {
 	};
 
 	return (
-		<div>
-			<HeaderComponent2 
-				title="アプリ情報" 
-				onBackClick={handleBackClick}
-			/>
-			<div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
+		<PageLayout title="アプリ情報" headerProps={{ onBack: handleBackClick }}>
+			<div className="max-w-2xl mx-auto">
 				{/* アプリ情報カード */}
 				<div className="bg-white rounded-lg shadow-md p-6 mb-6">
 					<h2 className="text-xl font-bold text-center mb-4">アプリ情報</h2>
@@ -90,18 +86,8 @@ const AppInformation = () => {
 					</div>
 				</div>
 
-				{/* 戻るボタン */}
-				<div className="flex justify-center">
-					<button
-						type="button"
-						onClick={handleBackClick}
-						className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded transition-colors"
-					>
-						戻る
-					</button>
-				</div>
 			</div>
-		</div>
+		</PageLayout>
 	);
 };
 

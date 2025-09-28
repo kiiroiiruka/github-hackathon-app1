@@ -14,14 +14,6 @@ const FriendListItem = ({ friend, isSelected, onToggle }) => (
     }`}
     onClick={() => onToggle(friend)}
   >
-    {isSelected && (
-      <div className="absolute top-2 right-2">
-        <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-          <span className="text-blue-500 text-sm">✓</span>
-        </div>
-      </div>
-    )}
-    
     <FriendAvatar friend={friend} size="w-12 h-12" isSelected={isSelected} />
     
     <div className="flex-1">

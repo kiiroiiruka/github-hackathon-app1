@@ -3,6 +3,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, rtdb } from "@/firebase";
 import HeaderComponent2 from "@/components/Header/Header2";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import EmptyState from "@/components/ui/EmptyState";
 import ProfileImage from "@/components/ui/ProfileImage";
 
 const HomeScreen = () => {
@@ -21,35 +25,69 @@ const HomeScreen = () => {
 		if (!currentUser) {
 			setInvitedRooms([]);
 			setOwnedRooms([]);
+			setSelectedRoom(null);
+			localStorage.removeItem('selectedRoom');
 			setLoading(false);
 			return;
 		}
 
-		const roomsRef = ref(rtdb, "rooms");
-		const unsubscribe = onValue(
-			roomsRef,
-			(snapshot) => {
-				const value = snapshot.val() || {};
-				const list = Object.entries(value).map(([roomId, room]) => ({
-					roomId,
-					...room,
-				}));
-				const invited = list.filter(
-					(room) =>
-						room?.members?.[currentUser.uid] &&
-						room.members[currentUser.uid].invited &&
-						!room.members[currentUser.uid].accepted,
-				);
-				const owned = list.filter((room) => room?.ownerUid === currentUser.uid);
-				setInvitedRooms(invited);
-				setOwnedRooms(owned);
-				setLoading(false);
-			},
-			() => setLoading(false),
-		);
+		// Firebase接続の安全性チェック
+		if (!rtdb) {
+			console.error("Firebase Realtime Database が初期化されていません");
+			setLoading(false);
+			return;
+		}
 
-		return () => unsubscribe();
-	}, []);
+		let unsubscribe;
+		try {
+			const roomsRef = ref(rtdb, "rooms");
+			unsubscribe = onValue(
+				roomsRef,
+				(snapshot) => {
+					try {
+						const value = snapshot.val() || {};
+						const list = Object.entries(value).map(([roomId, room]) => ({
+							roomId,
+							...room,
+						}));
+						const invited = list.filter(
+							(room) =>
+								room?.members?.[currentUser.uid] &&
+								room.members[currentUser.uid].invited &&
+								!room.members[currentUser.uid].accepted,
+						);
+						const owned = list.filter((room) => room?.ownerUid === currentUser.uid);
+						setInvitedRooms(invited);
+						setOwnedRooms(owned);
+						
+						// 選択中のルームが存在しない場合はクリア
+						if (selectedRoom && !list.find(room => room.roomId === selectedRoom.roomId)) {
+							setSelectedRoom(null);
+							localStorage.removeItem('selectedRoom');
+						}
+						
+						setLoading(false);
+					} catch (error) {
+						console.error("ルームデータの処理中にエラーが発生:", error);
+						setLoading(false);
+					}
+				},
+				(error) => {
+					console.error("Firebase Realtime Database エラー:", error);
+					setLoading(false);
+				}
+			);
+		} catch (error) {
+			console.error("Firebase参照の作成中にエラーが発生:", error);
+			setLoading(false);
+		}
+
+		return () => {
+			if (unsubscribe) {
+				unsubscribe();
+			}
+		};
+	}, [selectedRoom]);
 
 	const handleAccept = async (roomId) => {
 		const currentUser = auth.currentUser;
@@ -84,69 +122,76 @@ const HomeScreen = () => {
 	};
 
 	return (
-		<div>
-			<HeaderComponent2 title="ホーム" onUserIconClick={handleUserIconClick} />
-			<div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
-				{/* フレンドボタン */}
-				<div className="mb-6">
-					<button
-						type="button"
-						onClick={handleFriendClick}
-						className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-3"
-					>
-						<span className="text-2xl">👥</span>
-						<span className="text-lg">フレンド</span>
-					</button>
-				</div>
+		<div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+			<HeaderComponent2 
+				title="ホーム" 
+				onUserIconClick={handleUserIconClick}
+			/>
+			<div className="px-4 py-6" style={{ paddingTop: "100px" }}>
+				<div className="max-w-2xl mx-auto">
+			{/* フレンドボタン */}
+			<div className="mb-6">
+				<Button
+					onClick={handleFriendClick}
+					variant="primary"
+					size="lg"
+					className="w-full"
+					icon="👥"
+				>
+					フレンド
+				</Button>
+			</div>
 
-				{/* 作成・招待されたルーム */}
-				<div className="bg-white rounded-lg shadow-md p-3 mb-4">
-					<h2 className="text-lg font-semibold mb-3 text-gray-800">作成・招待されたルーム</h2>
-					{loading ? (
-						<div className="flex items-center justify-center py-8">
-							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-							<span className="ml-3 text-gray-600">読み込み中...</span>
-						</div>
-					) : invitedRooms.length === 0 && ownedRooms.length === 0 ? (
-						<div className="text-center py-8">
-							<div className="text-6xl mb-4">🏠</div>
-							<p className="text-gray-600 text-lg">ルームがありません</p>
-							<p className="text-gray-500 text-sm mt-2">ルームを作成するか、招待を待ちましょう</p>
-						</div>
-					) : (
-						<div className="max-h-60 overflow-y-auto space-y-2">
-							{/* 招待されたルーム */}
-							{invitedRooms.map((room) => (
-								<button
-									key={room.roomId}
-									type="button"
-									onClick={() => handleRoomSelect(room)}
-									className={`w-full text-left border border-gray-200 rounded-lg p-2 transition-all duration-200 hover:shadow-md ${
-										selectedRoom?.roomId === room.roomId 
-											? 'bg-blue-100 border-blue-300 shadow-md' 
-											: 'bg-gradient-to-r from-blue-50 to-indigo-50'
-									}`}
-								>
-									<div className="flex items-start gap-2">
-										<div className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm flex-shrink-0">
-											<ProfileImage 
-												src={room.ownerPhotoURL} 
-												alt={room.ownerName || "owner"} 
-												className="w-8 h-8 rounded-full" 
-												fallbackText={room.ownerName?.charAt(0) || "?"} 
-											/>
+			{/* 作成・招待されたルーム */}
+			<Card className="mb-6">
+				<h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+					<span>🏠</span>
+					作成・招待されたルーム
+				</h2>
+				{loading ? (
+					<LoadingSpinner text="ルームを読み込み中..." />
+				) : invitedRooms.length === 0 && ownedRooms.length === 0 ? (
+					<EmptyState 
+						icon="🏠"
+						title="ルームがありません"
+						description="ルームを作成するか、招待を待ちましょう"
+						actionLabel="ルームを作成"
+						actionOnClick={() => navigate("/dashboard/navi")}
+					/>
+				) : (
+					<div className="max-h-60 overflow-y-auto space-y-3">
+						{/* 招待されたルーム */}
+						{invitedRooms.map((room) => (
+							<button
+								key={room.roomId}
+								type="button"
+								onClick={() => handleRoomSelect(room)}
+								className={`w-full text-left border-2 rounded-lg p-4 transition-all duration-200 hover:shadow-md ${
+									selectedRoom?.roomId === room.roomId 
+										? 'bg-blue-50 border-blue-300 shadow-md' 
+										: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:border-blue-300'
+								}`}
+							>
+								<div className="flex items-start gap-3">
+									<div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
+										<ProfileImage 
+											src={room.ownerPhotoURL} 
+											alt={room.ownerName || "owner"} 
+											className="w-10 h-10 rounded-full" 
+											fallbackText={room.ownerName?.charAt(0) || "?"} 
+										/>
+									</div>
+									<div className="flex-1 min-w-0">
+										<div className="flex items-center gap-2 mb-2">
+											<h3 className="font-semibold text-base text-gray-800 break-words">{room.name || "(名称未設定)"}</h3>
+											<span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+												招待中
+											</span>
 										</div>
-										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-2 mb-1">
-												<h3 className="font-medium text-sm text-gray-800 break-words">{room.name || "(名称未設定)"}</h3>
-												<span className="inline-block bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-xs font-medium">
-													招待中
-												</span>
-											</div>
-											<div className="text-xs text-gray-600">
-												<p>作成者: {room.ownerName || "(名称未設定)"}</p>
-											</div>
+										<div className="text-sm text-gray-600">
+											<p>作成者: {room.ownerName || "(名称未設定)"}</p>
 										</div>
+									</div>
 									</div>
 								</button>
 							))}
@@ -183,12 +228,12 @@ const HomeScreen = () => {
 									</div>
 								</button>
 							))}
-						</div>
-					)}
-				</div>
+					</div>
+				)}
+			</Card>
 
-				{/* 選択中のルーム詳細 */}
-				{selectedRoom && (
+			{/* 選択中のルーム詳細 */}
+			{selectedRoom && (invitedRooms.length > 0 || ownedRooms.length > 0) && (
 					<div className="bg-white rounded-lg shadow-md p-3 sm:p-6 mb-6">
 						<h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-800">選択中のルーム</h2>
 						<div className="bg-gray-50 rounded-lg p-3 sm:p-4">
@@ -259,7 +304,8 @@ const HomeScreen = () => {
 							</div>
 						</div>
 					</div>
-				)}
+			)}
+				</div>
 			</div>
 		</div>
 	);

@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import HeaderComponent from "../../../components/Header/Header";
+import PageLayout from "../../../components/layout/PageLayout";
+import Card from "../../../components/ui/Card";
+import Button from "../../../components/ui/Button";
+import LoadingSpinner from "../../../components/ui/LoadingSpinner";
+import EmptyState from "../../../components/ui/EmptyState";
 import { getLatestParkingInfo } from "../../../firebase/parkingget";
 
 // Leaflet関連
@@ -53,17 +57,21 @@ const ParkingInfoDisplay = () => {
   const [nowPosition, setNowPosition] = useState(null);
   const [timeDiff, setTimeDiff] = useState("");
   const [walkingTime, setWalkingTime] = useState("");
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   // Firestoreから最新の駐車情報を取得
   useEffect(() => {
     const fetchParkingInfo = async () => {
       try {
+        setLoading(true);
         const info = await getLatestParkingInfo();
         setParkingInfo(info);
       } catch (e) {
         alert("駐車情報の取得に失敗しました: " + e.message);
         console.error(e);
+      } finally {
+        setLoading(false);
       }
     };
     fetchParkingInfo();
@@ -139,72 +147,122 @@ const ParkingInfoDisplay = () => {
   };
 
   return (
-    <div>
-      <HeaderComponent title="駐車場情報" />
-
-      <div
-        className="flex flex-col items-center justify-start min-h-[calc(100vh-88px)]"
-        style={{ paddingTop: "88px" }}
-      >
-        <div className="mb-4 w-full max-w-xs text-center">
-          {parkingInfo ? (
-            <>
-              <div className="text-base font-semibold text-blue-700 mb-2">
-                駐車日時:{" "}
-                {parkingInfo.arrivalTime
-                  ? new Date(parkingInfo.arrivalTime).toLocaleString("ja-JP")
-                  : "未設定"}
-              </div>
-              <div className="text-base text-blue-600 mb-2">
-                出発予定:{" "}
-                {parkingInfo.departureTime
-                  ? new Date(parkingInfo.departureTime).toLocaleString("ja-JP")
-                  : "未設定"}
-              </div>
-              {timeDiff && (
-                <div className="text-base text-green-700 mb-2">
-                  出発までの時間: {timeDiff}
-                </div>
-              )}
-              {walkingTime && (
-                <div className="text-base text-purple-700 mb-2">
-                  {walkingTime}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-gray-500">駐車情報がありません</div>
-          )}
-        </div>
-
-        {/* 地図（ルート表示） */}
-        {nowPosition && parkingInfo?.position && (
-          <div className="mb-6 w-full max-w-xs h-64">
-            <MapContainer
-              center={nowPosition}
-              zoom={14}
-              style={{ height: "100%", width: "100%" }}
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
-              />
-              <Marker position={nowPosition} />
-              <Marker position={parkingInfo.position} />
-              <RoutingControl from={nowPosition} to={parkingInfo.position} />
-            </MapContainer>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={handleGoInput}
-          className="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-        >
-          入力ページへ
-        </button>
+    <PageLayout title="駐車場情報">
+      {/* タイトルセクション */}
+      <div className="text-center mb-8">
+        <div className="text-6xl mb-4">🚗</div>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">駐車場情報</h1>
+        <p className="text-gray-600">現在の駐車状況と位置情報を確認できます</p>
       </div>
-    </div>
+
+      {loading ? (
+        <LoadingSpinner text="駐車情報を読み込み中..." />
+      ) : parkingInfo ? (
+        <>
+          {/* 駐車情報カード */}
+          <Card className="mb-6">
+            <div className="text-center mb-6">
+              <div className="text-4xl mb-4">📍</div>
+              <h2 className="text-xl font-bold text-gray-800 mb-4">駐車情報</h2>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                <span className="text-2xl">🕐</span>
+                <div>
+                  <div className="font-semibold text-blue-800">駐車日時</div>
+                  <div className="text-blue-700">
+                    {parkingInfo.arrivalTime
+                      ? new Date(parkingInfo.arrivalTime).toLocaleString("ja-JP")
+                      : "未設定"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                <span className="text-2xl">🚀</span>
+                <div>
+                  <div className="font-semibold text-green-800">出発予定</div>
+                  <div className="text-green-700">
+                    {parkingInfo.departureTime
+                      ? new Date(parkingInfo.departureTime).toLocaleString("ja-JP")
+                      : "未設定"}
+                  </div>
+                </div>
+              </div>
+
+              {timeDiff && (
+                <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
+                  <span className="text-2xl">⏰</span>
+                  <div>
+                    <div className="font-semibold text-yellow-800">出発までの時間</div>
+                    <div className="text-yellow-700">{timeDiff}</div>
+                  </div>
+                </div>
+              )}
+
+              {walkingTime && (
+                <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+                  <span className="text-2xl">🚶</span>
+                  <div>
+                    <div className="font-semibold text-purple-800">現在地からの距離</div>
+                    <div className="text-purple-700">{walkingTime}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* 地図カード */}
+          {nowPosition && parkingInfo?.position && (
+            <Card className="mb-6">
+              <div className="text-center mb-4">
+                <div className="text-4xl mb-2">🗺️</div>
+                <h2 className="text-xl font-bold text-gray-800">位置情報</h2>
+                <p className="text-gray-600 text-sm">現在地から駐車場へのルート</p>
+              </div>
+              
+              <div className="h-64 rounded-lg overflow-hidden shadow-md">
+                <MapContainer
+                  center={nowPosition}
+                  zoom={14}
+                  style={{ height: "100%", width: "100%" }}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+                  />
+                  <Marker position={nowPosition} />
+                  <Marker position={parkingInfo.position} />
+                  <RoutingControl from={nowPosition} to={parkingInfo.position} />
+                </MapContainer>
+              </div>
+            </Card>
+          )}
+
+          {/* アクションボタン */}
+          <div className="space-y-4">
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full"
+              onClick={handleGoInput}
+              icon="✏️"
+            >
+              駐車情報を編集
+            </Button>
+          </div>
+        </>
+      ) : (
+        <EmptyState
+          icon="🚗"
+          title="駐車情報がありません"
+          description="駐車場の情報を登録して、位置情報を管理しましょう"
+          actionLabel="駐車情報を登録"
+          actionOnClick={handleGoInput}
+        />
+      )}
+    </PageLayout>
   );
 };
 

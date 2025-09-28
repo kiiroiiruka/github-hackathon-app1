@@ -1,6 +1,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import HeaderComponent from "../../../components/Header/Header";
-import ActionButton from "../../../components/RoomCreation/ActionButton";
+import PageLayout from "../../../components/layout/PageLayout";
+import Card from "../../../components/ui/Card";
+import Button from "../../../components/ui/Button";
+import { createRoomWithInvites } from "../../../firebase/room";
 
 const Confirmation = () => {
   const navigate = useNavigate();
@@ -16,25 +18,22 @@ const Confirmation = () => {
   console.log("Confirmation - selectedDeparture:", selectedDeparture);
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-indigo-100">
-      <HeaderComponent title="通信" />
-      <div className="px-4 py-6">
-        <div className="max-w-lg mx-auto">
-          {/* 成功メッセージ */}
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">✅</div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
-              ルーム作成完了！
-            </h1>
-            <p className="text-gray-600">
-              ルームが正常に作成されました
-            </p>
-          </div>
+    <PageLayout title="ルーム情報の再チェック">
+      {/* 確認メッセージ */}
+      <div className="text-center mb-8">
+        <div className="text-6xl mb-4">📋</div>
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          ルーム情報の再チェック
+        </h1>
+        <p className="text-gray-600">
+          作成するルームの情報を確認してください
+        </p>
+      </div>
 
-          {/* ルーム情報 */}
-          <div className="bg-white rounded-xl p-6 shadow-lg mb-6">
+      {/* ルーム情報 */}
+      <Card className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">
-              🏠 作成されたルーム
+              🏠 作成予定のルーム
             </h2>
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -43,7 +42,7 @@ const Confirmation = () => {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-blue-500 font-medium">ルームID:</span>
-                <span className="text-gray-600 text-sm font-mono bg-gray-100 px-2 py-1 rounded">{roomId || "不明"}</span>
+                <span className="text-gray-600 text-sm font-mono bg-gray-100 px-2 py-1 rounded">作成後に表示されます</span>
               </div>
               
               {/* ルート情報 */}
@@ -105,95 +104,101 @@ const Confirmation = () => {
                 </div>
               )}
             </div>
-          </div>
+      </Card>
 
-          {/* アクションボタン */}
-          <div className="space-y-4">
-            {/* ルート確認ボタン */}
-            <ActionButton
-              onClick={() => navigate("/dashboard/navi/route-screen", {
-                state: { 
-                  roomId, 
-                  roomName,
-                  destination: selectedLocation?.coordinates,
-                  destinationName: selectedLocation?.name,
-                  departure: selectedDeparture?.coordinates,
-                  departureName: selectedDeparture?.name,
-                  selectedDeparture,
-                  selectedLocation,
-                  selectedFriends
-                }
-              })}
-              disabled={!selectedLocation}
-            >
-              <span className="flex items-center justify-center gap-3">
-                <span className="text-2xl">🗺️</span>
-                {selectedLocation ? (
-                  <div className="text-center">
-                    <div>ルートを確認する</div>
-                    {selectedDeparture && (
-                      <div className="text-sm opacity-90">出発地→目的地のルートを表示</div>
-                    )}
-                  </div>
-                ) : (
-                  "目的地が設定されていません"
-                )}
-              </span>
-            </ActionButton>
+      {/* アクションボタン */}
+      <div className="space-y-4">
+        {/* ルート確認ボタン */}
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          onClick={() => navigate("/dashboard/navi/route-screen", {
+            state: { 
+              roomId, 
+              roomName,
+              destination: selectedLocation?.coordinates,
+              destinationName: selectedLocation?.name,
+              departure: selectedDeparture?.coordinates,
+              departureName: selectedDeparture?.name,
+              selectedDeparture,
+              selectedLocation,
+              selectedFriends
+            }
+          })}
+          disabled={!selectedLocation}
+          icon="🗺️"
+        >
+          {selectedLocation ? (
+            <div className="text-center">
+              <div>ルートを確認する</div>
+              {selectedDeparture && (
+                <div className="text-sm opacity-90">出発地→目的地のルートを表示</div>
+              )}
+            </div>
+          ) : (
+            "目的地が設定されていません"
+          )}
+        </Button>
 
-            {/* ルーム編集ボタン */}
-            <ActionButton
-              variant="secondary"
-              onClick={() => navigate("/dashboard/navi/room", {
-                state: {
-                  roomName,
-                  selectedFriends,
-                  selectedLocation,
-                  selectedDeparture
-                }
-              })}
-            >
-              <span className="flex items-center justify-center gap-3">
-                <span className="text-2xl">✏️</span>
-                ルーム設定を編集
-              </span>
-            </ActionButton>
+        {/* ルーム作成決定ボタン */}
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          onClick={async () => {
+            try {
+              // ルーム作成処理を実行
+              console.log("ルーム作成を決定:", {
+                roomName,
+                selectedFriends,
+                selectedLocation,
+                selectedDeparture
+              });
+              
+              const roomId = await createRoomWithInvites(
+                roomName,
+                selectedFriends || []
+              );
+              
+              console.log("ルーム作成成功:", roomId);
+              
+              // 成功メッセージを表示
+              alert(`ルーム「${roomName}」が正常に作成されました！\nルームID: ${roomId}`);
+              
+              // ホーム画面に遷移
+              navigate("/dashboard");
+            } catch (error) {
+              console.error("ルーム作成失敗:", error);
+              alert("ルームの作成に失敗しました。ログイン状態を確認して再試行してください。");
+            }
+          }}
+          icon="🚀"
+        >
+          ルーム作成を決定
+        </Button>
 
-            {/* 承認管理ボタン */}
-            {selectedFriends && selectedFriends.length > 0 && (
-              <ActionButton
-                variant="secondary"
-                onClick={() => navigate("/dashboard/navi/approval", {
-                  state: {
-                    roomId,
-                    roomName,
-                    selectedFriends,
-                    selectedLocation,
-                    selectedDeparture
-                  }
-                })}
-              >
-                <span className="flex items-center justify-center gap-3">
-                  <span className="text-2xl">🤝</span>
-                  フレンド承認を管理
-                </span>
-              </ActionButton>
-            )}
+        {/* ルーム編集ボタン */}
+        <Button
+          variant="secondary"
+          size="lg"
+          className="w-full"
+          onClick={() => navigate("/dashboard/navi/room", {
+            state: {
+              roomName,
+              selectedFriends,
+              selectedLocation,
+              selectedDeparture
+            }
+          })}
+          icon="✏️"
+        >
+          ルーム設定を編集
+        </Button>
 
-            {/* ホームに戻るボタン */}
-            <ActionButton
-              variant="secondary"
-              onClick={() => navigate("/dashboard/navi")}
-            >
-              <span className="flex items-center justify-center gap-3">
-                <span className="text-2xl">🏠</span>
-                ナビホームに戻る
-              </span>
-            </ActionButton>
-          </div>
-        </div>
+
       </div>
-    </div>
+    </PageLayout>
   );
 };
 

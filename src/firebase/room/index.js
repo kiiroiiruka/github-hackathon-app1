@@ -32,10 +32,8 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 		const roomId = roomRef.key;
 
 		// Daily.coのビデオルームを作成
-		const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
-		const apiBaseUrl = isDevelopment 
-			? "http://localhost:8787"  // ローカル開発環境（Cloudflare Workers）
-			: window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
+		// 一時的に本番環境のエンドポイントを使用（Cloudflare Functionsサーバーが起動していないため）
+		const apiBaseUrl = window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
 		const dailyResponse = await fetch(`${apiBaseUrl}/api/daily-room`, {
 			method: "POST",
 			headers: {
@@ -113,15 +111,11 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
  */
 export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 	try {
-		// 開発環境と本番環境でAPIエンドポイントを分岐
-		const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
-		const apiBaseUrl = isDevelopment 
-			? "http://localhost:8787"  // ローカル開発環境（Cloudflare Workers）
-			: window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
+		// 一時的に本番環境のエンドポイントを使用（Cloudflare Functionsサーバーが起動していないため）
+		const apiBaseUrl = window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
 
 		console.log("🔗 Daily token API request:", {
 			apiBaseUrl,
-			isDevelopment,
 			env: {
 				DEV: import.meta.env.DEV,
 				NODE_ENV: import.meta.env.NODE_ENV,
@@ -161,8 +155,8 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 				body: errorText
 			});
 			
-			// 開発環境でAPIが利用できない場合のフォールバック
-			if (isDevelopment && response.status === 404) {
+			// APIが利用できない場合のフォールバック
+			if (response.status === 404) {
 				console.warn("⚠️ APIエンドポイントが見つかりません。フォールバックトークンを使用します。");
 				return `fallback-token-${roomId}-${userId}-${Date.now()}`;
 			}
@@ -181,7 +175,6 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 		console.error("❌ Daily token generation error:", error);
 		
 		// ネットワークエラーやAPIエンドポイントが利用できない場合のフォールバック
-		const isDevelopment = import.meta.env.DEV;
 		const isNetworkError = error.message.includes('Failed to fetch') || 
 							  error.message.includes('404') || 
 							  error.message.includes('ERR_CONNECTION_REFUSED') ||
@@ -190,12 +183,8 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 		
 		if (isNetworkError) {
 			console.warn("⚠️ APIエンドポイントにアクセスできません。フォールバックトークンを使用します。");
-			if (isDevelopment) {
-				console.warn("💡 Cloudflare Workersの開発サーバーを起動してください: cd functions && npx wrangler dev --port 8787");
-			} else {
-				console.warn("💡 本番環境では、Cloudflare Pages Functionsが正しく設定されているか確認してください。");
-				console.warn("💡 functions/api/daily-token.js が正しくデプロイされているか確認してください。");
-			}
+			console.warn("💡 Cloudflare Pages Functionsが正しく設定されているか確認してください。");
+			console.warn("💡 functions/api/daily-token.js が正しくデプロイされているか確認してください。");
 			return `fallback-token-${roomId}-${userId}-${Date.now()}`;
 		}
 		
@@ -304,15 +293,12 @@ export const updateCallDuration = async (roomId, userId, duration) => {
  */
 const deleteDailyRoom = async (dailyRoomId) => {
 	try {
-		const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
-		const apiBaseUrl = isDevelopment 
-			? "http://localhost:8787"  // ローカル開発環境（Cloudflare Workers）
-			: window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
+		// 一時的に本番環境のエンドポイントを使用（Cloudflare Functionsサーバーが起動していないため）
+		const apiBaseUrl = window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
 		
 		console.log("🌐 Daily.coルーム削除API呼び出し:", {
 			apiBaseUrl,
-			dailyRoomId,
-			isDevelopment
+			dailyRoomId
 		});
 		
 		const response = await fetch(`${apiBaseUrl}/api/daily-room`, {

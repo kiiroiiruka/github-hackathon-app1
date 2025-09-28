@@ -138,14 +138,14 @@ const FriendsAddScreen = () => {
 										</span>
 									)}
 								</div>
-								<div>
-									<p className="font-medium text-gray-900">
+								<div className="flex-1 min-w-0">
+									<p className="font-medium text-gray-900 truncate">
 										{currentUser.displayName || "ユーザー"}
 									</p>
-									<div className="flex items-center gap-2">
-										<p className="text-sm text-gray-600">あなたのユーザーID:</p>
-										<div className="flex items-center gap-2">
-											<span className="font-mono bg-gray-100 px-2 py-1 rounded text-blue-600 text-sm">
+									<div className="flex flex-col sm:flex-row sm:items-center gap-2">
+										<p className="text-sm text-gray-600 flex-shrink-0">あなたのユーザーID:</p>
+										<div className="flex items-center gap-2 min-w-0">
+											<span className="font-mono bg-gray-100 px-2 py-1 rounded text-blue-600 text-sm truncate max-w-[200px] sm:max-w-none">
 												{currentUserId}
 											</span>
 											<button
@@ -154,7 +154,7 @@ const FriendsAddScreen = () => {
 													navigator.clipboard.writeText(currentUserId);
 													alert("ユーザーIDをコピーしました！");
 												}}
-												className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded transition-colors"
+												className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded transition-colors flex-shrink-0"
 												title="ユーザーIDをコピー"
 											>
 												コピー
@@ -164,7 +164,7 @@ const FriendsAddScreen = () => {
 								</div>
 							</div>
 							{currentUser.userShortMessage && (
-								<p className="text-sm text-blue-700 italic">
+								<p className="text-sm text-blue-700 italic truncate">
 									一言メッセージ: "{currentUser.userShortMessage}"
 								</p>
 							)}
@@ -192,7 +192,7 @@ const FriendsAddScreen = () => {
 							value={friendIdInput}
 							onChange={(e) => setFriendIdInput(e.target.value)} // 入力時に検索トリガー
 							placeholder="ユーザーIDを入力"
-							className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+							className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
 						/>
 					</div>
 
@@ -215,29 +215,29 @@ const FriendsAddScreen = () => {
 							</div>
 
 							{/* ユーザー情報 */}
-							<div>
-								<p className="font-medium">
+							<div className="flex-1 min-w-0">
+								<p className="font-medium truncate">
 									{targetUser.displayName || "ユーザー"}
 								</p>
 
 								{/* ✅ ユーザーID */}
 								<p className="text-xs text-gray-500">
 									ユーザーID:{" "}
-									<span className="font-mono bg-gray-100 px-1 rounded">
+									<span className="font-mono bg-gray-100 px-1 rounded truncate inline-block max-w-[150px]">
 										{friendIdInput.trim()}
 									</span>
 								</p>
 
 								{/* ✅ 一言メッセージ */}
 								{targetUser.userShortMessage && (
-									<p className="text-sm text-gray-600">
+									<p className="text-sm text-gray-600 truncate">
 										"{targetUser.userShortMessage}"
 									</p>
 								)}
 
 								{/* ✅ アカウント作成日 */}
 								{targetUser.createdAt && (
-									<p className="text-xs text-gray-500">
+									<p className="text-xs text-gray-500 truncate">
 										アカウント作成日:{" "}
 										{new Date(targetUser.createdAt.toDate()).toLocaleDateString(
 											"ja-JP",
@@ -262,7 +262,7 @@ const FriendsAddScreen = () => {
 
 					{currentUser?.userShortMessage && (
 						<div className="mt-3 p-3 bg-blue-50 rounded-md">
-							<p className="text-sm text-blue-800">
+							<p className="text-sm text-blue-800 truncate">
 								あなたの一言メッセージ: "{currentUser.userShortMessage}"
 							</p>
 							<p className="text-xs text-blue-600 mt-1">
