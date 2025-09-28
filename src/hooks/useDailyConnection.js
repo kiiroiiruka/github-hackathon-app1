@@ -672,6 +672,13 @@ export const useDailyConnection = (
 						const memberRef = ref(rtdb, `rooms/${roomId}/members/${event.participant.session_id}`);
 						remove(memberRef).then(() => {
 							console.log("✅ リモート参加者のFirebase membersデータを削除完了");
+							
+							// 参加者が離脱した後、ルーム削除チェックを実行
+							setTimeout(() => {
+								import("@/firebase/room").then(({ checkAndDeleteRoomIfEmpty }) => {
+									checkAndDeleteRoomIfEmpty(roomId);
+								});
+							}, 1000); // 1秒後にチェック
 						}).catch((error) => {
 							console.error("❌ リモート参加者のFirebase membersデータ削除エラー:", error);
 						});

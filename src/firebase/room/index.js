@@ -1,4 +1,4 @@
-import { get, push, ref, serverTimestamp, set } from "firebase/database";
+import { get, push, ref, remove, serverTimestamp, set } from "firebase/database";
 import { auth, rtdb } from "../firebaseConfig";
 
 /**
@@ -295,5 +295,102 @@ export const updateCallDuration = async (roomId, userId, duration) => {
 		await set(sessionRef, duration);
 	} catch (error) {
 		console.error("Failed to update call duration:", error);
+	}
+};
+
+/**
+ * Daily.coのルームを削除する
+ * @param {string} dailyRoomId Daily.co room ID
+ */
+const deleteDailyRoom = async (dailyRoomId) => {
+	try {
+		const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
+		const apiBaseUrl = isDevelopment 
+			? "http://localhost:8787"  // ローカル開発環境（Cloudflare Workers）
+			: window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
+		
+		const response = await fetch(`${apiBaseUrl}/api/daily-room`, {
+			method: "DELETE",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				roomId: dailyRoomId,
+			}),
+		});
+
+		if (!response.ok) {
+			throw new Error(`Daily room deletion failed: ${response.status} ${response.statusText}`);
+		}
+
+		const result = await response.json();
+		if (!result.success) {
+			throw new Error(`Daily room deletion failed: ${result.error}`);
+		}
+
+		return result;
+	} catch (error) {
+		console.error("❌ Daily.coルーム削除エラー:", error);
+		throw error;
+	}
+};
+
+/**
+ * ルームの全メンバーの参加状態をチェックし、全員がfalseの場合はルームを削除する
+ * @param {string} roomId Firebase room ID
+ */
+export const checkAndDeleteRoomIfEmpty = async (roomId) => {
+	try {
+		const roomRef = ref(rtdb, `rooms/${roomId}`);
+		const snapshot = await get(roomRef);
+		const roomData = snapshot.val();
+		
+		if (!roomData || !roomData.members) {
+			console.log("🔄 ルームデータまたはメンバーが見つかりません:", roomId);
+			return;
+		}
+		
+		const members = roomData.members;
+		const memberValues = Object.values(members);
+		
+		// 全メンバーの参加状態をチェック
+		const allMembersInactive = memberValues.every(member => 
+			member.accepted === false || member.accepted === undefined
+		);
+		
+		if (allMembersInactive && memberValues.length > 0) {
+			console.log("🗑️ 全メンバーが非参加状態のため、ルームを削除します:", {
+				roomId,
+				memberCount: memberValues.length,
+				members: memberValues.map(m => ({ 
+					name: m.name, 
+					accepted: m.accepted 
+				}))
+			});
+			
+			// Daily.coのルームも削除
+			if (roomData.dailyRoom && roomData.dailyRoom.id) {
+				try {
+					console.log("🗑️ Daily.coルームも削除します:", roomData.dailyRoom.id);
+					await deleteDailyRoom(roomData.dailyRoom.id);
+					console.log("✅ Daily.coルームを削除しました:", roomData.dailyRoom.id);
+				} catch (error) {
+					console.error("❌ Daily.coルーム削除エラー:", error);
+					// Daily.coルームの削除に失敗しても、Firebaseルームは削除を続行
+				}
+			}
+			
+			// Firebaseルームを削除
+			await remove(roomRef);
+			console.log("✅ Firebaseルームを削除しました:", roomId);
+		} else {
+			console.log("🔄 ルームはまだアクティブなメンバーがいます:", {
+				roomId,
+				activeMembers: memberValues.filter(m => m.accepted === true).length,
+				totalMembers: memberValues.length
+			});
+		}
+	} catch (error) {
+		console.error("❌ ルーム削除チェックエラー:", error);
 	}
 };

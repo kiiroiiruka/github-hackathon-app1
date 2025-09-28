@@ -7,18 +7,68 @@ export async function onRequest(context) {
 			status: 200,
 			headers: {
 				"Access-Control-Allow-Origin": "*",
-				"Access-Control-Allow-Methods": "POST, OPTIONS",
+				"Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
 				"Access-Control-Allow-Headers": "Content-Type, Authorization",
 				"Access-Control-Max-Age": "86400",
 			},
 		});
 	}
 
-	if (request.method !== "POST") {
+	if (request.method !== "POST" && request.method !== "DELETE") {
 		return new Response("Method not allowed", { status: 405 });
 	}
 
 	try {
+		// DELETEメソッドの処理
+		if (request.method === "DELETE") {
+			const { roomId } = await request.json();
+
+			if (!roomId) {
+				return new Response(
+					JSON.stringify({
+						success: false,
+						error: "Missing required field: roomId",
+					}),
+					{ 
+						status: 400, 
+						headers: { 
+							"Content-Type": "application/json",
+							"Access-Control-Allow-Origin": "*",
+						} 
+					},
+				);
+			}
+
+			// Delete Daily room using REST API
+			const dailyResponse = await fetch(`https://api.daily.co/v1/rooms/${roomId}`, {
+				method: "DELETE",
+				headers: {
+					"Authorization": `Bearer ${env.DAILY_API_KEY}`,
+				},
+			});
+
+			if (!dailyResponse.ok) {
+				const errorData = await dailyResponse.text();
+				throw new Error(`Daily API error: ${dailyResponse.status} - ${errorData}`);
+			}
+
+			return new Response(
+				JSON.stringify({
+					success: true,
+					message: `Room ${roomId} deleted successfully`,
+				}),
+				{
+					headers: {
+						"Content-Type": "application/json",
+						"Access-Control-Allow-Origin": "*",
+						"Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+						"Access-Control-Allow-Headers": "Content-Type, Authorization",
+					},
+				},
+			);
+		}
+
+		// POSTメソッドの処理（既存のルーム作成処理）
 		const { roomId, roomName, ownerUid } = await request.json();
 
 		if (!roomId || !roomName || !ownerUid) {
@@ -78,13 +128,13 @@ export async function onRequest(context) {
 				headers: {
 					"Content-Type": "application/json",
 					"Access-Control-Allow-Origin": "*",
-					"Access-Control-Allow-Methods": "POST, OPTIONS",
+					"Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
 					"Access-Control-Allow-Headers": "Content-Type, Authorization",
 				},
 			},
 		);
 	} catch (error) {
-		console.error("Daily room creation error:", error);
+		console.error("Daily room operation error:", error);
 		return new Response(
 			JSON.stringify({
 				success: false,
@@ -95,6 +145,8 @@ export async function onRequest(context) {
 				headers: {
 					"Content-Type": "application/json",
 					"Access-Control-Allow-Origin": "*",
+					"Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
+					"Access-Control-Allow-Headers": "Content-Type, Authorization",
 				},
 			},
 		);

@@ -6,6 +6,7 @@ import AudioCallFooter from "@/components/Footer/AudioCallFooter";
 import { auth, rtdb } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
 import { getGooglePhotoURL } from "@/hooks/useUser";
+import { checkAndDeleteRoomIfEmpty } from "@/firebase/room";
 
 const CarNavigation = () => {
 	const { roomId } = useParams();
@@ -85,13 +86,18 @@ const CarNavigation = () => {
 	useEffect(() => {
 		if (!roomId || !currentUserUid) return;
 
-		const setAcceptedFalse = () => {
+		const setAcceptedFalse = async () => {
 			try {
-				return update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
+				await update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
 					accepted: false,
 				});
-			} catch {
-				// no-op
+				
+				// 参加状態をfalseにした後、ルーム削除チェックを実行
+				setTimeout(() => {
+					checkAndDeleteRoomIfEmpty(roomId);
+				}, 1000); // 1秒後にチェック（他の参加者の離脱処理を待つ）
+			} catch (error) {
+				console.error("❌ 参加状態の更新エラー:", error);
 			}
 		};
 
@@ -265,7 +271,23 @@ const CarNavigation = () => {
 		};
 	}, []);
 
-	const handleLeaveRoom = () => {
+	const handleLeaveRoom = async () => {
+		// 参加状態をfalseに設定
+		if (roomId && currentUserUid) {
+			try {
+				await update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
+					accepted: false,
+				});
+				
+				// 参加状態をfalseにした後、ルーム削除チェックを実行
+				setTimeout(() => {
+					checkAndDeleteRoomIfEmpty(roomId);
+				}, 1000); // 1秒後にチェック（他の参加者の離脱処理を待つ）
+			} catch (error) {
+				console.error("❌ 参加状態の更新エラー:", error);
+			}
+		}
+		
 		navigate("/dashboard/home");
 	};
 
