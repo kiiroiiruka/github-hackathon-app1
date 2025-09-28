@@ -61,6 +61,32 @@ export const useDailyConnection = (
 					await callObject.setLocalAudio(true);
 					console.log("🎤 通話開始時は音声有効状態で開始");
 					
+					// 音声出力の確認と設定
+					try {
+						// 音声出力デバイスの確認
+						if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+							const devices = await navigator.mediaDevices.enumerateDevices();
+							const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+							console.log("🔊 利用可能な音声出力デバイス:", audioOutputs.length);
+						}
+						
+						// 音声要素の自動再生を有効化
+						const audioElements = document.querySelectorAll('audio');
+						audioElements.forEach(audio => {
+							audio.muted = false;
+							audio.volume = 1.0;
+							if (audio.paused) {
+								audio.play().catch(error => {
+									console.warn("⚠️ 音声の自動再生が制限されています:", error);
+								});
+							}
+						});
+						
+						console.log("🔊 音声出力設定を完了しました");
+					} catch (audioError) {
+						console.warn("⚠️ 音声出力設定エラー:", audioError);
+					}
+					
 					// Daily.coの接続状態を詳細に確認
 					console.log("🔍 Daily.co接続状態の詳細分析:");
 					console.log("📊 接続状態:", {
@@ -307,6 +333,54 @@ export const useDailyConnection = (
 							newMap.set(event.participant.session_id, event.participant);
 							return newMap;
 						});
+					}
+					
+					// 音声要素の確実な再生を保証
+					if (event.track && event.track.readyState === 'live') {
+						console.log("🔊 音声トラックの再生を確認中...");
+						
+						// 少し待ってから音声要素の状態を確認
+						setTimeout(() => {
+							try {
+								// 音声要素の存在確認
+								const audioElements = document.querySelectorAll('audio');
+								console.log(`🎵 ページ内の音声要素数: ${audioElements.length}`);
+								
+								audioElements.forEach((audio, index) => {
+									console.log(`🎵 音声要素 ${index + 1}:`, {
+										src: audio.src || 'MediaStream',
+										muted: audio.muted,
+										volume: audio.volume,
+										paused: audio.paused,
+										currentTime: audio.currentTime,
+										duration: audio.duration || 'N/A'
+									});
+									
+									// 音声要素がミュートされている場合は解除
+									if (audio.muted) {
+										console.log("🔊 音声要素のミュートを解除します");
+										audio.muted = false;
+									}
+									
+									// 音声要素が一時停止されている場合は再生
+									if (audio.paused) {
+										console.log("▶️ 音声要素の再生を開始します");
+										audio.play().catch(error => {
+											console.warn("⚠️ 音声の自動再生が失敗しました:", error);
+										});
+									}
+								});
+								
+								// Daily.coの音声出力レベルを確認
+								if (callObject && typeof callObject.getReceiveSettings === 'function') {
+									const receiveSettings = callObject.getReceiveSettings();
+									console.log("🔊 Daily.co音声受信設定:", receiveSettings);
+								}
+								
+							} catch (error) {
+								console.error("❌ 音声要素確認エラー:", error);
+							}
+						}, 1000);
 					}
 					
 					// 音声トラックの安定性を監視
@@ -557,12 +631,32 @@ export const useDailyConnection = (
 		console.log("   2. ブラウザの音量を確認");
 		console.log("   3. ヘッドフォン/スピーカーの接続を確認");
 		console.log("   4. 他のアプリで音声が再生されるかテスト");
+		console.log("   5. ブラウザの自動再生設定を確認");
+		console.log("   6. 別のブラウザで試行");
 		console.log("");
 		console.log("🌐 ネットワークの問題:");
 		console.log("   1. インターネット接続を確認");
 		console.log("   2. VPNを使用している場合は一時的に無効化");
 		console.log("   3. ファイアウォール設定を確認");
 		console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+		
+		// 音声要素の詳細診断
+		setTimeout(() => {
+			console.log("🔍 音声要素の詳細診断:");
+			const audioElements = document.querySelectorAll('audio');
+			console.log(`音声要素数: ${audioElements.length}`);
+			
+			audioElements.forEach((audio, index) => {
+				console.log(`音声要素 ${index + 1}:`, {
+					src: audio.src || 'MediaStream',
+					muted: audio.muted,
+					volume: audio.volume,
+					paused: audio.paused,
+					readyState: audio.readyState,
+					networkState: audio.networkState
+				});
+			});
+		}, 1000);
 	}, []);
 
 	// Daily.coインスタンスの初期化（簡素化）
@@ -649,6 +743,12 @@ export const useDailyConnection = (
 					// 音声トラックの安定性を向上させる設定
 					audioSource: true,
 					videoSource: false,
+					// 音声再生の確実な設定
+					audioSettings: {
+						enabled: true,
+						volume: 1.0,
+						autoplay: true
+					},
 					// 接続の安定性向上
 					receiveSettings: {
 						audio: {
@@ -792,5 +892,33 @@ export const useDailyConnection = (
 		destroyDaily,
 		toggleMicrophone,
 		showAudioTroubleshootingGuide,
+		// 音声テスト機能を追加
+		testAudio: useCallback(async () => {
+			console.log("🔊 音声テストを開始します...");
+			
+			try {
+				// システム音声のテスト
+				const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+				const oscillator = audioContext.createOscillator();
+				const gainNode = audioContext.createGain();
+				
+				oscillator.connect(gainNode);
+				gainNode.connect(audioContext.destination);
+				
+				oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // A4音
+				gainNode.gain.setValueAtTime(0.1, audioContext.currentTime); // 低音量
+				
+				oscillator.start();
+				console.log("🔊 テスト音を再生中... (440Hz, 1秒間)");
+				
+				setTimeout(() => {
+					oscillator.stop();
+					console.log("✅ 音声テスト完了 - 音が聞こえた場合は音声出力は正常です");
+				}, 1000);
+				
+			} catch (error) {
+				console.error("❌ 音声テストエラー:", error);
+			}
+		}, []),
 	};
 };
