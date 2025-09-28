@@ -288,10 +288,13 @@ export const useDailyConnection = (
 										session_id: currentParticipant.session_id
 									});
 									
-									// 参加者の状態を更新
+									// 参加者の状態を更新（重複を防ぐため、既存の参加者のみ更新）
 									setParticipants((prev) => {
 										const newMap = new Map(prev);
-										newMap.set(currentParticipant.session_id, currentParticipant);
+										// 既存の参加者のみ更新（新しい参加者は追加しない）
+										if (newMap.has(currentParticipant.session_id)) {
+											newMap.set(currentParticipant.session_id, currentParticipant);
+										}
 										return newMap;
 									});
 									
@@ -370,10 +373,16 @@ export const useDailyConnection = (
 					local: event.participant.local
 				});
 				
-				// 参加者の状態を更新
+				// 参加者の状態を更新（重複を防ぐため、既存の参加者のみ更新）
 				setParticipants((prev) => {
 					const newMap = new Map(prev);
-					newMap.set(event.participant.session_id, event.participant);
+					// 既存の参加者のみ更新（新しい参加者は追加しない）
+					if (newMap.has(event.participant.session_id)) {
+						newMap.set(event.participant.session_id, event.participant);
+						console.log(`✅ 参加者 ${event.participant.user_name} の状態を更新しました`);
+					} else {
+						console.log(`⚠️ 未知の参加者 ${event.participant.user_name} の更新をスキップしました`);
+					}
 					return newMap;
 				});
 
@@ -405,11 +414,14 @@ export const useDailyConnection = (
 						readyState: event.track.readyState
 					});
 					
-					// 参加者の状態を更新してUIに反映
+					// 参加者の状態を更新してUIに反映（重複を防ぐため、既存の参加者のみ更新）
 					if (event.participant) {
 						setParticipants((prev) => {
 							const newMap = new Map(prev);
-							newMap.set(event.participant.session_id, event.participant);
+							// 既存の参加者のみ更新（新しい参加者は追加しない）
+							if (newMap.has(event.participant.session_id)) {
+								newMap.set(event.participant.session_id, event.participant);
+							}
 							return newMap;
 						});
 					}
@@ -938,13 +950,22 @@ export const useDailyConnection = (
 			
 			console.log(`🎤 マイクを${newState ? '有効化' : '無効化'}しました`);
 			
-			// 参加者の状態を即座に更新
+			// 参加者の状態を即座に更新（重複を防ぐため、ローカル参加者のみ更新）
 			setParticipants((prev) => {
 				const newMap = new Map(prev);
 				const currentParticipants = daily.participants();
-				Object.entries(currentParticipants).forEach(([id, participant]) => {
-					newMap.set(id, participant);
-				});
+				const localParticipant = Object.values(currentParticipants).find(p => p.local);
+				
+				if (localParticipant) {
+					// ローカル参加者の状態のみ更新
+					newMap.set(localParticipant.session_id, localParticipant);
+					console.log("🔄 ローカル参加者の状態を更新:", {
+						user_name: localParticipant.user_name,
+						audio: localParticipant.audio,
+						session_id: localParticipant.session_id
+					});
+				}
+				
 				return newMap;
 			});
 			
@@ -968,10 +989,13 @@ export const useDailyConnection = (
 							daily.setLocalAudio(newState);
 						}
 						
-						// 参加者の状態を再度更新
+						// 参加者の状態を再度更新（重複を防ぐため、既存のMapを更新）
 						setParticipants((prev) => {
 							const newMap = new Map(prev);
-							newMap.set(localParticipant.session_id, localParticipant);
+							// 既存のローカル参加者を更新（新しい参加者を追加しない）
+							if (newMap.has(localParticipant.session_id)) {
+								newMap.set(localParticipant.session_id, localParticipant);
+							}
 							return newMap;
 						});
 					}
