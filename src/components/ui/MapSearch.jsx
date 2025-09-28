@@ -22,7 +22,11 @@ const MapSearch = ({ onSelectDestination }) => {
   };
 
   return (
+<<<<<<< HEAD
     <div className="w-full max-w-[500px] mx-auto">
+=======
+    <div className="w-full max-w-[500px]">
+>>>>>>> origin/feat/#2
       <div className="relative w-full bg-white rounded-lg shadow-md p-2 flex gap-2 items-center">
         <input
           type="text"

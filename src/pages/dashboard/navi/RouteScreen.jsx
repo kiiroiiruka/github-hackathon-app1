@@ -9,6 +9,7 @@ import { useAtom } from "jotai";
 import { userUidAtom, isLoggedInAtom } from "../../../atom/userAtom";
 import { saveUserRoute, formatRouteData } from "../../../firebase/route";
 
+
 const RecenterMap = ({ position }) => {
     const map = useMap();
     useEffect(() => {
@@ -182,6 +183,7 @@ const RouteScreen = () => {
 
   return (
     <div className="flex flex-col justify-center items-center p-5 h-screen bg-gray-100">
+<<<<<<< HEAD
       <HeaderComponent title="通信" />
       <div className="text-center mb-4">
         <p className="text-gray-600 mb-3">ルート情報を表示します</p>
@@ -253,10 +255,16 @@ const RouteScreen = () => {
           </div>
         )}
       </div>
+=======
+
+        <HeaderComponent2 title="通信" />
+      <p className="text-gray-600">ルート情報を表示します</p>
+>>>>>>> origin/feat/#2
       <div className="flex flex-col gap-4 w-[90%] max-w-[900px] h-[90%] bg-white rounded-2xl shadow-lg overflow-hidden">
         
         {/* 地図エリア */}
         <div className="relative flex-1">
+<<<<<<< HEAD
           {/* 目的地検索 */}
           <div className="absolute top-4 left-4 right-4 z-[1000]">
             <MapSearch
@@ -265,6 +273,13 @@ const RouteScreen = () => {
                 setDestinationName(name);
                 routeCalculatedRef.current = false; // ルート計算状態をリセット
                 setRouteInfo(null); // ルート情報をリセット
+=======
+          {/* 地図内の検索窓 */}
+          <div className="absolute top-4 left-4 right-4 z-[1000] flex justify-center">
+            <MapSearch
+              onSelectDestination={(dest, name) => {
+                setDestination(dest);
+>>>>>>> origin/feat/#2
                 console.log("選択された目的地:", name, dest);
               }}
             />
