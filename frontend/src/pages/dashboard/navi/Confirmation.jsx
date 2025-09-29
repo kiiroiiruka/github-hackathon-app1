@@ -452,24 +452,28 @@ const Confirmation = () => {
 								console.log("🔍 通話機能付きルーム作成開始");
 
 								// Daily.coルーム作成
-								const dailyRoomResult = await createRoomWithInvitesAndRoute({
-									roomName: String(roomName || "").trim(),
-									selectedFriends: selectedFriends || [],
+								const createdRoomId = await createRoomWithInvitesAndRoute(
+									String(roomName || "").trim(),
+									selectedFriends || [],
 									selectedLocation,
-									selectedDeparture,
-									currentUser,
-								});
+									selectedDeparture
+								);
 
-								console.log("✅ Daily.coルーム作成成功:", dailyRoomResult);
+								console.log("✅ Daily.coルーム作成成功:", createdRoomId);
+
+								// testModeをfalseに変更して通話機能を有効にする
+								const testModeRef = ref(rtdb, `rooms/${createdRoomId}/testMode`);
+								await set(testModeRef, false);
+								console.log("✅ 通話機能を有効化");
 
 								// Firebaseにルート情報を追加保存
-								if (routeData && dailyRoomResult.roomId) {
-									const routeRef = ref(rtdb, `rooms/${dailyRoomResult.roomId}/routeData`);
+								if (routeData) {
+									const routeRef = ref(rtdb, `rooms/${createdRoomId}/routeData`);
 									await set(routeRef, routeData);
 									console.log("✅ ルートデータ保存成功");
 
 									// hasRouteフラグを追加
-									const hasRouteRef = ref(rtdb, `rooms/${dailyRoomResult.roomId}/hasRoute`);
+									const hasRouteRef = ref(rtdb, `rooms/${createdRoomId}/hasRoute`);
 									await set(hasRouteRef, true);
 									console.log("✅ hasRouteフラグ保存成功");
 								}
@@ -487,7 +491,7 @@ const Confirmation = () => {
 							}
 
 							// 保存後にFirebaseから実際のデータを確認
-							const actualRoomId = dailyRoomResult?.roomId || roomId;
+							const actualRoomId = createdRoomId || roomId;
 							const savedRoomRef = ref(rtdb, `rooms/${actualRoomId}`);
 							const savedSnapshot = await get(savedRoomRef);
 							const savedData = savedSnapshot.val();
@@ -499,6 +503,7 @@ const Confirmation = () => {
 								routeDataSize: savedData?.routeData ? JSON.stringify(savedData.routeData).length : 0,
 								hasRoute: savedData?.hasRoute,
 								testMode: savedData?.testMode,
+								dailyRoom: savedData?.dailyRoom,
 								fullSavedData: savedData,
 							});
 
@@ -514,8 +519,8 @@ const Confirmation = () => {
 											test: routeData.test || false,
 										}
 									: null,
-								testMode: false,
-								dailyRoomUrl: dailyRoomResult?.roomUrl,
+								testMode: savedData?.testMode,
+								dailyRoomUrl: savedData?.dailyRoom?.url,
 							});
 
 							const routeMessage = routeData
@@ -523,7 +528,7 @@ const Confirmation = () => {
 								: "\n\n⚠️ ルート情報は保存されませんでした（出発地・目的地が未設定）";
 
 							alert(
-								`通話機能付きルーム「${String(roomName || "").trim()}」を作成しました！\nルームID: ${actualRoomId}${routeMessage}\n\n🎤 通話機能が有効になっています！`,
+								`通話機能付きルーム「${String(roomName || "").trim()}」を作成しました！\nルームID: ${actualRoomId}${routeMessage}\n\n🎤 通話機能が有効になっています！\n📞 Daily.coルームURL: ${savedData?.dailyRoom?.url || '作成中...'}`,
 							);
 
 							// ホーム画面に遷移
