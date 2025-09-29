@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import HeaderComponent from "@/components/Header/Header";
 import FriendList from "@/components/FriendList/FriendList";
-import { getFriendRequests, getSentFriendRequests } from "@/firebase";
-import { useUserUid } from "@/hooks/useUserUid";
-import { useFriends } from "@/hooks/useFriends";
+import HeaderComponent from "@/components/Header/Header";
 import ProfileImage from "@/components/ui/ProfileImage";
+import { getFriendRequests, getSentFriendRequests } from "@/firebase";
+import { useFriends } from "@/hooks/useFriends";
+import { useUserUid } from "@/hooks/useUserUid";
 
 const FriendPage = () => {
 	const navigate = useNavigate();
@@ -80,7 +80,7 @@ const FriendPage = () => {
 				{/* 受信リクエスト */}
 				<div className="mb-6">
 					<FriendList
-						friends={friendRequests.map(r => ({
+						friends={friendRequests.map((r) => ({
 							uid: r.senderUid,
 							name: r.senderName,
 							photoURL: r.senderPhotoURL,
@@ -93,12 +93,15 @@ const FriendPage = () => {
 						title="受信した友達リクエスト"
 						emptyMessage="友達リクエストはありません"
 						renderItem={(friend, idx) => (
-							<div key={friend.uid || idx} className="flex flex-col items-center w-28 border border-black rounded-lg p-2">
+							<div
+								key={friend.uid || idx}
+								className="flex flex-col items-center w-28 border border-black rounded-lg p-2"
+							>
 								<button
 									type="button"
 									onClick={() =>
 										navigate(
-											`/dashboard/UserInformation?userId=${friend.uid}&requestId=${friend.id}&fromUserId=${friend.fromUserId}`
+											`/dashboard/UserInformation?userId=${friend.uid}&requestId=${friend.id}&fromUserId=${friend.fromUserId}`,
 										)
 									}
 									className="flex flex-col items-center cursor-pointer bg-transparent border-none p-0 w-full"
@@ -109,10 +112,20 @@ const FriendPage = () => {
 										className="w-10 h-10 rounded-full mb-1 border"
 										fallbackText={friend.name?.charAt(0) || "?"}
 									/>
-									<p className="font-medium truncate text-xs w-full text-center px-1" title={friend.name}>{friend.name}</p>
+									<p
+										className="font-medium truncate text-xs w-full text-center px-1"
+										title={friend.name}
+									>
+										{friend.name}
+									</p>
 								</button>
 								{friend.message && !friend.uid?.startsWith("dummy_") && (
-									<p className="text-xs text-blue-600 mt-1 italic truncate w-full text-center px-1" title={friend.message}>"{friend.message}"</p>
+									<p
+										className="text-xs text-blue-600 mt-1 italic truncate w-full text-center px-1"
+										title={friend.message}
+									>
+										"{friend.message}"
+									</p>
 								)}
 							</div>
 						)}
@@ -122,7 +135,7 @@ const FriendPage = () => {
 				{/* 送信リクエスト */}
 				<div className="mb-6">
 					<FriendList
-						friends={sentFriendRequests.map(r => ({
+						friends={sentFriendRequests.map((r) => ({
 							uid: r.recipientUid,
 							name: r.recipientName,
 							photoURL: r.recipientPhotoURL,
@@ -132,18 +145,33 @@ const FriendPage = () => {
 						title="送信した友達リクエスト"
 						emptyMessage="送信中の友達リクエストはありません"
 						renderItem={(friend, idx) => (
-							<div key={friend.uid || idx} className="flex flex-col items-center w-28 border border-black rounded-lg p-2">
+							<div
+								key={friend.uid || idx}
+								className="flex flex-col items-center w-28 border border-black rounded-lg p-2"
+							>
 								<ProfileImage
 									src={friend.photoURL}
 									alt={friend.name}
 									className="w-10 h-10 rounded-full mb-1 border"
 									fallbackText={friend.name?.charAt(0) || "?"}
 								/>
-								<p className="font-medium truncate text-xs w-full text-center px-1" title={friend.name}>{friend.name}</p>
+								<p
+									className="font-medium truncate text-xs w-full text-center px-1"
+									title={friend.name}
+								>
+									{friend.name}
+								</p>
 								{friend.message && !friend.uid?.startsWith("dummy_") && (
-									<p className="text-xs text-blue-600 mt-1 italic truncate w-full text-center px-1" title={`あなたのメッセージ: "${friend.message}"`}>あなたのメッセージ: "{friend.message}"</p>
+									<p
+										className="text-xs text-blue-600 mt-1 italic truncate w-full text-center px-1"
+										title={`あなたのメッセージ: "${friend.message}"`}
+									>
+										あなたのメッセージ: "{friend.message}"
+									</p>
 								)}
-								<span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded mt-1">承認待ち</span>
+								<span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded mt-1">
+									承認待ち
+								</span>
 							</div>
 						)}
 					/>

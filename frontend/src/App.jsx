@@ -2,11 +2,11 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useCallback, useEffect } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { auth } from "@/firebase";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import { useAuthState } from "./hooks/useAuthState";
 import Dashboard from "./pages/Dashboard";
 import UserPolicy from "./pages/dashboard/policy/UserPolicy";
 import LoginScreen from "./pages/LoginScreen";
-import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 function App() {
 	const navigate = useNavigate(); //遷移先を指定

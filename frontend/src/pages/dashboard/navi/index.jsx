@@ -1,12 +1,12 @@
+import { get, push, ref, serverTimestamp, set } from "firebase/database";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import HeaderComponent2 from "../../../components/Header/Header2";
-import Card from "../../../components/ui/Card";
+import SelectedFriendsDisplay from "../../../components/RoomCreation/SelectedFriendsDisplay";
 import Button from "../../../components/ui/Button";
+import Card from "../../../components/ui/Card";
 import Input from "../../../components/ui/Input";
 import Section from "../../../components/ui/Section";
-import SelectedFriendsDisplay from "../../../components/RoomCreation/SelectedFriendsDisplay";
-import { get, push, ref, set, serverTimestamp } from "firebase/database";
 import { auth, rtdb } from "../../../firebase/firebaseConfig";
 import { calculateDistance } from "../../../firebase/map";
 
@@ -84,7 +84,7 @@ const NaviCreateScreen = () => {
 			selectedLocation: !!selectedLocation,
 			selectedDeparture: !!selectedDeparture,
 			selectedFriends: selectedFriends.length,
-			timestamp: new Date().toLocaleTimeString()
+			timestamp: new Date().toLocaleTimeString(),
 		});
 	}, [roomName, selectedLocation, selectedDeparture, selectedFriends]);
 
@@ -142,7 +142,9 @@ const NaviCreateScreen = () => {
 	// 選択されたフレンドを削除
 	const removeFriend = (friendToRemove) => {
 		setSelectedFriends((prev) => {
-			const updated = prev.filter((friend) => friend.uid !== friendToRemove.uid);
+			const updated = prev.filter(
+				(friend) => friend.uid !== friendToRemove.uid,
+			);
 			// ローカルストレージも更新
 			localStorage.setItem(
 				"roomCreat_selectedFriends",
@@ -171,7 +173,7 @@ const NaviCreateScreen = () => {
 				selectedFriends,
 				selectedLocation,
 				selectedDeparture,
-				ownerUid: currentUser.uid
+				ownerUid: currentUser.uid,
 			});
 
 			// ルームID作成
@@ -206,9 +208,9 @@ const NaviCreateScreen = () => {
 				// ルート計算（OSRM API使用）
 				try {
 					const routeResponse = await fetch(
-						`https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`
+						`https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`,
 					);
-					
+
 					if (routeResponse.ok) {
 						const routeResult = await routeResponse.json();
 						if (routeResult.routes && routeResult.routes.length > 0) {
@@ -216,80 +218,100 @@ const NaviCreateScreen = () => {
 							routeData = {
 								departure: {
 									name: selectedDeparture.name || "出発地",
-									coordinates: selectedDeparture.coordinates
+									coordinates: selectedDeparture.coordinates,
 								},
 								destination: {
 									name: selectedLocation.name || "目的地",
-									coordinates: selectedLocation.coordinates
+									coordinates: selectedLocation.coordinates,
 								},
 								routeInfo: {
-									distanceKm: Math.round(route.distance / 1000 * 10) / 10,
+									distanceKm: Math.round((route.distance / 1000) * 10) / 10,
 									durationMin: Math.round(route.duration / 60),
-									arrivalTime: new Date(Date.now() + route.duration * 1000).toISOString()
+									arrivalTime: new Date(
+										Date.now() + route.duration * 1000,
+									).toISOString(),
 								},
 								// ポリライン情報を含む詳細なルートデータ（実用上限版・高品質保持）
 								polyline: {
 									// 道の形状を保持しながら座標点を間引く（実用上限版）
-									geometry: route.geometry ? {
-										type: route.geometry.type,
-										coordinates: (() => {
-											const coords = route.geometry.coordinates;
-											if (coords.length <= 1000) return coords; // 1000点以下はそのまま
-											
-											const simplified = [];
-											const maxPoints = 50000; // 実用上限：最大5万点に制限
-											const step = Math.max(1, Math.floor(coords.length / maxPoints));
-											
-											// 最初の点を必ず含める
-											simplified.push(coords[0]);
-											
-											// 曲がり角を検出して重要な点を保持（高品質保持）
-											for (let i = step; i < coords.length - step; i += step) {
-												const prev = coords[i - step];
-												const curr = coords[i];
-												const next = coords[i + step];
-												
-												// 角度変化を計算
-												const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
-												const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
-												const angleDiff = Math.abs(angle1 - angle2);
-												
-												// 角度変化が大きい場合（曲がり角）は保持（より細かく保持）
-												if (angleDiff > 0.02 || i % (step * 1.2) === 0) {
-													simplified.push(curr);
-												}
+									geometry: route.geometry
+										? {
+												type: route.geometry.type,
+												coordinates: (() => {
+													const coords = route.geometry.coordinates;
+													if (coords.length <= 1000) return coords; // 1000点以下はそのまま
+
+													const simplified = [];
+													const maxPoints = 50000; // 実用上限：最大5万点に制限
+													const step = Math.max(
+														1,
+														Math.floor(coords.length / maxPoints),
+													);
+
+													// 最初の点を必ず含める
+													simplified.push(coords[0]);
+
+													// 曲がり角を検出して重要な点を保持（高品質保持）
+													for (
+														let i = step;
+														i < coords.length - step;
+														i += step
+													) {
+														const prev = coords[i - step];
+														const curr = coords[i];
+														const next = coords[i + step];
+
+														// 角度変化を計算
+														const angle1 = Math.atan2(
+															curr[1] - prev[1],
+															curr[0] - prev[0],
+														);
+														const angle2 = Math.atan2(
+															next[1] - curr[1],
+															next[0] - curr[0],
+														);
+														const angleDiff = Math.abs(angle1 - angle2);
+
+														// 角度変化が大きい場合（曲がり角）は保持（より細かく保持）
+														if (angleDiff > 0.02 || i % (step * 1.2) === 0) {
+															simplified.push(curr);
+														}
+													}
+
+													// 最後の点を必ず含める
+													simplified.push(coords[coords.length - 1]);
+
+													return simplified;
+												})(),
 											}
-											
-											// 最後の点を必ず含める
-											simplified.push(coords[coords.length - 1]);
-											
-											return simplified;
-										})()
-									} : null,
+										: null,
 									// ステップ情報を簡略化（重要な情報のみ）
-									steps: route.legs[0]?.steps?.map(step => ({
-										distance: step.distance,
-										duration: step.duration,
-										maneuver: step.maneuver?.type,
-										name: step.name
-									})) || [],
+									steps:
+										route.legs[0]?.steps?.map((step) => ({
+											distance: step.distance,
+											duration: step.duration,
+											maneuver: step.maneuver?.type,
+											name: step.name,
+										})) || [],
 									// ウェイポイント情報を簡略化
-									waypoints: route.waypoints?.map(wp => ({
-										location: wp.location,
-										name: wp.name
-									})) || [],
+									waypoints:
+										route.waypoints?.map((wp) => ({
+											location: wp.location,
+											name: wp.name,
+										})) || [],
 									summary: {
 										distance: route.distance, // メートル
 										duration: route.duration, // 秒
-										profile: 'driving'
-									}
+										profile: "driving",
+									},
 								},
-								createdAt: new Date().toISOString()
+								createdAt: new Date().toISOString(),
 							};
 							// データサイズの計算とログ出力（実用上限版）
 							const dataSize = JSON.stringify(routeData).length;
-							const dataSizeKB = Math.round(dataSize / 1024 * 100) / 100;
-							const dataSizeMB = Math.round(dataSize / (1024 * 1024) * 100) / 100;
+							const dataSizeKB = Math.round((dataSize / 1024) * 100) / 100;
+							const dataSizeMB =
+								Math.round((dataSize / (1024 * 1024)) * 100) / 100;
 							console.log("🗺️ ルート情報を取得（実用上限版）:", {
 								dataSize: `${dataSizeKB}KB (${dataSizeMB}MB)`,
 								coordinatesCount: route.geometry?.coordinates?.length || 0,
@@ -298,7 +320,7 @@ const NaviCreateScreen = () => {
 								stepsCount: route.legs[0]?.steps?.length || 0,
 								waypointsCount: route.waypoints?.length || 0,
 								maxPoints: 50000,
-								qualityLevel: '実用上限（高品質保持）'
+								qualityLevel: "実用上限（高品質保持）",
 							});
 						}
 					}
@@ -323,25 +345,29 @@ const NaviCreateScreen = () => {
 			};
 
 			await set(roomRef, roomData);
-			
+
 			console.log("✅ Firebase側のみでルーム作成完了（ルート情報含む）:", {
 				roomId,
 				roomName: roomName.trim(),
 				membersCount: Object.keys(members).length,
 				hasRoute: !!routeData,
-				routeInfo: routeData ? {
-					distance: routeData.routeInfo.distanceKm,
-					duration: routeData.routeInfo.durationMin,
-					polylinePoints: routeData.polyline.geometry.coordinates.length
-				} : null,
-				testMode: true
+				routeInfo: routeData
+					? {
+							distance: routeData.routeInfo.distanceKm,
+							duration: routeData.routeInfo.durationMin,
+							polylinePoints: routeData.polyline.geometry.coordinates.length,
+						}
+					: null,
+				testMode: true,
 			});
 
-			const routeMessage = routeData 
-				? `\n\n🗺️ ルート情報も保存されました（実用上限版・高品質保持）:\n距離: ${routeData.routeInfo.distanceKm}km\n所要時間: ${routeData.routeInfo.durationMin}分\nポリラインポイント数: ${routeData.polyline.geometry.coordinates.length}個\nデータサイズ: ${Math.round(JSON.stringify(routeData).length / 1024 * 100) / 100}KB (${Math.round(JSON.stringify(routeData).length / (1024 * 1024) * 100) / 100}MB)\n品質レベル: 実用上限（最大5万点）`
+			const routeMessage = routeData
+				? `\n\n🗺️ ルート情報も保存されました（実用上限版・高品質保持）:\n距離: ${routeData.routeInfo.distanceKm}km\n所要時間: ${routeData.routeInfo.durationMin}分\nポリラインポイント数: ${routeData.polyline.geometry.coordinates.length}個\nデータサイズ: ${Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100}KB (${Math.round((JSON.stringify(routeData).length / (1024 * 1024)) * 100) / 100}MB)\n品質レベル: 実用上限（最大5万点）`
 				: "\n\n⚠️ ルート情報は保存されませんでした（出発地・目的地が未設定）";
 
-			alert(`Firebase側のみでルーム「${roomName.trim()}」を作成しました！\nルームID: ${roomId}${routeMessage}\n\n※Daily側ではルーム作成されていません（テスト用）`);
+			alert(
+				`Firebase側のみでルーム「${roomName.trim()}」を作成しました！\nルームID: ${roomId}${routeMessage}\n\n※Daily側ではルーム作成されていません（テスト用）`,
+			);
 
 			// テスト用ボタンの場合は状態をリセットしない（継続してルーム作成できるように）
 			// ローカルストレージをクリア
@@ -349,13 +375,12 @@ const NaviCreateScreen = () => {
 			// localStorage.removeItem("roomCreat_selectedFriends");
 			// localStorage.removeItem("roomCreat_selectedLocation");
 			// localStorage.removeItem("roomCreat_selectedDeparture");
-			
+
 			// 状態をリセット
 			// setRoomName("");
 			// setSelectedFriends([]);
 			// setSelectedLocation(null);
 			// setSelectedDeparture(null);
-
 		} catch (error) {
 			console.error("❌ Firebase側のみルーム作成エラー:", error);
 			alert(`Firebase側のみルーム作成に失敗しました: ${error.message}`);
@@ -369,7 +394,7 @@ const NaviCreateScreen = () => {
 				roomName: roomName.trim(),
 				selectedFriends,
 				selectedLocation,
-				selectedDeparture
+				selectedDeparture,
 			});
 
 			navigate("/dashboard/navi/confirmation", {
@@ -389,7 +414,7 @@ const NaviCreateScreen = () => {
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
 			<HeaderComponent2 title="ナビ作成" />
-			
+
 			<div className="px-4 py-6 pt-20 pb-40 min-h-screen">
 				<div className="max-w-2xl mx-auto">
 					{/* タイトルセクション */}
@@ -417,8 +442,8 @@ const NaviCreateScreen = () => {
 						</Section>
 
 						{/* ルート選択セクション */}
-						<Section 
-							title="ルート選択" 
+						<Section
+							title="ルート選択"
 							icon="🗺️"
 							subtitle={
 								<div className="flex gap-2 justify-center">
@@ -465,7 +490,7 @@ const NaviCreateScreen = () => {
 										</Button>
 									</Card>
 								)}
-								
+
 								{selectedLocation && (
 									<Card variant="primary" className="p-4">
 										<div className="flex items-center gap-2 mb-2">
@@ -516,7 +541,9 @@ const NaviCreateScreen = () => {
 											{selectedLocation ? "目的地を変更" : "ルートを選択"}
 										</div>
 										<div className="text-sm text-gray-600">
-											{selectedLocation ? "別の目的地を設定" : "目的地と経路を設定"}
+											{selectedLocation
+												? "別の目的地を設定"
+												: "目的地と経路を設定"}
 										</div>
 									</div>
 								</Button>
@@ -530,7 +557,9 @@ const NaviCreateScreen = () => {
 								>
 									<div className="text-left">
 										<div className="font-semibold">お気に入りから選択</div>
-										<div className="text-sm text-gray-600">保存済みの場所から選択</div>
+										<div className="text-sm text-gray-600">
+											保存済みの場所から選択
+										</div>
 									</div>
 								</Button>
 
@@ -557,17 +586,23 @@ const NaviCreateScreen = () => {
 								>
 									<div className="text-left">
 										<div className="font-semibold">ルート確認</div>
-										<div className="text-sm text-gray-600">地図でルートを確認</div>
+										<div className="text-sm text-gray-600">
+											地図でルートを確認
+										</div>
 									</div>
 								</Button>
 							</div>
 						</Section>
 
 						{/* 招待するユーザーセクション */}
-						<Section 
-							title="招待するユーザー" 
+						<Section
+							title="招待するユーザー"
 							icon="👥"
-							subtitle={selectedFriends.length > 0 ? `${selectedFriends.length}名選択中` : undefined}
+							subtitle={
+								selectedFriends.length > 0
+									? `${selectedFriends.length}名選択中`
+									: undefined
+							}
 						>
 							<SelectedFriendsDisplay
 								selectedFriends={selectedFriends}
@@ -583,10 +618,14 @@ const NaviCreateScreen = () => {
 							>
 								<div className="text-left">
 									<div className="font-semibold">
-										{selectedFriends.length > 0 ? "フレンドを追加/変更" : "フレンドを選択"}
+										{selectedFriends.length > 0
+											? "フレンドを追加/変更"
+											: "フレンドを選択"}
 									</div>
 									<div className="text-sm text-gray-600">
-										{selectedFriends.length > 0 ? "選択済みのフレンドを変更できます" : "一緒に行動する友達を招待"}
+										{selectedFriends.length > 0
+											? "選択済みのフレンドを変更できます"
+											: "一緒に行動する友達を招待"}
 									</div>
 								</div>
 							</Button>
@@ -602,7 +641,9 @@ const NaviCreateScreen = () => {
 								onClick={handleCreateRoom}
 								icon="🚀"
 							>
-								{roomName.trim() ? `「${roomName}」を作成` : "ルーム名を入力してください"}
+								{roomName.trim()
+									? `「${roomName}」を作成`
+									: "ルーム名を入力してください"}
 							</Button>
 						</div>
 					</div>
@@ -629,11 +670,19 @@ const NaviCreateScreen = () => {
 							Firebase側のみでルーム作成（ルート情報含む・テスト用）
 						</Button>
 						<p className="text-xs text-gray-600 text-center mt-2">
-							※Daily側ではルーム作成されません。Firebase Realtime Databaseにルーム情報とルートのポリライン情報を保存します。
+							※Daily側ではルーム作成されません。Firebase Realtime
+							Databaseにルーム情報とルートのポリライン情報を保存します。
 						</p>
 						{selectedLocation && selectedDeparture && (
 							<p className="text-xs text-green-700 text-center mt-2 font-medium bg-green-100 px-3 py-2 rounded">
-								✅ ルート情報が利用可能です（距離: {Math.round(calculateDistance(selectedDeparture.coordinates, selectedLocation.coordinates) * 10) / 10}km）
+								✅ ルート情報が利用可能です（距離:{" "}
+								{Math.round(
+									calculateDistance(
+										selectedDeparture.coordinates,
+										selectedLocation.coordinates,
+									) * 10,
+								) / 10}
+								km）
 							</p>
 						)}
 						{(!selectedLocation || !selectedDeparture) && (

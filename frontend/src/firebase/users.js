@@ -1,10 +1,10 @@
 import {
-    doc,
-    getDoc,
-    serverTimestamp,
-    setDoc,
-    writeBatch,
-    deleteDoc,
+	deleteDoc,
+	doc,
+	getDoc,
+	serverTimestamp,
+	setDoc,
+	writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
@@ -125,14 +125,14 @@ export const updateUserMessage = async (userId, message) => {
  * @param {string} targetUserId - 相手のユーザーID
  */
 export const removeFriend = async (userId, targetUserId) => {
-    if (!userId || !targetUserId) throw new Error("ユーザーIDが不足しています");
-    try {
-        const batch = writeBatch(db);
-        batch.delete(doc(db, "users", userId, "friends", targetUserId));
-        batch.delete(doc(db, "users", targetUserId, "friends", userId));
-        await batch.commit();
-    } catch (error) {
-        console.error("フレンド解除エラー:", error);
-        throw error;
-    }
+	if (!userId || !targetUserId) throw new Error("ユーザーIDが不足しています");
+	try {
+		const batch = writeBatch(db);
+		batch.delete(doc(db, "users", userId, "friends", targetUserId));
+		batch.delete(doc(db, "users", targetUserId, "friends", userId));
+		await batch.commit();
+	} catch (error) {
+		console.error("フレンド解除エラー:", error);
+		throw error;
+	}
 };

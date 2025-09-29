@@ -41,11 +41,7 @@ function LoginScreen() {
 						"flex items-center justify-center", // layout
 					)}
 				>
-					<img
-						src={carIcon}
-						alt="DriveLink"
-						className="w-16 h-16 opacity-90"
-					/>
+					<img src={carIcon} alt="DriveLink" className="w-16 h-16 opacity-90" />
 				</div>
 
 				{/* Google login button */}

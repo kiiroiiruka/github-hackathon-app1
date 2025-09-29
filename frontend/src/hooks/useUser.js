@@ -1,6 +1,6 @@
 import { useAtom } from "jotai";
-import { isLoggedInAtom, currentUserAtom } from "../atom/userAtom";
 import { auth } from "@/firebase";
+import { currentUserAtom, isLoggedInAtom } from "../atom/userAtom";
 
 /**
  * ログイン状態を取得するカスタムフック
@@ -27,7 +27,11 @@ export const useCurrentUser = () => {
  */
 export const getGooglePhotoURL = (userName) => {
 	const currentUser = auth.currentUser;
-	if (currentUser && currentUser.displayName === userName && currentUser.photoURL) {
+	if (
+		currentUser &&
+		currentUser.displayName === userName &&
+		currentUser.photoURL
+	) {
 		return currentUser.photoURL;
 	}
 	return null;

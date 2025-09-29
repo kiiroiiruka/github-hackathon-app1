@@ -1,12 +1,12 @@
 import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
+	addDoc,
+	collection,
+	deleteDoc,
+	doc,
+	getDocs,
+	orderBy,
+	query,
+	serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
@@ -17,15 +17,15 @@ import { db } from "./firebaseConfig";
  * @returns {Promise<string>} 作成されたメモID
  */
 export const addMemo = async (userId, payload) => {
-  const { title, content } = payload;
-  const colRef = collection(db, "users", userId, "memos");
-  const docRef = await addDoc(colRef, {
-    title,
-    content,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  return docRef.id;
+	const { title, content } = payload;
+	const colRef = collection(db, "users", userId, "memos");
+	const docRef = await addDoc(colRef, {
+		title,
+		content,
+		createdAt: serverTimestamp(),
+		updatedAt: serverTimestamp(),
+	});
+	return docRef.id;
 };
 
 /**
@@ -34,21 +34,25 @@ export const addMemo = async (userId, payload) => {
  * @returns {Promise<Array<{id:string,title:string,content:string,createdAt:number,updatedAt:number}>>}
  */
 export const getMemosByUser = async (userId) => {
-  const colRef = collection(db, "users", userId, "memos");
-  const q = query(colRef, orderBy("updatedAt", "desc"));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => {
-    const data = d.data();
-    const createdAtMs = data.createdAt?.toMillis ? data.createdAt.toMillis() : Date.now();
-    const updatedAtMs = data.updatedAt?.toMillis ? data.updatedAt.toMillis() : createdAtMs;
-    return {
-      id: d.id,
-      title: data.title || "",
-      content: data.content || "",
-      createdAt: createdAtMs,
-      updatedAt: updatedAtMs,
-    };
-  });
+	const colRef = collection(db, "users", userId, "memos");
+	const q = query(colRef, orderBy("updatedAt", "desc"));
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => {
+		const data = d.data();
+		const createdAtMs = data.createdAt?.toMillis
+			? data.createdAt.toMillis()
+			: Date.now();
+		const updatedAtMs = data.updatedAt?.toMillis
+			? data.updatedAt.toMillis()
+			: createdAtMs;
+		return {
+			id: d.id,
+			title: data.title || "",
+			content: data.content || "",
+			createdAt: createdAtMs,
+			updatedAt: updatedAtMs,
+		};
+	});
 };
 
 /**
@@ -57,8 +61,6 @@ export const getMemosByUser = async (userId) => {
  * @param {string} memoId
  */
 export const deleteMemo = async (userId, memoId) => {
-  const targetRef = doc(db, "users", userId, "memos", memoId);
-  await deleteDoc(targetRef);
+	const targetRef = doc(db, "users", userId, "memos", memoId);
+	await deleteDoc(targetRef);
 };
-
-

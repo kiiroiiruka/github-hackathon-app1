@@ -13,7 +13,12 @@ export { loginWithGoogle, logout } from "./auth";
 // ユーザー関連
 // ================================
 
-export { createOrUpdateUser, getUser, updateUserMessage, removeFriend } from "./users";
+export {
+	createOrUpdateUser,
+	getUser,
+	removeFriend,
+	updateUserMessage,
+} from "./users";
 
 // ================================
 // 友達リクエスト関連
@@ -37,11 +42,10 @@ export {
 export * from "./daily";
 export { auth, db, provider, rtdb } from "./firebaseConfig";
 // ================================
+// メモ関連 (Firestore)
+// ================================
+export { addMemo, deleteMemo, getMemosByUser } from "./memos";
+// ================================
 // ルーム関連 (Realtime Database)
 // ================================
 export { createRoomWithInvites } from "./room";
-
-// ================================
-// メモ関連 (Firestore)
-// ================================
-export { addMemo, getMemosByUser, deleteMemo } from "./memos";

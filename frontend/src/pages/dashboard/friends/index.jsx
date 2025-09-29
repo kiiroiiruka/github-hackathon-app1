@@ -143,7 +143,9 @@ const FriendsAddScreen = () => {
 										{currentUser.displayName || "ユーザー"}
 									</p>
 									<div className="flex flex-col sm:flex-row sm:items-center gap-2">
-										<p className="text-sm text-gray-600 flex-shrink-0">あなたのユーザーID:</p>
+										<p className="text-sm text-gray-600 flex-shrink-0">
+											あなたのユーザーID:
+										</p>
 										<div className="flex items-center gap-2 min-w-0">
 											<span className="font-mono bg-gray-100 px-2 py-1 rounded text-blue-600 text-sm truncate max-w-[200px] sm:max-w-none">
 												{currentUserId}

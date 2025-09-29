@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import ParticipantCard from "../ParticipantCard/ParticipantCard";
 
-const AudioCallFooter = ({ 
+const AudioCallFooter = ({
 	participants = [],
-	participantPhotoURLs = new Map()
+	participantPhotoURLs = new Map(),
 }) => {
 	const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -12,22 +12,21 @@ const AudioCallFooter = ({
 	};
 
 	return (
-		<div style={{
-			...styles.footer,
-			height: isCollapsed ? "20px" : "90px",
-		}}>
+		<div
+			style={{
+				...styles.footer,
+				height: isCollapsed ? "20px" : "90px",
+			}}
+		>
 			{/* 折りたたみボタン（常に表示） */}
-			<div 
-				style={styles.collapseButton} 
-				onClick={toggleCollapse}
-			>
-				<div style={styles.handleText}>
-					参加メンバー
-				</div>
-				<div style={{
-					...styles.collapseIcon,
-					transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
-				}}>
+			<div style={styles.collapseButton} onClick={toggleCollapse}>
+				<div style={styles.handleText}>参加メンバー</div>
+				<div
+					style={{
+						...styles.collapseIcon,
+						transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)",
+					}}
+				>
 					▼
 				</div>
 			</div>
@@ -42,10 +41,11 @@ const AudioCallFooter = ({
 						<div style={styles.cardsScroll}>
 							{participants.map((participant, index) => {
 								// 安定したkeyを生成（session_id、user_name、indexを組み合わせ）
-								const stableKey = participant.session_id || 
-									`${participant.user_name}-${index}` || 
+								const stableKey =
+									participant.session_id ||
+									`${participant.user_name}-${index}` ||
 									`participant-${index}`;
-								
+
 								return (
 									<ParticipantCard
 										key={stableKey}

@@ -10,11 +10,14 @@
  */
 export const calculateDistance = (lat1, lng1, lat2, lng2) => {
 	const R = 6371000; // 地球の半径（メートル）
-	const dLat = (lat2 - lat1) * Math.PI / 180;
-	const dLng = (lng2 - lng1) * Math.PI / 180;
-	const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-		Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-		Math.sin(dLng / 2) * Math.sin(dLng / 2);
+	const dLat = ((lat2 - lat1) * Math.PI) / 180;
+	const dLng = ((lng2 - lng1) * Math.PI) / 180;
+	const a =
+		Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+		Math.cos((lat1 * Math.PI) / 180) *
+			Math.cos((lat2 * Math.PI) / 180) *
+			Math.sin(dLng / 2) *
+			Math.sin(dLng / 2);
 	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 	return R * c;
 };
@@ -63,7 +66,11 @@ export const distanceToLineSegment = (point, lineStart, lineEnd) => {
  * @returns {Object} 判定結果 {isOnRoute, distance, closestPoint}
  */
 export const isOnRoute = (currentLocation, routeData, threshold = 50) => {
-	if (!currentLocation || !routeData || !routeData.polyline?.geometry?.coordinates) {
+	if (
+		!currentLocation ||
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates
+	) {
 		return { isOnRoute: false, distance: Infinity, closestPoint: null };
 	}
 
@@ -76,15 +83,15 @@ export const isOnRoute = (currentLocation, routeData, threshold = 50) => {
 		const distance = distanceToLineSegment(
 			currentLocation,
 			coordinates[i],
-			coordinates[i + 1]
+			coordinates[i + 1],
 		);
-		
+
 		if (distance < minDistance) {
 			minDistance = distance;
 			closestPoint = {
 				lat: coordinates[i][1],
 				lng: coordinates[i][0],
-				index: i
+				index: i,
 			};
 		}
 	}
@@ -92,7 +99,7 @@ export const isOnRoute = (currentLocation, routeData, threshold = 50) => {
 	return {
 		isOnRoute: minDistance <= threshold,
 		distance: minDistance,
-		closestPoint: closestPoint
+		closestPoint: closestPoint,
 	};
 };
 
@@ -103,7 +110,11 @@ export const isOnRoute = (currentLocation, routeData, threshold = 50) => {
  * @returns {Object} 合流点情報 {joinPoint, distance}
  */
 export const calculateJoinPoint = (currentLocation, routeData) => {
-	if (!currentLocation || !routeData || !routeData.polyline?.geometry?.coordinates) {
+	if (
+		!currentLocation ||
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates
+	) {
 		return null;
 	}
 
@@ -117,22 +128,22 @@ export const calculateJoinPoint = (currentLocation, routeData) => {
 			currentLocation.lat,
 			currentLocation.lng,
 			coordinates[i][1],
-			coordinates[i][0]
+			coordinates[i][0],
 		);
-		
+
 		if (distance < minDistance) {
 			minDistance = distance;
 			joinPoint = {
 				lat: coordinates[i][1],
 				lng: coordinates[i][0],
-				index: i
+				index: i,
 			};
 		}
 	}
 
 	return {
 		joinPoint,
-		distance: minDistance
+		distance: minDistance,
 	};
 };
 
@@ -150,7 +161,7 @@ export const generateRejoinRoute = (currentLocation, joinPoint) => {
 	// 現在地から合流点への直線ルートを生成
 	return [
 		[currentLocation.lng, currentLocation.lat], // 現在地
-		[joinPoint.lng, joinPoint.lat] // 合流点
+		[joinPoint.lng, joinPoint.lat], // 合流点
 	];
 };
 
@@ -161,21 +172,27 @@ export const generateRejoinRoute = (currentLocation, joinPoint) => {
  * @param {Object} routeData - ルートデータ
  * @returns {Array} 道路に沿った合流ルートの座標配列
  */
-export const generateRoadFollowingRejoinRoute = (currentLocation, joinPoint, routeData) => {
+export const generateRoadFollowingRejoinRoute = (
+	currentLocation,
+	joinPoint,
+	routeData,
+) => {
 	if (!currentLocation || !joinPoint || !routeData) return null;
 
 	// 現在地から合流点までの複数のウェイポイントを生成
 	const waypoints = [];
 	const steps = 15; // 15個のウェイポイントで分割
-	
+
 	for (let i = 0; i <= steps; i++) {
 		const ratio = i / steps;
-		const lat = currentLocation.lat + (joinPoint.lat - currentLocation.lat) * ratio;
-		const lng = currentLocation.lng + (joinPoint.lng - currentLocation.lng) * ratio;
-		
+		const lat =
+			currentLocation.lat + (joinPoint.lat - currentLocation.lat) * ratio;
+		const lng =
+			currentLocation.lng + (joinPoint.lng - currentLocation.lng) * ratio;
+
 		waypoints.push([lng, lat]);
 	}
-	
+
 	return waypoints;
 };
 
@@ -186,46 +203,55 @@ export const generateRoadFollowingRejoinRoute = (currentLocation, joinPoint, rou
  * @returns {Array} 道路ベースの合流ルートの座標配列
  */
 export const generateRoadBasedRejoinRoute = (currentLocation, routeData) => {
-	if (!currentLocation || !routeData || !routeData.polyline?.geometry?.coordinates) {
+	if (
+		!currentLocation ||
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates
+	) {
 		return null;
 	}
 
 	const routeCoords = routeData.polyline.geometry.coordinates;
-	
+
 	// 現在地に最も近いルート上の点を見つける
 	let closestIndex = 0;
 	let minDistance = Infinity;
-	
+
 	for (let i = 0; i < routeCoords.length; i++) {
 		const coord = routeCoords[i];
 		const distance = calculateDistance(
-			currentLocation.lat, currentLocation.lng,
-			coord[1], coord[0]
+			currentLocation.lat,
+			currentLocation.lng,
+			coord[1],
+			coord[0],
 		);
-		
+
 		if (distance < minDistance) {
 			minDistance = distance;
 			closestIndex = i;
 		}
 	}
-	
+
 	// 現在地から最も近いルート上の点までの道路ベースのルートを生成
 	const roadBasedRoute = [];
-	
+
 	// 現在地を起点に追加
 	roadBasedRoute.push([currentLocation.lng, currentLocation.lat]);
-	
+
 	// 最も近いルート上の点を追加
 	roadBasedRoute.push(routeCoords[closestIndex]);
-	
+
 	// 必要に応じて、その後のルート上の点も追加（より自然な道路ルートのため）
-	const maxAdditionalPoints = Math.min(5, routeCoords.length - closestIndex - 1);
+	const maxAdditionalPoints = Math.min(
+		5,
+		routeCoords.length - closestIndex - 1,
+	);
 	for (let i = 1; i <= maxAdditionalPoints; i++) {
 		if (closestIndex + i < routeCoords.length) {
 			roadBasedRoute.push(routeCoords[closestIndex + i]);
 		}
 	}
-	
+
 	return roadBasedRoute;
 };
 
@@ -235,79 +261,95 @@ export const generateRoadBasedRejoinRoute = (currentLocation, routeData) => {
  * @param {Object} routeData - ルートデータ
  * @returns {Object} 合流ルート情報 {route, joinPoint, distance}
  */
-export const generateAdvancedRoadBasedRejoinRoute = (currentLocation, routeData) => {
-	if (!currentLocation || !routeData || !routeData.polyline?.geometry?.coordinates) {
+export const generateAdvancedRoadBasedRejoinRoute = (
+	currentLocation,
+	routeData,
+) => {
+	if (
+		!currentLocation ||
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates
+	) {
 		return null;
 	}
 
 	const routeCoords = routeData.polyline.geometry.coordinates;
-	
+
 	// 現在地に最も近いルート上の点を見つける
 	let closestIndex = 0;
 	let minDistance = Infinity;
-	
+
 	for (let i = 0; i < routeCoords.length; i++) {
 		const coord = routeCoords[i];
 		const distance = calculateDistance(
-			currentLocation.lat, currentLocation.lng,
-			coord[1], coord[0]
+			currentLocation.lat,
+			currentLocation.lng,
+			coord[1],
+			coord[0],
 		);
-		
+
 		if (distance < minDistance) {
 			minDistance = distance;
 			closestIndex = i;
 		}
 	}
-	
+
 	const joinPoint = {
 		lat: routeCoords[closestIndex][1],
 		lng: routeCoords[closestIndex][0],
-		index: closestIndex
+		index: closestIndex,
 	};
-	
+
 	// 道路に沿った合流ルートを生成
 	const roadBasedRoute = [];
-	
+
 	// 現在地を起点に追加
 	roadBasedRoute.push([currentLocation.lng, currentLocation.lat]);
-	
+
 	// 現在地から合流点までの道路に沿った中間点を生成
-	const intermediateSteps = Math.min(8, Math.max(3, Math.floor(routeCoords.length / 20)));
-	
+	const intermediateSteps = Math.min(
+		8,
+		Math.max(3, Math.floor(routeCoords.length / 20)),
+	);
+
 	for (let i = 1; i <= intermediateSteps; i++) {
 		const ratio = i / (intermediateSteps + 1);
-		
+
 		// 現在地と合流点の間の点を計算
-		const lat = currentLocation.lat + (joinPoint.lat - currentLocation.lat) * ratio;
-		const lng = currentLocation.lng + (joinPoint.lng - currentLocation.lng) * ratio;
-		
+		const lat =
+			currentLocation.lat + (joinPoint.lat - currentLocation.lat) * ratio;
+		const lng =
+			currentLocation.lng + (joinPoint.lng - currentLocation.lng) * ratio;
+
 		// この点に最も近いルート上の点を見つけて、道路に沿わせる
 		let nearestRouteIndex = 0;
 		let nearestDistance = Infinity;
-		
+
 		for (let j = 0; j < routeCoords.length; j++) {
 			const coord = routeCoords[j];
 			const distance = calculateDistance(lat, lng, coord[1], coord[0]);
-			
+
 			if (distance < nearestDistance) {
 				nearestDistance = distance;
 				nearestRouteIndex = j;
 			}
 		}
-		
+
 		// 道路に沿った点を追加（ただし、現在地と合流点の間の範囲内）
-		if (nearestRouteIndex >= Math.max(0, closestIndex - 5) && 
-			nearestRouteIndex <= Math.min(routeCoords.length - 1, closestIndex + 5)) {
+		if (
+			nearestRouteIndex >= Math.max(0, closestIndex - 5) &&
+			nearestRouteIndex <= Math.min(routeCoords.length - 1, closestIndex + 5)
+		) {
 			roadBasedRoute.push(routeCoords[nearestRouteIndex]);
 		} else {
 			// 範囲外の場合は補間点を使用
 			roadBasedRoute.push([lng, lat]);
 		}
 	}
-	
+
 	// 合流点を追加
 	roadBasedRoute.push(routeCoords[closestIndex]);
-	
+
 	// 合流後のルートも追加（より自然な道路ルートのため）
 	const postJoinSteps = Math.min(3, routeCoords.length - closestIndex - 1);
 	for (let i = 1; i <= postJoinSteps; i++) {
@@ -315,11 +357,11 @@ export const generateAdvancedRoadBasedRejoinRoute = (currentLocation, routeData)
 			roadBasedRoute.push(routeCoords[closestIndex + i]);
 		}
 	}
-	
+
 	return {
 		route: roadBasedRoute,
 		joinPoint: joinPoint,
-		distance: minDistance
+		distance: minDistance,
 	};
 };
 
@@ -329,117 +371,145 @@ export const generateAdvancedRoadBasedRejoinRoute = (currentLocation, routeData)
  * @param {Object} routeData - ルートデータ
  * @returns {Object} 合流ルート情報 {route, joinPoint, distance}
  */
-export const generateNaturalRoadBasedRejoinRoute = (currentLocation, routeData) => {
-	if (!currentLocation || !routeData || !routeData.polyline?.geometry?.coordinates) {
+export const generateNaturalRoadBasedRejoinRoute = (
+	currentLocation,
+	routeData,
+) => {
+	if (
+		!currentLocation ||
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates
+	) {
 		return null;
 	}
 
 	const routeCoords = routeData.polyline.geometry.coordinates;
-	
+
 	// 現在地に最も近いルート上の点を見つける
 	let closestIndex = 0;
 	let minDistance = Infinity;
-	
+
 	for (let i = 0; i < routeCoords.length; i++) {
 		const coord = routeCoords[i];
 		const distance = calculateDistance(
-			currentLocation.lat, currentLocation.lng,
-			coord[1], coord[0]
+			currentLocation.lat,
+			currentLocation.lng,
+			coord[1],
+			coord[0],
 		);
-		
+
 		if (distance < minDistance) {
 			minDistance = distance;
 			closestIndex = i;
 		}
 	}
-	
+
 	const joinPoint = {
 		lat: routeCoords[closestIndex][1],
 		lng: routeCoords[closestIndex][0],
-		index: closestIndex
+		index: closestIndex,
 	};
-	
+
 	// 道路の形状を考慮した合流ルートを生成
 	const naturalRoute = [];
-	
+
 	// 現在地を起点に追加
 	naturalRoute.push([currentLocation.lng, currentLocation.lat]);
-	
+
 	// 現在地から合流点までの道路に沿った点を生成（高密度で滑らかなポリライン）
-	const totalSteps = Math.min(50, Math.max(20, Math.floor(routeCoords.length / 4)));
-	
+	const totalSteps = Math.min(
+		50,
+		Math.max(20, Math.floor(routeCoords.length / 4)),
+	);
+
 	for (let i = 1; i <= totalSteps; i++) {
 		const ratio = i / (totalSteps + 1);
-		
+
 		// 現在地と合流点の間の補間点
-		const interpolatedLat = currentLocation.lat + (joinPoint.lat - currentLocation.lat) * ratio;
-		const interpolatedLng = currentLocation.lng + (joinPoint.lng - currentLocation.lng) * ratio;
-		
+		const interpolatedLat =
+			currentLocation.lat + (joinPoint.lat - currentLocation.lat) * ratio;
+		const interpolatedLng =
+			currentLocation.lng + (joinPoint.lng - currentLocation.lng) * ratio;
+
 		// この補間点に最も近いルート上の点を見つける
 		let bestRouteIndex = closestIndex;
 		let bestDistance = Infinity;
-		
+
 		// より広い範囲で検索して滑らかなルートを生成
 		const searchRange = Math.min(20, Math.floor(routeCoords.length / 4));
 		const startIndex = Math.max(0, closestIndex - searchRange);
-		const endIndex = Math.min(routeCoords.length - 1, closestIndex + searchRange);
-		
+		const endIndex = Math.min(
+			routeCoords.length - 1,
+			closestIndex + searchRange,
+		);
+
 		for (let j = startIndex; j <= endIndex; j++) {
 			const coord = routeCoords[j];
-			const distance = calculateDistance(interpolatedLat, interpolatedLng, coord[1], coord[0]);
-			
+			const distance = calculateDistance(
+				interpolatedLat,
+				interpolatedLng,
+				coord[1],
+				coord[0],
+			);
+
 			if (distance < bestDistance) {
 				bestDistance = distance;
 				bestRouteIndex = j;
 			}
 		}
-		
+
 		// 道路に沿った点を追加
 		naturalRoute.push(routeCoords[bestRouteIndex]);
-		
+
 		// より滑らかなルートのために、複数の中間点を生成
 		if (i < totalSteps && bestRouteIndex < routeCoords.length - 1) {
 			const nextCoord = routeCoords[bestRouteIndex + 1];
-			
+
 			// 3つの中間点を生成
 			for (let k = 1; k <= 3; k++) {
 				const midRatio = k / 4;
-				const midLat = routeCoords[bestRouteIndex][1] + (nextCoord[1] - routeCoords[bestRouteIndex][1]) * midRatio;
-				const midLng = routeCoords[bestRouteIndex][0] + (nextCoord[0] - routeCoords[bestRouteIndex][0]) * midRatio;
+				const midLat =
+					routeCoords[bestRouteIndex][1] +
+					(nextCoord[1] - routeCoords[bestRouteIndex][1]) * midRatio;
+				const midLng =
+					routeCoords[bestRouteIndex][0] +
+					(nextCoord[0] - routeCoords[bestRouteIndex][0]) * midRatio;
 				naturalRoute.push([midLng, midLat]);
 			}
 		}
 	}
-	
+
 	// 合流点を追加
 	naturalRoute.push(routeCoords[closestIndex]);
-	
+
 	// 合流後の道路も追加（高密度で滑らかな表示）
 	const postJoinSteps = Math.min(15, routeCoords.length - closestIndex - 1);
 	for (let i = 1; i <= postJoinSteps; i++) {
 		if (closestIndex + i < routeCoords.length) {
 			naturalRoute.push(routeCoords[closestIndex + i]);
-			
+
 			// 合流後の道路も中間点を追加
 			if (i < postJoinSteps && closestIndex + i + 1 < routeCoords.length) {
 				const currentCoord = routeCoords[closestIndex + i];
 				const nextCoord = routeCoords[closestIndex + i + 1];
-				
+
 				// 2つの中間点を生成
 				for (let k = 1; k <= 2; k++) {
 					const midRatio = k / 3;
-					const midLat = currentCoord[1] + (nextCoord[1] - currentCoord[1]) * midRatio;
-					const midLng = currentCoord[0] + (nextCoord[0] - currentCoord[0]) * midRatio;
+					const midLat =
+						currentCoord[1] + (nextCoord[1] - currentCoord[1]) * midRatio;
+					const midLng =
+						currentCoord[0] + (nextCoord[0] - currentCoord[0]) * midRatio;
 					naturalRoute.push([midLng, midLat]);
 				}
 			}
 		}
 	}
-	
+
 	return {
 		route: naturalRoute,
 		joinPoint: joinPoint,
-		distance: minDistance
+		distance: minDistance,
 	};
 };
 
@@ -450,95 +520,103 @@ export const generateNaturalRoadBasedRejoinRoute = (currentLocation, routeData) 
  * @returns {Object} 合流ルート情報 {route, joinPoint, distance}
  */
 export const generateUltraDenseRejoinRoute = (currentLocation, routeData) => {
-	if (!currentLocation || !routeData || !routeData.polyline?.geometry?.coordinates) {
+	if (
+		!currentLocation ||
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates
+	) {
 		return null;
 	}
 
 	const routeCoords = routeData.polyline.geometry.coordinates;
-	
+
 	// 現在地に最も近いルート上の点を見つける
 	let closestIndex = 0;
 	let minDistance = Infinity;
-	
+
 	for (let i = 0; i < routeCoords.length; i++) {
 		const coord = routeCoords[i];
 		const distance = calculateDistance(
-			currentLocation.lat, currentLocation.lng,
-			coord[1], coord[0]
+			currentLocation.lat,
+			currentLocation.lng,
+			coord[1],
+			coord[0],
 		);
-		
+
 		if (distance < minDistance) {
 			minDistance = distance;
 			closestIndex = i;
 		}
 	}
-	
+
 	const joinPoint = {
 		lat: routeCoords[closestIndex][1],
 		lng: routeCoords[closestIndex][0],
-		index: closestIndex
+		index: closestIndex,
 	};
-	
+
 	// シンプルで確実に道路に沿った合流ルートを生成
 	const roadBasedRoute = [];
-	
+
 	// 現在地を起点に追加
 	roadBasedRoute.push([currentLocation.lng, currentLocation.lat]);
-	
+
 	// 現在地から合流点までの道路に沿ったルートを生成
 	// 1. 現在地に最も近いルートセグメントを見つける
 	let nearestSegmentStart = 0;
 	let nearestSegmentEnd = 1;
 	let nearestSegmentDistance = Infinity;
-	
+
 	for (let i = 0; i < routeCoords.length - 1; i++) {
 		const segmentDistance = distanceToLineSegment(
 			currentLocation,
 			routeCoords[i],
-			routeCoords[i + 1]
+			routeCoords[i + 1],
 		);
-		
+
 		if (segmentDistance < nearestSegmentDistance) {
 			nearestSegmentDistance = segmentDistance;
 			nearestSegmentStart = i;
 			nearestSegmentEnd = i + 1;
 		}
 	}
-	
+
 	// 2. 現在地から最も近いルートセグメントへの投影点を計算
 	const segmentStart = routeCoords[nearestSegmentStart];
 	const segmentEnd = routeCoords[nearestSegmentEnd];
-	
+
 	const A = currentLocation.lat - segmentStart[1];
 	const B = currentLocation.lng - segmentStart[0];
 	const C = segmentEnd[1] - segmentStart[1];
 	const D = segmentEnd[0] - segmentStart[0];
-	
+
 	const dot = A * C + B * D;
 	const lenSq = C * C + D * D;
 	let param = 0;
 	if (lenSq !== 0) {
 		param = Math.max(0, Math.min(1, dot / lenSq));
 	}
-	
+
 	const projectionPoint = {
 		lat: segmentStart[1] + param * C,
-		lng: segmentStart[0] + param * D
+		lng: segmentStart[0] + param * D,
 	};
-	
+
 	// 3. 投影点を追加（道路への最短距離点）
 	roadBasedRoute.push([projectionPoint.lng, projectionPoint.lat]);
-	
+
 	// 4. 投影点から合流点までの道路に沿ったルートを生成
 	// 投影点のインデックスを計算
 	const projectionIndex = nearestSegmentStart + param;
-	
+
 	// 投影点から合流点までの実際のルート上の点を使用
 	if (projectionIndex <= closestIndex) {
 		// 前方へのルート
 		const steps = Math.min(15, closestIndex - Math.floor(projectionIndex));
 		for (let i = 1; i <= steps; i++) {
-			const routeIndex = Math.floor(projectionIndex) + Math.floor((closestIndex - Math.floor(projectionIndex)) * i / steps);
+			const routeIndex =
+				Math.floor(projectionIndex) +
+				Math.floor(((closestIndex - Math.floor(projectionIndex)) * i) / steps);
 			if (routeIndex < routeCoords.length && routeIndex >= 0) {
 				roadBasedRoute.push(routeCoords[routeIndex]);
 			}
@@ -547,16 +625,18 @@ export const generateUltraDenseRejoinRoute = (currentLocation, routeData) => {
 		// 後方へのルート（Uターンなど）
 		const steps = Math.min(15, Math.floor(projectionIndex) - closestIndex);
 		for (let i = 1; i <= steps; i++) {
-			const routeIndex = Math.floor(projectionIndex) - Math.floor((Math.floor(projectionIndex) - closestIndex) * i / steps);
+			const routeIndex =
+				Math.floor(projectionIndex) -
+				Math.floor(((Math.floor(projectionIndex) - closestIndex) * i) / steps);
 			if (routeIndex >= 0 && routeIndex < routeCoords.length) {
 				roadBasedRoute.push(routeCoords[routeIndex]);
 			}
 		}
 	}
-	
+
 	// 5. 合流点を追加
 	roadBasedRoute.push(routeCoords[closestIndex]);
-	
+
 	// 6. 合流後の道路も追加（より自然な表示のため）
 	const postJoinSteps = Math.min(8, routeCoords.length - closestIndex - 1);
 	for (let i = 1; i <= postJoinSteps; i++) {
@@ -564,11 +644,11 @@ export const generateUltraDenseRejoinRoute = (currentLocation, routeData) => {
 			roadBasedRoute.push(routeCoords[closestIndex + i]);
 		}
 	}
-	
+
 	return {
 		route: roadBasedRoute,
 		joinPoint: joinPoint,
-		distance: minDistance
+		distance: minDistance,
 	};
 };
 
@@ -579,68 +659,77 @@ export const generateUltraDenseRejoinRoute = (currentLocation, routeData) => {
  * @returns {Promise<Object>} 合流ルート情報 {route, joinPoint, distance}
  */
 export const generateOSRMRejoinRoute = async (currentLocation, routeData) => {
-	if (!currentLocation || !routeData || !routeData.polyline?.geometry?.coordinates) {
+	if (
+		!currentLocation ||
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates
+	) {
 		return null;
 	}
 
 	const routeCoords = routeData.polyline.geometry.coordinates;
-	
+
 	// 現在地に最も近いルート上の点を見つける
 	let closestIndex = 0;
 	let minDistance = Infinity;
-	
+
 	for (let i = 0; i < routeCoords.length; i++) {
 		const coord = routeCoords[i];
 		const distance = calculateDistance(
-			currentLocation.lat, currentLocation.lng,
-			coord[1], coord[0]
+			currentLocation.lat,
+			currentLocation.lng,
+			coord[1],
+			coord[0],
 		);
-		
+
 		if (distance < minDistance) {
 			minDistance = distance;
 			closestIndex = i;
 		}
 	}
-	
+
 	const joinPoint = {
 		lat: routeCoords[closestIndex][1],
 		lng: routeCoords[closestIndex][0],
-		index: closestIndex
+		index: closestIndex,
 	};
-	
+
 	try {
 		// OSRM APIを使用して現在地から合流点までの道路に沿ったルートを取得
 		const response = await fetch(
-			`https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${joinPoint.lng},${joinPoint.lat}?overview=simplified&geometries=geojson&steps=false`
+			`https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${joinPoint.lng},${joinPoint.lat}?overview=simplified&geometries=geojson&steps=false`,
 		);
-		
+
 		if (response.ok) {
 			const result = await response.json();
 			if (result.routes && result.routes.length > 0) {
 				const route = result.routes[0];
-				const osrmRoute = route.geometry.coordinates.map(coord => [coord[0], coord[1]]);
-				
-				console.log('🛣️ OSRM API合流ルート生成成功:', {
+				const osrmRoute = route.geometry.coordinates.map((coord) => [
+					coord[0],
+					coord[1],
+				]);
+
+				console.log("🛣️ OSRM API合流ルート生成成功:", {
 					current: currentLocation,
 					joinPoint: joinPoint,
-					distance: minDistance.toFixed(1) + 'm',
+					distance: minDistance.toFixed(1) + "m",
 					routePoints: osrmRoute.length,
-					routeType: 'OSRM API道路ルート'
+					routeType: "OSRM API道路ルート",
 				});
-				
+
 				return {
 					route: osrmRoute,
 					joinPoint: joinPoint,
-					distance: minDistance
+					distance: minDistance,
 				};
 			}
 		}
 	} catch (error) {
-		console.warn('⚠️ OSRM API合流ルート生成に失敗:', error);
+		console.warn("⚠️ OSRM API合流ルート生成に失敗:", error);
 	}
-	
+
 	// OSRM APIが失敗した場合は、従来の方法を使用
-	console.log('🔄 OSRM API失敗、従来の方法で合流ルート生成');
+	console.log("🔄 OSRM API失敗、従来の方法で合流ルート生成");
 	return generateUltraDenseRejoinRoute(currentLocation, routeData);
 };
 
@@ -650,8 +739,15 @@ export const generateOSRMRejoinRoute = async (currentLocation, routeData) => {
  * @param {Object} routeData - ルートデータ
  * @returns {Object} 最短距離情報 {distance, closestPoint}
  */
-export const calculateShortestDistanceToRoute = (currentLocation, routeData) => {
-	if (!currentLocation || !routeData || !routeData.polyline?.geometry?.coordinates) {
+export const calculateShortestDistanceToRoute = (
+	currentLocation,
+	routeData,
+) => {
+	if (
+		!currentLocation ||
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates
+	) {
 		return { distance: Infinity, closestPoint: null };
 	}
 
@@ -688,14 +784,19 @@ export const calculateShortestDistanceToRoute = (currentLocation, routeData) => 
 			yy = p1[1] + param * C;
 		}
 
-		const distance = calculateDistance(currentLocation.lat, currentLocation.lng, yy, xx);
+		const distance = calculateDistance(
+			currentLocation.lat,
+			currentLocation.lng,
+			yy,
+			xx,
+		);
 
 		if (distance < minDistance) {
 			minDistance = distance;
 			closestPoint = {
 				lat: yy,
 				lng: xx,
-				index: i
+				index: i,
 			};
 		}
 	}
@@ -710,8 +811,11 @@ export const calculateShortestDistanceToRoute = (currentLocation, routeData) => 
  * @returns {number} 方位角（0-360度）
  */
 export const calculateRouteDirection = (routeData, pointIndex = 0) => {
-	if (!routeData || !routeData.polyline?.geometry?.coordinates || 
-		routeData.polyline.geometry.coordinates.length < 2) {
+	if (
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates ||
+		routeData.polyline.geometry.coordinates.length < 2
+	) {
 		return 0;
 	}
 
@@ -719,15 +823,17 @@ export const calculateRouteDirection = (routeData, pointIndex = 0) => {
 	const currentIndex = Math.min(pointIndex, coordinates.length - 2);
 	const start = coordinates[currentIndex];
 	const next = coordinates[currentIndex + 1];
-	
-	const lat1 = start[1] * Math.PI / 180;
-	const lat2 = next[1] * Math.PI / 180;
-	const deltaLng = (next[0] - start[0]) * Math.PI / 180;
-	
+
+	const lat1 = (start[1] * Math.PI) / 180;
+	const lat2 = (next[1] * Math.PI) / 180;
+	const deltaLng = ((next[0] - start[0]) * Math.PI) / 180;
+
 	const y = Math.sin(deltaLng) * Math.cos(lat2);
-	const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
-	
-	let bearing = Math.atan2(y, x) * 180 / Math.PI;
+	const x =
+		Math.cos(lat1) * Math.sin(lat2) -
+		Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
+
+	const bearing = (Math.atan2(y, x) * 180) / Math.PI;
 	return (bearing + 360) % 360;
 };
 
@@ -738,14 +844,22 @@ export const calculateRouteDirection = (routeData, pointIndex = 0) => {
  * @param {number} lookAhead - 先読みする距離（メートル）
  * @returns {Object} 次の合流点情報
  */
-export const predictNextJoinPoint = (currentLocation, routeData, lookAhead = 1000) => {
-	if (!currentLocation || !routeData || !routeData.polyline?.geometry?.coordinates) {
+export const predictNextJoinPoint = (
+	currentLocation,
+	routeData,
+	lookAhead = 1000,
+) => {
+	if (
+		!currentLocation ||
+		!routeData ||
+		!routeData.polyline?.geometry?.coordinates
+	) {
 		return null;
 	}
 
 	const coordinates = routeData.polyline.geometry.coordinates;
 	const joinInfo = calculateJoinPoint(currentLocation, routeData);
-	
+
 	if (!joinInfo) {
 		return null;
 	}
@@ -758,18 +872,20 @@ export const predictNextJoinPoint = (currentLocation, routeData, lookAhead = 100
 
 	for (let i = startIndex; i < coordinates.length - 1; i++) {
 		const segmentDistance = calculateDistance(
-			coordinates[i][1], coordinates[i][0],
-			coordinates[i + 1][1], coordinates[i + 1][0]
+			coordinates[i][1],
+			coordinates[i][0],
+			coordinates[i + 1][1],
+			coordinates[i + 1][0],
 		);
-		
+
 		accumulatedDistance += segmentDistance;
-		
+
 		if (accumulatedDistance >= totalDistance) {
 			nextJoinPoint = {
 				lat: coordinates[i + 1][1],
 				lng: coordinates[i + 1][0],
 				index: i + 1,
-				distance: accumulatedDistance
+				distance: accumulatedDistance,
 			};
 			break;
 		}

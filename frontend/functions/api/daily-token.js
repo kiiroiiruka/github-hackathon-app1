@@ -27,37 +27,42 @@ export async function onRequest(context) {
 					success: false,
 					error: "Missing required fields: roomId, userId",
 				}),
-				{ 
-					status: 400, 
-					headers: { 
+				{
+					status: 400,
+					headers: {
 						"Content-Type": "application/json",
 						"Access-Control-Allow-Origin": "*",
-					} 
+					},
 				},
 			);
 		}
 
 		// Generate meeting token using REST API
-		const tokenResponse = await fetch("https://api.daily.co/v1/meeting-tokens", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"Authorization": `Bearer ${env.DAILY_API_KEY}`,
-			},
-			body: JSON.stringify({
-				properties: {
-					room_name: roomId, // 参考プロジェクトと同じ形式
-					user_name: userName || `User ${userId}`,
-					is_owner: false,
-					start_video_off: true,  // 音声通話に最適化：ビデオはオフ
-					start_audio_off: false, // 音声はオン
+		const tokenResponse = await fetch(
+			"https://api.daily.co/v1/meeting-tokens",
+			{
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${env.DAILY_API_KEY}`,
 				},
-			}),
-		});
+				body: JSON.stringify({
+					properties: {
+						room_name: roomId, // 参考プロジェクトと同じ形式
+						user_name: userName || `User ${userId}`,
+						is_owner: false,
+						start_video_off: true, // 音声通話に最適化：ビデオはオフ
+						start_audio_off: false, // 音声はオン
+					},
+				}),
+			},
+		);
 
 		if (!tokenResponse.ok) {
 			const errorData = await tokenResponse.text();
-			throw new Error(`Daily API error: ${tokenResponse.status} - ${errorData}`);
+			throw new Error(
+				`Daily API error: ${tokenResponse.status} - ${errorData}`,
+			);
 		}
 
 		const tokenResult = await tokenResponse.json();

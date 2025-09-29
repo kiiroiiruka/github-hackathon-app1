@@ -22,11 +22,13 @@ function FooterTab({ value, onChange, tabs }) {
 	}
 
 	return (
-		<nav className="fixed bottom-0 inset-x-0 h-16 border-t border-gray-200 bg-white shadow-sm" 
-		     style={{ 
-		       paddingBottom: 'env(safe-area-inset-bottom)',
-		       height: 'calc(4rem + env(safe-area-inset-bottom))'
-		     }}>
+		<nav
+			className="fixed bottom-0 inset-x-0 h-16 border-t border-gray-200 bg-white shadow-sm"
+			style={{
+				paddingBottom: "env(safe-area-inset-bottom)",
+				height: "calc(4rem + env(safe-area-inset-bottom))",
+			}}
+		>
 			<ul className="grid grid-cols-5 h-full">
 				{tabs.map((tab) => {
 					const isActive = value === tab.key;

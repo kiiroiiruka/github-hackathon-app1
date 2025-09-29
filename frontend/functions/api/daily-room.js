@@ -29,12 +29,12 @@ export async function onRequest(context) {
 						success: false,
 						error: "Missing required field: roomId",
 					}),
-					{ 
-						status: 400, 
-						headers: { 
+					{
+						status: 400,
+						headers: {
 							"Content-Type": "application/json",
 							"Access-Control-Allow-Origin": "*",
-						} 
+						},
 					},
 				);
 			}
@@ -42,22 +42,30 @@ export async function onRequest(context) {
 			// Delete Daily room using REST API
 			console.log(`🗑️ Daily.coルーム削除を試行: ${roomId}`);
 			console.log(`🔑 API Key exists: ${!!env.DAILY_API_KEY}`);
-			console.log(`🔑 API Key prefix: ${env.DAILY_API_KEY ? env.DAILY_API_KEY.substring(0, 10) + '...' : 'undefined'}`);
-			
-			const dailyResponse = await fetch(`https://api.daily.co/v1/rooms/${roomId}`, {
-				method: "DELETE",
-				headers: {
-					"Authorization": `Bearer ${env.DAILY_API_KEY}`,
+			console.log(
+				`🔑 API Key prefix: ${env.DAILY_API_KEY ? env.DAILY_API_KEY.substring(0, 10) + "..." : "undefined"}`,
+			);
+
+			const dailyResponse = await fetch(
+				`https://api.daily.co/v1/rooms/${roomId}`,
+				{
+					method: "DELETE",
+					headers: {
+						Authorization: `Bearer ${env.DAILY_API_KEY}`,
+					},
 				},
-			});
+			);
 
 			console.log(`📊 Daily API Response Status: ${dailyResponse.status}`);
-			console.log(`📊 Daily API Response Headers:`, Object.fromEntries(dailyResponse.headers.entries()));
+			console.log(
+				`📊 Daily API Response Headers:`,
+				Object.fromEntries(dailyResponse.headers.entries()),
+			);
 
 			// レスポンスの内容を取得（成功・失敗に関わらず）
 			const responseText = await dailyResponse.text();
 			console.log(`📊 Daily API Response Body:`, responseText);
-			
+
 			// Cloudflare Functionsのログに出力（ブラウザのコンソールでは見えない）
 			console.log(`🔍 CLOUDFLARE LOG - Daily API Response:`, {
 				status: dailyResponse.status,
@@ -65,7 +73,7 @@ export async function onRequest(context) {
 				headers: Object.fromEntries(dailyResponse.headers.entries()),
 				body: responseText,
 				roomId: roomId,
-				timestamp: new Date().toISOString()
+				timestamp: new Date().toISOString(),
 			});
 
 			if (!dailyResponse.ok) {
@@ -73,12 +81,14 @@ export async function onRequest(context) {
 					status: dailyResponse.status,
 					statusText: dailyResponse.statusText,
 					responseText: responseText,
-					roomId: roomId
+					roomId: roomId,
 				});
-				
+
 				// 404エラー（ルームが見つからない）の場合は成功として扱う
 				if (dailyResponse.status === 404) {
-					console.log(`✅ Daily.coルームは既に削除済みまたは存在しません: ${roomId}`);
+					console.log(
+						`✅ Daily.coルームは既に削除済みまたは存在しません: ${roomId}`,
+					);
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -94,14 +104,16 @@ export async function onRequest(context) {
 						},
 					);
 				}
-				
+
 				console.error(`❌ Daily API Error (非404):`, {
 					status: dailyResponse.status,
 					statusText: dailyResponse.statusText,
 					responseText: responseText,
-					roomId: roomId
+					roomId: roomId,
 				});
-				throw new Error(`Daily API error: ${dailyResponse.status} - ${responseText}`);
+				throw new Error(
+					`Daily API error: ${dailyResponse.status} - ${responseText}`,
+				);
 			}
 
 			// 成功時のレスポンスを解析
@@ -112,7 +124,7 @@ export async function onRequest(context) {
 			} catch (parseError) {
 				console.log(`📊 Daily.coルーム削除成功（JSON解析失敗）:`, {
 					responseText: responseText,
-					parseError: parseError.message
+					parseError: parseError.message,
 				});
 				result = { success: true, message: "Room deleted successfully" };
 			}
@@ -142,12 +154,12 @@ export async function onRequest(context) {
 					success: false,
 					error: "Missing required fields: roomId, roomName, ownerUid",
 				}),
-				{ 
-					status: 400, 
-					headers: { 
+				{
+					status: 400,
+					headers: {
 						"Content-Type": "application/json",
 						"Access-Control-Allow-Origin": "*",
-					} 
+					},
 				},
 			);
 		}
@@ -157,14 +169,14 @@ export async function onRequest(context) {
 			roomId: roomId,
 			roomName: roomName,
 			ownerUid: ownerUid,
-			timestamp: new Date().toISOString()
+			timestamp: new Date().toISOString(),
 		});
-		
+
 		const dailyResponse = await fetch("https://api.daily.co/v1/rooms", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				"Authorization": `Bearer ${env.DAILY_API_KEY}`,
+				Authorization: `Bearer ${env.DAILY_API_KEY}`,
 			},
 			body: JSON.stringify({
 				name: roomId, // 参考プロジェクトと同じ形式
@@ -180,8 +192,13 @@ export async function onRequest(context) {
 			}),
 		});
 
-		console.log(`📊 Daily Room Creation Response Status: ${dailyResponse.status}`);
-		console.log(`📊 Daily Room Creation Response Headers:`, Object.fromEntries(dailyResponse.headers.entries()));
+		console.log(
+			`📊 Daily Room Creation Response Status: ${dailyResponse.status}`,
+		);
+		console.log(
+			`📊 Daily Room Creation Response Headers:`,
+			Object.fromEntries(dailyResponse.headers.entries()),
+		);
 
 		if (!dailyResponse.ok) {
 			const errorData = await dailyResponse.text();
@@ -189,16 +206,18 @@ export async function onRequest(context) {
 				status: dailyResponse.status,
 				statusText: dailyResponse.statusText,
 				errorData: errorData,
-				roomId: roomId
+				roomId: roomId,
 			});
-			throw new Error(`Daily API error: ${dailyResponse.status} - ${errorData}`);
+			throw new Error(
+				`Daily API error: ${dailyResponse.status} - ${errorData}`,
+			);
 		}
 
 		const dailyRoom = await dailyResponse.json();
 		console.log(`✅ Daily Room Created Successfully:`, {
 			roomId: roomId,
 			dailyRoom: dailyRoom,
-			timestamp: new Date().toISOString()
+			timestamp: new Date().toISOString(),
 		});
 
 		return new Response(

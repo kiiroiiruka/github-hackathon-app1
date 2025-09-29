@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageLayout from "../../../components/layout/PageLayout";
-import Card from "../../../components/ui/Card";
+import SelectedFriendsDisplay from "../../../components/RoomCreation/SelectedFriendsDisplay";
 import Button from "../../../components/ui/Button";
+import Card from "../../../components/ui/Card";
 import Input from "../../../components/ui/Input";
 import Section from "../../../components/ui/Section";
-import SelectedFriendsDisplay from "../../../components/RoomCreation/SelectedFriendsDisplay";
 
 const RoomCreat = () => {
 	const navigate = useNavigate();
@@ -128,7 +128,9 @@ const RoomCreat = () => {
 	// 選択されたフレンドを削除
 	const removeFriend = (friendToRemove) => {
 		setSelectedFriends((prev) => {
-			const updated = prev.filter((friend) => friend.uid !== friendToRemove.uid);
+			const updated = prev.filter(
+				(friend) => friend.uid !== friendToRemove.uid,
+			);
 			// ローカルストレージも更新
 			localStorage.setItem(
 				"roomCreat_selectedFriends",
@@ -145,7 +147,7 @@ const RoomCreat = () => {
 				roomName: roomName.trim(),
 				selectedFriends,
 				selectedLocation,
-				selectedDeparture
+				selectedDeparture,
 			});
 
 			navigate("/dashboard/navi/confirmation", {
@@ -167,9 +169,7 @@ const RoomCreat = () => {
 			{/* タイトルセクション */}
 			<div className="text-center mb-8">
 				<div className="text-6xl mb-4">🏠</div>
-				<h1 className="text-3xl font-bold text-gray-800 mb-2">
-					🏠 ルーム作成
-				</h1>
+				<h1 className="text-3xl font-bold text-gray-800 mb-2">🏠 ルーム作成</h1>
 				<p className="text-gray-600">
 					新しいルームを作成して友達と一緒に行動しよう
 				</p>
@@ -189,8 +189,8 @@ const RoomCreat = () => {
 				</Section>
 
 				{/* ルート選択セクション */}
-				<Section 
-					title="ルート選択" 
+				<Section
+					title="ルート選択"
 					icon="🗺️"
 					subtitle={
 						<div className="flex gap-2 justify-center">
@@ -237,7 +237,7 @@ const RoomCreat = () => {
 								</Button>
 							</Card>
 						)}
-						
+
 						{selectedLocation && (
 							<Card variant="primary" className="p-4">
 								<div className="flex items-center gap-2 mb-2">
@@ -302,7 +302,9 @@ const RoomCreat = () => {
 						>
 							<div className="text-left">
 								<div className="font-semibold">お気に入りから選択</div>
-								<div className="text-sm text-gray-600">保存済みの場所から選択</div>
+								<div className="text-sm text-gray-600">
+									保存済みの場所から選択
+								</div>
 							</div>
 						</Button>
 
@@ -336,10 +338,14 @@ const RoomCreat = () => {
 				</Section>
 
 				{/* 招待するユーザーセクション */}
-				<Section 
-					title="招待するユーザー" 
+				<Section
+					title="招待するユーザー"
 					icon="👥"
-					subtitle={selectedFriends.length > 0 ? `${selectedFriends.length}名選択中` : undefined}
+					subtitle={
+						selectedFriends.length > 0
+							? `${selectedFriends.length}名選択中`
+							: undefined
+					}
 				>
 					<SelectedFriendsDisplay
 						selectedFriends={selectedFriends}
@@ -355,10 +361,14 @@ const RoomCreat = () => {
 					>
 						<div className="text-left">
 							<div className="font-semibold">
-								{selectedFriends.length > 0 ? "フレンドを追加/変更" : "フレンドを選択"}
+								{selectedFriends.length > 0
+									? "フレンドを追加/変更"
+									: "フレンドを選択"}
 							</div>
 							<div className="text-sm text-gray-600">
-								{selectedFriends.length > 0 ? "選択済みのフレンドを変更できます" : "一緒に行動する友達を招待"}
+								{selectedFriends.length > 0
+									? "選択済みのフレンドを変更できます"
+									: "一緒に行動する友達を招待"}
 							</div>
 						</div>
 					</Button>
@@ -374,10 +384,11 @@ const RoomCreat = () => {
 						onClick={handleCreateRoom}
 						icon="🚀"
 					>
-						{roomName.trim() ? `「${roomName}」を作成` : "ルーム名を入力してください"}
+						{roomName.trim()
+							? `「${roomName}」を作成`
+							: "ルーム名を入力してください"}
 					</Button>
 				</div>
-
 			</div>
 		</PageLayout>
 	);

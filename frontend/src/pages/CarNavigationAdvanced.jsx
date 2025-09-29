@@ -1,18 +1,33 @@
 import { onValue, ref, update } from "firebase/database";
+import L, { Icon } from "leaflet";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	MapContainer,
+	Marker,
+	Polyline,
+	Popup,
+	TileLayer,
+	useMap,
+} from "react-leaflet";
 import { useNavigate, useParams } from "react-router-dom";
-import AudioCallRoom from "@/components/VideoCall/VideoCallRoom";
 import AudioCallFooter from "@/components/Footer/AudioCallFooter";
-import { auth, rtdb } from "@/firebase";
-import { useUserUid } from "@/hooks/useUserUid";
-import { getGooglePhotoURL } from "@/hooks/useUser";
+import AudioCallRoom from "@/components/VideoCall/VideoCallRoom";
+import { auth, getMemosByUser, rtdb } from "@/firebase";
 import { checkAndDeleteRoomIfEmpty } from "@/firebase/room";
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
-import { Icon } from "leaflet";
-import { getMemosByUser } from "@/firebase";
-import { isOnRoute, calculateJoinPoint, generateRejoinRoute, generateRoadFollowingRejoinRoute, generateAdvancedRoadBasedRejoinRoute, generateNaturalRoadBasedRejoinRoute, generateUltraDenseRejoinRoute, generateOSRMRejoinRoute, calculateShortestDistanceToRoute } from "@/utils/routeUtils";
+import { getGooglePhotoURL } from "@/hooks/useUser";
+import { useUserUid } from "@/hooks/useUserUid";
 import { getDirectionName } from "@/utils/mapRotationUtils";
+import {
+	calculateJoinPoint,
+	calculateShortestDistanceToRoute,
+	generateAdvancedRoadBasedRejoinRoute,
+	generateNaturalRoadBasedRejoinRoute,
+	generateOSRMRejoinRoute,
+	generateRejoinRoute,
+	generateRoadFollowingRejoinRoute,
+	generateUltraDenseRejoinRoute,
+	isOnRoute,
+} from "@/utils/routeUtils";
 
 // 固定ポップアップのCSSスタイル
 const fixedPopupStyle = `
@@ -27,11 +42,10 @@ const fixedPopupStyle = `
 	}
 `;
 
-
 // 地図コンテナ内でズームと中心を制御するコンポーネント（ボタンズームのみ有効版）
 const MapController = ({ zoomLevel, center, currentLocation }) => {
 	const map = useMap();
-	
+
 	useEffect(() => {
 		if (map) {
 			// すべてのズーム操作を無効化（ボタンズームのみ有効）
@@ -41,7 +55,7 @@ const MapController = ({ zoomLevel, center, currentLocation }) => {
 			map.touchZoom.disable(); // タッチズームを無効化
 			map.doubleClickZoom.disable(); // ダブルクリックズームを無効化
 			map.scrollWheelZoom.disable(); // マウスホイールズームを無効化
-			
+
 			// ズームレベルを設定
 			if (zoomLevel !== undefined) {
 				map.setZoom(zoomLevel);
@@ -55,17 +69,17 @@ const MapController = ({ zoomLevel, center, currentLocation }) => {
 			if (currentLocation) {
 				map.setView([currentLocation.lat, currentLocation.lng], zoomLevel, {
 					animate: true,
-					duration: 0.5
+					duration: 0.5,
 				});
 			} else {
 				map.setView(center, zoomLevel, {
 					animate: true,
-					duration: 0.5
+					duration: 0.5,
 				});
 			}
 		}
 	}, [map, center, zoomLevel, currentLocation]);
-	
+
 	return null;
 };
 
@@ -75,32 +89,32 @@ const MemoScroller = ({ memos }) => {
 	const [scrollPosition, setScrollPosition] = useState(0);
 	const containerRef = useRef(null);
 	const intervalRef = useRef(null);
-	
+
 	useEffect(() => {
 		if (memos.length === 0) return;
-		
+
 		// 3秒間隔でメモを切り替え
 		intervalRef.current = setInterval(() => {
 			setCurrentMemoIndex((prev) => (prev + 1) % memos.length);
 			setScrollPosition(0); // スクロール位置をリセット
 		}, 5000);
-		
+
 		return () => {
 			if (intervalRef.current) {
 				clearInterval(intervalRef.current);
 			}
 		};
 	}, [memos.length]);
-	
+
 	useEffect(() => {
 		if (!containerRef.current || memos.length === 0) return;
-		
+
 		const container = containerRef.current;
 		const textWidth = container.scrollWidth;
 		const containerWidth = container.clientWidth;
-		
+
 		if (textWidth <= containerWidth) return;
-		
+
 		// 2秒間隔でスクロール
 		const scrollInterval = setInterval(() => {
 			setScrollPosition((prev) => {
@@ -111,10 +125,10 @@ const MemoScroller = ({ memos }) => {
 				return prev + 1;
 			});
 		}, 50);
-		
+
 		return () => clearInterval(scrollInterval);
 	}, [currentMemoIndex, memos]);
-	
+
 	if (memos.length === 0) {
 		return (
 			<div className="bg-pink-200 border-2 border-pink-300 rounded-lg p-3 h-16 flex items-center justify-center">
@@ -122,19 +136,19 @@ const MemoScroller = ({ memos }) => {
 			</div>
 		);
 	}
-	
+
 	const currentMemo = memos[currentMemoIndex];
-	
+
 	return (
-		<div 
+		<div
 			ref={containerRef}
 			className="bg-pink-200 border-2 border-pink-300 rounded-lg p-3 h-16 overflow-hidden relative"
 		>
-			<div 
+			<div
 				className="whitespace-nowrap text-gray-800 font-medium"
-				style={{ 
+				style={{
 					transform: `translateX(-${scrollPosition}px)`,
-					transition: 'transform 0.1s ease-out'
+					transition: "transform 0.1s ease-out",
 				}}
 			>
 				{currentMemo.content}
@@ -155,14 +169,17 @@ const CarNavigationAdvanced = () => {
 	const [participantPhotoURLs, setParticipantPhotoURLs] = useState(new Map());
 	const [routeData, setRouteData] = useState(null);
 	const [memos, setMemos] = useState([]);
-	const [activeTab, setActiveTab] = useState('main'); // 'main', 'locations', 'rest'
+	const [activeTab, setActiveTab] = useState("main"); // 'main', 'locations', 'rest'
 	const [mapZoom, setMapZoom] = useState(10);
 	const [mapRotation, setMapRotation] = useState(0); // 地図の回転角度（常に0度で北向き）
 	const [isLandscape, setIsLandscape] = useState(false);
 	const [currentLocation, setCurrentLocation] = useState(null);
 	const [isUsingMockLocation, setIsUsingMockLocation] = useState(true);
 	const [mockLocationIndex, setMockLocationIndex] = useState(0);
-	const [routeStatus, setRouteStatus] = useState({ isOnRoute: true, distance: 0 });
+	const [routeStatus, setRouteStatus] = useState({
+		isOnRoute: true,
+		distance: 0,
+	});
 	const [rejoinRoute, setRejoinRoute] = useState(null);
 	const [joinPoint, setJoinPoint] = useState(null);
 	const currentUserUid = useUserUid();
@@ -173,18 +190,18 @@ const CarNavigationAdvanced = () => {
 		// 東京駅周辺の適当な座標をセット
 		const initialLocation = {
 			lat: 35.6812 + (Math.random() - 0.5) * 0.01, // ±0.005度の範囲
-			lng: 139.7671 + (Math.random() - 0.5) * 0.01
+			lng: 139.7671 + (Math.random() - 0.5) * 0.01,
 		};
 		setCurrentLocation(initialLocation);
 		setIsUsingMockLocation(true);
 		setMockLocationIndex(0);
-		console.log('🎯 初期適当座標設定:', initialLocation);
+		console.log("🎯 初期適当座標設定:", initialLocation);
 	};
 
 	// GPS位置情報の取得
 	const getCurrentPosition = () => {
 		if (!navigator.geolocation) {
-			console.log('GPS not supported');
+			console.log("GPS not supported");
 			return;
 		}
 
@@ -193,38 +210,42 @@ const CarNavigationAdvanced = () => {
 				const { latitude, longitude } = position.coords;
 				setCurrentLocation({ lat: latitude, lng: longitude });
 				setIsUsingMockLocation(false);
-				console.log('📍 GPS位置取得:', { latitude, longitude });
+				console.log("📍 GPS位置取得:", { latitude, longitude });
 			},
 			(error) => {
-				console.error('GPS error:', error);
+				console.error("GPS error:", error);
 				// GPSが失敗した場合はモック位置を使用
 				setIsUsingMockLocation(true);
 			},
 			{
 				enableHighAccuracy: true,
 				timeout: 10000,
-				maximumAge: 60000
-			}
+				maximumAge: 60000,
+			},
 		);
 	};
 
 	// テスト用の仮座標をルート上に生成
 	const generateMockLocations = () => {
 		if (!routeData || !routeData.polyline?.geometry?.coordinates) return [];
-		
+
 		const coordinates = routeData.polyline.geometry.coordinates;
 		const mockLocations = [];
-		
+
 		// ルート上に等間隔でテスト座標を生成
-		for (let i = 0; i < coordinates.length; i += Math.max(1, Math.floor(coordinates.length / 20))) {
+		for (
+			let i = 0;
+			i < coordinates.length;
+			i += Math.max(1, Math.floor(coordinates.length / 20))
+		) {
 			const coord = coordinates[i];
 			mockLocations.push({
 				lat: coord[1],
 				lng: coord[0],
-				index: i
+				index: i,
 			});
 		}
-		
+
 		return mockLocations;
 	};
 
@@ -232,54 +253,55 @@ const CarNavigationAdvanced = () => {
 	const moveToNextMockLocation = () => {
 		const mockLocations = generateMockLocations();
 		if (mockLocations.length === 0) return;
-		
+
 		setMockLocationIndex((prev) => (prev + 1) % mockLocations.length);
-		const nextLocation = mockLocations[(mockLocationIndex + 1) % mockLocations.length];
+		const nextLocation =
+			mockLocations[(mockLocationIndex + 1) % mockLocations.length];
 		setCurrentLocation(nextLocation);
-		console.log('🎯 モック位置移動:', nextLocation);
-		
+		console.log("🎯 モック位置移動:", nextLocation);
+
 		// 回転機能は無効化（常に北向き）
-		console.log('🧭 回転機能は無効化されています - 常に北向きを維持');
+		console.log("🧭 回転機能は無効化されています - 常に北向きを維持");
 	};
 
 	// 開発用の位置操作関数
 	const moveLocation = (direction) => {
 		if (!currentLocation) return;
-		
+
 		const offset = 0.001; // 約100m
-		let newLocation = { ...currentLocation };
-		
+		const newLocation = { ...currentLocation };
+
 		switch (direction) {
-			case 'north':
+			case "north":
 				newLocation.lat += offset;
 				break;
-			case 'south':
+			case "south":
 				newLocation.lat -= offset;
 				break;
-			case 'east':
+			case "east":
 				newLocation.lng += offset;
 				break;
-			case 'west':
+			case "west":
 				newLocation.lng -= offset;
 				break;
-			case 'northeast':
+			case "northeast":
 				newLocation.lat += offset;
 				newLocation.lng += offset;
 				break;
-			case 'northwest':
+			case "northwest":
 				newLocation.lat += offset;
 				newLocation.lng -= offset;
 				break;
-			case 'southeast':
+			case "southeast":
 				newLocation.lat -= offset;
 				newLocation.lng += offset;
 				break;
-			case 'southwest':
+			case "southwest":
 				newLocation.lat -= offset;
 				newLocation.lng -= offset;
 				break;
 		}
-		
+
 		setCurrentLocation(newLocation);
 		console.log(`🎮 位置移動 (${direction}):`, newLocation);
 	};
@@ -287,15 +309,15 @@ const CarNavigationAdvanced = () => {
 	// 現在地が変更された時に地図の中心を強制更新
 	useEffect(() => {
 		if (currentLocation) {
-			console.log('📍 現在地更新、地図中心を強制調整:', currentLocation);
+			console.log("📍 現在地更新、地図中心を強制調整:", currentLocation);
 			// 地図の中心を現在地に強制的に設定
-			const mapElement = document.querySelector('.leaflet-container');
+			const mapElement = document.querySelector(".leaflet-container");
 			if (mapElement) {
 				// 地図要素が存在する場合は中心を更新
-				console.log('🗺️ 地図中心を現在地に強制設定');
-				
+				console.log("🗺️ 地図中心を現在地に強制設定");
+
 				// ズーム操作は可能にしつつ、移動は無効化
-				mapElement.style.cursor = 'default';
+				mapElement.style.cursor = "default";
 			}
 		}
 	}, [currentLocation]);
@@ -328,11 +350,11 @@ const CarNavigationAdvanced = () => {
 				touch-action: none !important;
 			}
 		`;
-		
-		const styleElement = document.createElement('style');
+
+		const styleElement = document.createElement("style");
 		styleElement.textContent = disableMapInteractionStyle;
 		document.head.appendChild(styleElement);
-		
+
 		return () => {
 			document.head.removeChild(styleElement);
 		};
@@ -348,31 +370,37 @@ const CarNavigationAdvanced = () => {
 		if (!status.isOnRoute) {
 			// ルートから外れている場合、OSRM APIを使用して道路に沿った合流ルートを生成
 			try {
-				const osrmInfo = await generateOSRMRejoinRoute(currentLocation, routeData);
+				const osrmInfo = await generateOSRMRejoinRoute(
+					currentLocation,
+					routeData,
+				);
 				if (osrmInfo) {
 					setJoinPoint(osrmInfo.joinPoint);
 					setRejoinRoute(osrmInfo.route);
-					console.log('🛣️ OSRM API合流ルート生成:', {
+					console.log("🛣️ OSRM API合流ルート生成:", {
 						current: currentLocation,
 						joinPoint: osrmInfo.joinPoint,
-						distance: osrmInfo.distance.toFixed(1) + 'm',
+						distance: osrmInfo.distance.toFixed(1) + "m",
 						routePoints: osrmInfo.route.length,
-						routeType: 'OSRM API道路ルート'
+						routeType: "OSRM API道路ルート",
 					});
 				}
 			} catch (error) {
-				console.warn('⚠️ OSRM API合流ルート生成エラー:', error);
+				console.warn("⚠️ OSRM API合流ルート生成エラー:", error);
 				// フォールバック: 従来の方法を使用
-				const ultraDenseInfo = generateUltraDenseRejoinRoute(currentLocation, routeData);
+				const ultraDenseInfo = generateUltraDenseRejoinRoute(
+					currentLocation,
+					routeData,
+				);
 				if (ultraDenseInfo) {
 					setJoinPoint(ultraDenseInfo.joinPoint);
 					setRejoinRoute(ultraDenseInfo.route);
-					console.log('🛣️ フォールバック合流ルート生成:', {
+					console.log("🛣️ フォールバック合流ルート生成:", {
 						current: currentLocation,
 						joinPoint: ultraDenseInfo.joinPoint,
-						distance: ultraDenseInfo.distance.toFixed(1) + 'm',
+						distance: ultraDenseInfo.distance.toFixed(1) + "m",
 						routePoints: ultraDenseInfo.route.length,
-						routeType: '従来の道路ベースルート'
+						routeType: "従来の道路ベースルート",
 					});
 				}
 			}
@@ -380,7 +408,7 @@ const CarNavigationAdvanced = () => {
 			// ルート上にいる場合、合流ルートをクリア
 			setRejoinRoute(null);
 			setJoinPoint(null);
-			console.log('✅ ルート上にいます');
+			console.log("✅ ルート上にいます");
 		}
 	};
 
@@ -394,7 +422,7 @@ const CarNavigationAdvanced = () => {
 		if (!currentLocation || !routeData) return;
 
 		const routeCheckInterval = setInterval(async () => {
-			console.log('🔄 3秒間隔ルート判定・オレンジルート再計算実行');
+			console.log("🔄 3秒間隔ルート判定・オレンジルート再計算実行");
 			await updateRouteStatus();
 		}, 3000);
 
@@ -406,12 +434,12 @@ const CarNavigationAdvanced = () => {
 	// 回転関連の関数（無効化されているが、UI互換性のため残す）
 	const resetMapToNorth = () => {
 		setMapRotation(0);
-		console.log('🧭 地図は常に北向きです');
+		console.log("🧭 地図は常に北向きです");
 	};
 
 	const rotateMapToRoute = () => {
 		setMapRotation(0);
-		console.log('🧭 地図は常に北向きです');
+		console.log("🧭 地図は常に北向きです");
 	};
 
 	// 画面の向きを監視
@@ -419,11 +447,11 @@ const CarNavigationAdvanced = () => {
 		const checkOrientation = () => {
 			setIsLandscape(window.innerWidth > window.innerHeight);
 		};
-		
+
 		checkOrientation();
-		window.addEventListener('resize', checkOrientation);
-		
-		return () => window.removeEventListener('resize', checkOrientation);
+		window.addEventListener("resize", checkOrientation);
+
+		return () => window.removeEventListener("resize", checkOrientation);
 	}, []);
 
 	// 初期状態で適当な座標をセット
@@ -435,10 +463,10 @@ const CarNavigationAdvanced = () => {
 
 	// 固定ポップアップのCSSスタイルを適用
 	useEffect(() => {
-		const styleElement = document.createElement('style');
+		const styleElement = document.createElement("style");
 		styleElement.textContent = fixedPopupStyle;
 		document.head.appendChild(styleElement);
-		
+
 		return () => {
 			document.head.removeChild(styleElement);
 		};
@@ -447,10 +475,10 @@ const CarNavigationAdvanced = () => {
 	// 地図サイズを固定（回転しないため常に100%）
 	const calculateMapSize = () => {
 		return {
-			width: '100%',
-			height: '100%',
-			marginLeft: '0%',
-			marginTop: '0%'
+			width: "100%",
+			height: "100%",
+			marginLeft: "0%",
+			marginTop: "0%",
 		};
 	};
 
@@ -466,39 +494,47 @@ const CarNavigationAdvanced = () => {
 
 	// カスタムアイコンの設定
 	const startIcon = new Icon({
-		iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
-		shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+		iconUrl:
+			"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+		shadowUrl:
+			"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
 		iconSize: [25, 41],
 		iconAnchor: [12, 41],
 		popupAnchor: [1, -34],
-		shadowSize: [41, 41]
+		shadowSize: [41, 41],
 	});
 
 	const goalIcon = new Icon({
-		iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
-		shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+		iconUrl:
+			"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+		shadowUrl:
+			"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
 		iconSize: [25, 41],
 		iconAnchor: [12, 41],
 		popupAnchor: [1, -34],
-		shadowSize: [41, 41]
+		shadowSize: [41, 41],
 	});
 
 	const currentLocationIcon = new Icon({
-		iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
-		shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+		iconUrl:
+			"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+		shadowUrl:
+			"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
 		iconSize: [30, 50],
 		iconAnchor: [15, 50],
 		popupAnchor: [1, -34],
-		shadowSize: [50, 50]
+		shadowSize: [50, 50],
 	});
 
 	const joinPointIcon = new Icon({
-		iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
-		shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+		iconUrl:
+			"https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
+		shadowUrl:
+			"https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
 		iconSize: [25, 41],
 		iconAnchor: [12, 41],
 		popupAnchor: [1, -34],
-		shadowSize: [41, 41]
+		shadowSize: [41, 41],
 	});
 
 	// メモデータを取得
@@ -512,7 +548,7 @@ const CarNavigationAdvanced = () => {
 				console.error("メモ取得エラー:", error);
 			}
 		};
-		
+
 		loadMemos();
 	}, [currentUserUid]);
 
@@ -526,7 +562,7 @@ const CarNavigationAdvanced = () => {
 		// 画面入室時に自分の参加状態を true にする
 		if (currentUserUid) {
 			void update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
-				accepted: true
+				accepted: true,
 			});
 		}
 
@@ -540,28 +576,28 @@ const CarNavigationAdvanced = () => {
 					const membersValue = room.members || {};
 					const list = Object.values(membersValue).filter((m) => m?.accepted);
 					setMembers(list);
-					
+
 					// ルート情報を設定
-		if (room.routeData) {
-			setRouteData(room.routeData);
-			// ルートが読み込まれたら初期位置を設定（現在地がない場合のみ）
-			if (!currentLocation) {
-				const mockLocations = generateMockLocations();
-				if (mockLocations.length > 0) {
-					setCurrentLocation(mockLocations[0]);
-					console.log('🎯 ルートベース初期位置設定:', mockLocations[0]);
-				} else {
-					// ルートがない場合は適当な座標をセット
-					setInitialMockLocation();
-				}
-			}
-			// 回転機能は無効化（常に北向きを維持）
-			console.log('🗺️ 地図は常に北向きで表示されます');
-		}
-					
+					if (room.routeData) {
+						setRouteData(room.routeData);
+						// ルートが読み込まれたら初期位置を設定（現在地がない場合のみ）
+						if (!currentLocation) {
+							const mockLocations = generateMockLocations();
+							if (mockLocations.length > 0) {
+								setCurrentLocation(mockLocations[0]);
+								console.log("🎯 ルートベース初期位置設定:", mockLocations[0]);
+							} else {
+								// ルートがない場合は適当な座標をセット
+								setInitialMockLocation();
+							}
+						}
+						// 回転機能は無効化（常に北向きを維持）
+						console.log("🗺️ 地図は常に北向きで表示されます");
+					}
+
 					// 参加者のphotoURL情報を初期化
 					const photoURLMap = new Map();
-					Object.values(membersValue).forEach(member => {
+					Object.values(membersValue).forEach((member) => {
 						if (member?.uid) {
 							if (member.photoURL !== undefined && member.photoURL !== null) {
 								photoURLMap.set(member.uid, member.photoURL);
@@ -590,7 +626,7 @@ const CarNavigationAdvanced = () => {
 				await update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
 					accepted: false,
 				});
-				
+
 				setTimeout(() => {
 					checkAndDeleteRoomIfEmpty(roomId);
 				}, 1000);
@@ -623,32 +659,38 @@ const CarNavigationAdvanced = () => {
 		if (updateTimeoutRef.current) {
 			clearTimeout(updateTimeoutRef.current);
 		}
-		
+
 		updateTimeoutRef.current = setTimeout(() => {
 			setIsCallActive(state.isActive);
-			
+
 			const uniqueParticipants = [];
 			const seenSessionIds = new Set();
-			
-			(state.participants || []).forEach(participant => {
+
+			(state.participants || []).forEach((participant) => {
 				if (!seenSessionIds.has(participant.session_id)) {
 					seenSessionIds.add(participant.session_id);
 					uniqueParticipants.push(participant);
 				}
 			});
-			
-			setParticipantPhotoURLs(prevPhotoURLs => {
+
+			setParticipantPhotoURLs((prevPhotoURLs) => {
 				const newPhotoURLs = new Map(prevPhotoURLs);
 				let hasChanges = false;
-				
-				uniqueParticipants.forEach(participant => {
+
+				uniqueParticipants.forEach((participant) => {
 					const sessionId = participant.session_id;
 					const userName = participant.user_name;
 					let photoURL = participant.photoURL;
-					
+
 					if ((!photoURL || photoURL === "" || photoURL === null) && userName) {
-						const existingMember = members.find(member => member.name === userName);
-						if (existingMember && existingMember.photoURL && existingMember.photoURL !== "") {
+						const existingMember = members.find(
+							(member) => member.name === userName,
+						);
+						if (
+							existingMember &&
+							existingMember.photoURL &&
+							existingMember.photoURL !== ""
+						) {
 							photoURL = existingMember.photoURL;
 						} else {
 							const googlePhotoURL = getGooglePhotoURL(userName);
@@ -657,8 +699,12 @@ const CarNavigationAdvanced = () => {
 							}
 						}
 					}
-					
-					if (photoURL !== undefined && photoURL !== null && !photoURL.includes("ui-avatars.com")) {
+
+					if (
+						photoURL !== undefined &&
+						photoURL !== null &&
+						!photoURL.includes("ui-avatars.com")
+					) {
 						if (newPhotoURLs.get(sessionId) !== photoURL) {
 							newPhotoURLs.set(sessionId, photoURL);
 							newPhotoURLs.set(userName, photoURL);
@@ -666,35 +712,42 @@ const CarNavigationAdvanced = () => {
 						}
 					}
 				});
-				
+
 				return hasChanges ? newPhotoURLs : prevPhotoURLs;
 			});
-			
-			setCallParticipants(prevParticipants => {
+
+			setCallParticipants((prevParticipants) => {
 				if (prevParticipants.length !== uniqueParticipants.length) {
 					return uniqueParticipants;
 				}
-				
-				const prevSessionIds = prevParticipants.map(p => p.session_id).sort();
-				const currentSessionIds = uniqueParticipants.map(p => p.session_id).sort();
-				if (JSON.stringify(prevSessionIds) !== JSON.stringify(currentSessionIds)) {
+
+				const prevSessionIds = prevParticipants.map((p) => p.session_id).sort();
+				const currentSessionIds = uniqueParticipants
+					.map((p) => p.session_id)
+					.sort();
+				if (
+					JSON.stringify(prevSessionIds) !== JSON.stringify(currentSessionIds)
+				) {
 					return uniqueParticipants;
 				}
-				
+
 				let hasStateChange = false;
 				for (let i = 0; i < uniqueParticipants.length; i++) {
 					const current = uniqueParticipants[i];
-					const previous = prevParticipants.find(p => p.session_id === current.session_id);
-					if (previous && (
-						previous.audio !== current.audio ||
-						previous.local !== current.local ||
-						previous.user_name !== current.user_name
-					)) {
+					const previous = prevParticipants.find(
+						(p) => p.session_id === current.session_id,
+					);
+					if (
+						previous &&
+						(previous.audio !== current.audio ||
+							previous.local !== current.local ||
+							previous.user_name !== current.user_name)
+					) {
 						hasStateChange = true;
 						break;
 					}
 				}
-				
+
 				return hasStateChange ? uniqueParticipants : prevParticipants;
 			});
 		}, 50);
@@ -706,7 +759,7 @@ const CarNavigationAdvanced = () => {
 				await update(ref(rtdb, `rooms/${roomId}/members/${currentUserUid}`), {
 					accepted: false,
 				});
-				
+
 				setTimeout(() => {
 					checkAndDeleteRoomIfEmpty(roomId);
 				}, 1000);
@@ -714,26 +767,26 @@ const CarNavigationAdvanced = () => {
 				console.error("❌ 参加状態の更新エラー:", error);
 			}
 		}
-		
+
 		navigate("/dashboard/home");
 	};
 
 	// 地図のズーム制御
 	const handleZoomIn = () => {
-		setMapZoom(prev => Math.min(prev + 1, 18));
+		setMapZoom((prev) => Math.min(prev + 1, 18));
 	};
 
 	const handleZoomOut = () => {
-		setMapZoom(prev => Math.max(prev - 1, 1));
+		setMapZoom((prev) => Math.max(prev - 1, 1));
 	};
 
 	// ズームレベルに応じた座標の最適化（実用上限対応）
 	const getOptimizedCoordinates = (coordinates, zoomLevel) => {
 		if (!coordinates || coordinates.length === 0) return [];
-		
+
 		// 1000点以下はそのまま返す
 		if (coordinates.length <= 1000) return coordinates;
-		
+
 		// ズームレベルに応じて表示する点数を決定
 		let maxPoints;
 		if (zoomLevel >= 16) {
@@ -745,36 +798,38 @@ const CarNavigationAdvanced = () => {
 		} else {
 			maxPoints = Math.min(800, coordinates.length); // 超低ズーム: 最大800点
 		}
-		
+
 		// 間引き計算
 		const step = Math.max(1, Math.floor(coordinates.length / maxPoints));
 		const optimized = [];
-		
+
 		// 最初の点を必ず含める
 		optimized.push(coordinates[0]);
-		
+
 		// 曲がり角を検出して重要な点を保持
 		for (let i = step; i < coordinates.length - step; i += step) {
 			const prev = coordinates[i - step];
 			const curr = coordinates[i];
 			const next = coordinates[i + step];
-			
+
 			// 角度変化を計算
 			const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
 			const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
 			const angleDiff = Math.abs(angle1 - angle2);
-			
+
 			// 角度変化が大きい場合（曲がり角）は保持
 			if (angleDiff > 0.1 || i % (step * 2) === 0) {
 				optimized.push(curr);
 			}
 		}
-		
+
 		// 最後の点を必ず含める
 		optimized.push(coordinates[coordinates.length - 1]);
-		
-		console.log(`🗺️ ポリライン最適化: ${coordinates.length}点 → ${optimized.length}点 (ズーム: ${zoomLevel})`);
-		
+
+		console.log(
+			`🗺️ ポリライン最適化: ${coordinates.length}点 → ${optimized.length}点 (ズーム: ${zoomLevel})`,
+		);
+
 		return optimized;
 	};
 
@@ -784,12 +839,6 @@ const CarNavigationAdvanced = () => {
 		setMapRotation(0);
 	};
 
-
-
-
-
-
-
 	// タブ切り替え
 	const handleTabChange = (tab) => {
 		setActiveTab(tab);
@@ -798,90 +847,90 @@ const CarNavigationAdvanced = () => {
 	// タブコンテンツのレンダリング
 	const renderTabContent = () => {
 		switch (activeTab) {
-			case 'main':
+			case "main":
 				return (
 					<div className="space-y-4">
-					
-						
 						<div className="bg-blue-50 p-4 rounded-lg">
-							
 							{/* 現在地コントロール */}
-					<div className="mb-4">
-						
-						
-						{/* 開発用位置操作ボタン */}
-						<div className="mb-2">
-							<h4 className="text-sm font-medium text-gray-700 mb-1">開発用位置操作</h4>
-							<div className="grid grid-cols-3 gap-1">
-								<button
-									onClick={() => moveLocation('northwest')}
-									className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-								>
-									↖
-								</button>
-								<button
-									onClick={() => moveLocation('north')}
-									className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-								>
-									↑
-								</button>
-								<button
-									onClick={() => moveLocation('northeast')}
-									className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-								>
-									↗
-								</button>
-								<button
-									onClick={() => moveLocation('west')}
-									className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-								>
-									←
-								</button>
-								<div className="bg-gray-200 px-2 py-1 rounded text-xs text-center text-gray-600">
-									📍
+							<div className="mb-4">
+								{/* 開発用位置操作ボタン */}
+								<div className="mb-2">
+									<h4 className="text-sm font-medium text-gray-700 mb-1">
+										開発用位置操作
+									</h4>
+									<div className="grid grid-cols-3 gap-1">
+										<button
+											onClick={() => moveLocation("northwest")}
+											className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
+										>
+											↖
+										</button>
+										<button
+											onClick={() => moveLocation("north")}
+											className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
+										>
+											↑
+										</button>
+										<button
+											onClick={() => moveLocation("northeast")}
+											className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
+										>
+											↗
+										</button>
+										<button
+											onClick={() => moveLocation("west")}
+											className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
+										>
+											←
+										</button>
+										<div className="bg-gray-200 px-2 py-1 rounded text-xs text-center text-gray-600">
+											📍
+										</div>
+										<button
+											onClick={() => moveLocation("east")}
+											className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
+										>
+											→
+										</button>
+										<button
+											onClick={() => moveLocation("southwest")}
+											className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
+										>
+											↙
+										</button>
+										<button
+											onClick={() => moveLocation("south")}
+											className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
+										>
+											↓
+										</button>
+										<button
+											onClick={() => moveLocation("southeast")}
+											className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
+										>
+											↘
+										</button>
+									</div>
 								</div>
-								<button
-									onClick={() => moveLocation('east')}
-									className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-								>
-									→
-								</button>
-								<button
-									onClick={() => moveLocation('southwest')}
-									className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-								>
-									↙
-								</button>
-								<button
-									onClick={() => moveLocation('south')}
-									className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-								>
-									↓
-								</button>
-								<button
-									onClick={() => moveLocation('southeast')}
-									className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs"
-								>
-									↘
-								</button>
 							</div>
-						</div>
-					</div>
-                    <h3 className="font-semibold mb-3">運転メモ</h3>
-                            <MemoScroller memos={memos} />
+							<h3 className="font-semibold mb-3">運転メモ</h3>
+							<MemoScroller memos={memos} />
 						</div>
 					</div>
 				);
-			case 'locations':
+			case "locations":
 				return (
 					<div className="space-y-4">
 						<div className="bg-gray-50 p-4 rounded-lg">
 							<h3 className="font-semibold mb-3">全員の位置</h3>
 							<div className="space-y-2">
 								{members.map((member, index) => (
-									<div key={index} className="flex items-center gap-2 p-2 bg-white rounded">
+									<div
+										key={index}
+										className="flex items-center gap-2 p-2 bg-white rounded"
+									>
 										<div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-											{member.name?.charAt(0) || '?'}
+											{member.name?.charAt(0) || "?"}
 										</div>
 										<span className="text-sm">{member.name}</span>
 									</div>
@@ -890,12 +939,14 @@ const CarNavigationAdvanced = () => {
 						</div>
 					</div>
 				);
-			case 'rest':
+			case "rest":
 				return (
 					<div className="space-y-4">
 						<div className="bg-gray-50 p-4 rounded-lg">
 							<h3 className="font-semibold mb-3">休憩地点のセット</h3>
-							<p className="text-gray-600 text-sm">休憩地点の設定機能は準備中です。</p>
+							<p className="text-gray-600 text-sm">
+								休憩地点の設定機能は準備中です。
+							</p>
 						</div>
 					</div>
 				);
@@ -920,14 +971,18 @@ const CarNavigationAdvanced = () => {
 			{/* ヘッダー */}
 			<div className="bg-green-500 text-white p-4">
 				<div className="flex items-center justify-center">
-				
 					{routeData && (
 						<div className="bg-red-500 px-3 py-1 rounded text-sm">
-							到着時刻: {routeData.routeInfo?.arrivalTime ? 
-								new Date(routeData.routeInfo.arrivalTime).toLocaleTimeString('ja-JP', { 
-									hour: '2-digit', 
-									minute: '2-digit' 
-								}) : '○○:00'}
+							到着時刻:{" "}
+							{routeData.routeInfo?.arrivalTime
+								? new Date(routeData.routeInfo.arrivalTime).toLocaleTimeString(
+										"ja-JP",
+										{
+											hour: "2-digit",
+											minute: "2-digit",
+										},
+									)
+								: "○○:00"}
 						</div>
 					)}
 				</div>
@@ -938,21 +993,21 @@ const CarNavigationAdvanced = () => {
 				{/* 地図エリア - 正方形 */}
 				<div className="w-full aspect-square relative overflow-hidden">
 					{routeData && routeData.polyline?.geometry?.coordinates ? (
-						<div 
+						<div
 							className="w-full h-full"
 							style={{
 								transform: `rotate(${mapRotation}deg)`,
-								transformOrigin: 'center center',
-								transition: 'transform 0.8s ease-in-out',
-								...calculateMapSize()
+								transformOrigin: "center center",
+								transition: "transform 0.8s ease-in-out",
+								...calculateMapSize(),
 							}}
 						>
 							<MapContainer
 								center={getMapCenter()}
 								zoom={currentLocation ? Math.max(mapZoom, 12) : mapZoom}
-								style={{ 
-									height: '100%', 
-									width: '100%'
+								style={{
+									height: "100%",
+									width: "100%",
 								}}
 								zoomControl={false} // デフォルトのズームコントロールを無効化（カスタムボタンを使用）
 								dragging={false} // ドラッグによる移動を無効化
@@ -963,147 +1018,179 @@ const CarNavigationAdvanced = () => {
 								keyboard={false} // キーボード操作を無効化
 								attributionControl={false} // アトリビューション表示を無効化
 							>
-							<TileLayer
-								url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-								attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-							/>
-							
-							<MapController 
-								zoomLevel={currentLocation ? Math.max(mapZoom, 12) : mapZoom} 
-								center={getMapCenter()} 
-								currentLocation={currentLocation}
-							/>
-							
+								<TileLayer
+									url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+									attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+								/>
+
+								<MapController
+									zoomLevel={currentLocation ? Math.max(mapZoom, 12) : mapZoom}
+									center={getMapCenter()}
+									currentLocation={currentLocation}
+								/>
+
 								{/* 赤い合流ルート表示（正規ルートの下に表示、ルート外の時のみ表示・実用上限対応） */}
-								{rejoinRoute && rejoinRoute.length > 0 && !routeStatus.isOnRoute && (
-								<>
-									<Polyline
-										positions={getOptimizedCoordinates(rejoinRoute, mapZoom).map(coord => [coord[1], coord[0]])}
-											color="red"
-										weight={5}
-										opacity={0.9}
-										dashArray="8, 4"
-										smoothFactor={1.0}
-									/>
-									{/* デバッグ用の合流ルート情報 */}
-									{console.log('🛣️ 道路ベース合流ルート描画（最適化済み）:', {
-										originalPoints: rejoinRoute.length,
-										optimizedPoints: getOptimizedCoordinates(rejoinRoute, mapZoom).length,
-										zoomLevel: mapZoom,
-										routeType: '道路に沿った自然なルート（実用上限対応）',
-										isOnRoute: routeStatus.isOnRoute
-									})}
-								</>
-							)}
+								{rejoinRoute &&
+									rejoinRoute.length > 0 &&
+									!routeStatus.isOnRoute && (
+										<>
+											<Polyline
+												positions={getOptimizedCoordinates(
+													rejoinRoute,
+													mapZoom,
+												).map((coord) => [coord[1], coord[0]])}
+												color="red"
+												weight={5}
+												opacity={0.9}
+												dashArray="8, 4"
+												smoothFactor={1.0}
+											/>
+											{/* デバッグ用の合流ルート情報 */}
+											{console.log(
+												"🛣️ 道路ベース合流ルート描画（最適化済み）:",
+												{
+													originalPoints: rejoinRoute.length,
+													optimizedPoints: getOptimizedCoordinates(
+														rejoinRoute,
+														mapZoom,
+													).length,
+													zoomLevel: mapZoom,
+													routeType: "道路に沿った自然なルート（実用上限対応）",
+													isOnRoute: routeStatus.isOnRoute,
+												},
+											)}
+										</>
+									)}
 
-							{/* 青い正規ルート表示（オレンジルートの上に表示・実用上限対応） */}
-							<Polyline
-								positions={getOptimizedCoordinates(routeData.polyline.geometry.coordinates, mapZoom).map(coord => [coord[1], coord[0]])}
-								color="blue"
-								weight={4}
-								opacity={0.8}
-							/>
-							
-							{/* 出発地マーカー */}
-							{routeData.departure && (
-								<Marker 
-									position={[routeData.departure.coordinates[0], routeData.departure.coordinates[1]]}
-									icon={startIcon}
-								>
-									<Popup
-										className="fixed-popup"
-										style={{
-											transform: `rotate(${-mapRotation}deg)`,
-											transformOrigin: 'center center'
-										}}
-									>
-										<div className="text-center max-w-32">
-											<div className="text-sm">🚀</div>
-											<div className="font-semibold text-green-600 text-xs">スタート地点</div>
-											<div className="font-medium text-xs break-words">{routeData.departure.name}</div>
-										</div>
-									</Popup>
-								</Marker>
-							)}
-							
-							{/* 目的地マーカー */}
-							{routeData.destination && (
-								<Marker 
-									position={[routeData.destination.coordinates[0], routeData.destination.coordinates[1]]}
-									icon={goalIcon}
-								>
-									<Popup
-										className="fixed-popup"
-										style={{
-											transform: `rotate(${-mapRotation}deg)`,
-											transformOrigin: 'center center'
-										}}
-									>
-										<div className="text-center max-w-32">
-											<div className="text-sm">🚩</div>
-											<div className="font-semibold text-red-600 text-xs">ゴール地点</div>
-											<div className="font-medium text-xs break-words">{routeData.destination.name}</div>
-										</div>
-									</Popup>
-								</Marker>
-							)}
+								{/* 青い正規ルート表示（オレンジルートの上に表示・実用上限対応） */}
+								<Polyline
+									positions={getOptimizedCoordinates(
+										routeData.polyline.geometry.coordinates,
+										mapZoom,
+									).map((coord) => [coord[1], coord[0]])}
+									color="blue"
+									weight={4}
+									opacity={0.8}
+								/>
 
-							{/* 現在地マーカー */}
-							{currentLocation && (
-								<Marker
-									position={[currentLocation.lat, currentLocation.lng]}
-									icon={currentLocationIcon}
-								>
-									<Popup
-										className="fixed-popup"
-										style={{
-											transform: `rotate(${-mapRotation}deg)`,
-											transformOrigin: 'center center'
-										}}
+								{/* 出発地マーカー */}
+								{routeData.departure && (
+									<Marker
+										position={[
+											routeData.departure.coordinates[0],
+											routeData.departure.coordinates[1],
+										]}
+										icon={startIcon}
 									>
-										<div className="text-center max-w-40">
-
-											<div className="text-xs text-gray-500 break-all">
-												{currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+										<Popup
+											className="fixed-popup"
+											style={{
+												transform: `rotate(${-mapRotation}deg)`,
+												transformOrigin: "center center",
+											}}
+										>
+											<div className="text-center max-w-32">
+												<div className="text-sm">🚀</div>
+												<div className="font-semibold text-green-600 text-xs">
+													スタート地点
+												</div>
+												<div className="font-medium text-xs break-words">
+													{routeData.departure.name}
+												</div>
 											</div>
-											<div className="text-xs mt-1">
-												{routeStatus.isOnRoute ? (
-													<span className="text-green-600">✅ ルート上</span>
-												) : (
-													<span className="text-red-600">❌ ルート外 ({routeStatus.distance.toFixed(0)}m)</span>
-												)}
-											</div>
-										</div>
-									</Popup>
-								</Marker>
-							)}
+										</Popup>
+									</Marker>
+								)}
 
-
-							{/* 合流点マーカー（ルート外の時のみ表示） */}
-							{joinPoint && !routeStatus.isOnRoute && (
-								<Marker
-									position={[joinPoint.lat, joinPoint.lng]}
-									icon={joinPointIcon}
-								>
-									<Popup
-										className="fixed-popup"
-										style={{
-											transform: `rotate(${-mapRotation}deg)`,
-											transformOrigin: 'center center'
-										}}
+								{/* 目的地マーカー */}
+								{routeData.destination && (
+									<Marker
+										position={[
+											routeData.destination.coordinates[0],
+											routeData.destination.coordinates[1],
+										]}
+										icon={goalIcon}
 									>
-										<div className="text-center max-w-32">
-											<div className="text-sm">🛣️</div>
-											<div className="font-semibold text-orange-600 text-xs">合流点</div>
-											<div className="text-xs text-gray-500">
-												道路に沿ったルート<br />
-												自然な合流パス
+										<Popup
+											className="fixed-popup"
+											style={{
+												transform: `rotate(${-mapRotation}deg)`,
+												transformOrigin: "center center",
+											}}
+										>
+											<div className="text-center max-w-32">
+												<div className="text-sm">🚩</div>
+												<div className="font-semibold text-red-600 text-xs">
+													ゴール地点
+												</div>
+												<div className="font-medium text-xs break-words">
+													{routeData.destination.name}
+												</div>
 											</div>
-										</div>
-									</Popup>
-								</Marker>
-							)}
-						</MapContainer>
+										</Popup>
+									</Marker>
+								)}
+
+								{/* 現在地マーカー */}
+								{currentLocation && (
+									<Marker
+										position={[currentLocation.lat, currentLocation.lng]}
+										icon={currentLocationIcon}
+									>
+										<Popup
+											className="fixed-popup"
+											style={{
+												transform: `rotate(${-mapRotation}deg)`,
+												transformOrigin: "center center",
+											}}
+										>
+											<div className="text-center max-w-40">
+												<div className="text-xs text-gray-500 break-all">
+													{currentLocation.lat.toFixed(4)},{" "}
+													{currentLocation.lng.toFixed(4)}
+												</div>
+												<div className="text-xs mt-1">
+													{routeStatus.isOnRoute ? (
+														<span className="text-green-600">✅ ルート上</span>
+													) : (
+														<span className="text-red-600">
+															❌ ルート外 ({routeStatus.distance.toFixed(0)}m)
+														</span>
+													)}
+												</div>
+											</div>
+										</Popup>
+									</Marker>
+								)}
+
+								{/* 合流点マーカー（ルート外の時のみ表示） */}
+								{joinPoint && !routeStatus.isOnRoute && (
+									<Marker
+										position={[joinPoint.lat, joinPoint.lng]}
+										icon={joinPointIcon}
+									>
+										<Popup
+											className="fixed-popup"
+											style={{
+												transform: `rotate(${-mapRotation}deg)`,
+												transformOrigin: "center center",
+											}}
+										>
+											<div className="text-center max-w-32">
+												<div className="text-sm">🛣️</div>
+												<div className="font-semibold text-orange-600 text-xs">
+													合流点
+												</div>
+												<div className="text-xs text-gray-500">
+													道路に沿ったルート
+													<br />
+													自然な合流パス
+												</div>
+											</div>
+										</Popup>
+									</Marker>
+								)}
+							</MapContainer>
 						</div>
 					) : (
 						<div className="h-full flex items-center justify-center bg-gray-100">
@@ -1113,7 +1200,6 @@ const CarNavigationAdvanced = () => {
 							</div>
 						</div>
 					)}
-					
 				</div>
 
 				{/* 地図下のコントロールパネル */}
@@ -1126,10 +1212,9 @@ const CarNavigationAdvanced = () => {
 								Zoom: {mapZoom}
 								{routeData?.polyline?.geometry?.coordinates && (
 									<div className="text-xs text-gray-600 mt-1">
-										{routeData.polyline.geometry.coordinates.length > 1000 ? 
-											`最適化: ${getOptimizedCoordinates(routeData.polyline.geometry.coordinates, mapZoom).length}点` :
-											`${routeData.polyline.geometry.coordinates.length}点`
-										}
+										{routeData.polyline.geometry.coordinates.length > 1000
+											? `最適化: ${getOptimizedCoordinates(routeData.polyline.geometry.coordinates, mapZoom).length}点`
+											: `${routeData.polyline.geometry.coordinates.length}点`}
 									</div>
 								)}
 							</div>
@@ -1158,41 +1243,37 @@ const CarNavigationAdvanced = () => {
 						</button>
 					</div>
 
-					
-
 					{/* タブコンテンツ */}
-					<div className="mb-4">
-						{renderTabContent()}
-					</div>
+					<div className="mb-4">{renderTabContent()}</div>
 
 					{/* タブボタン */}
 					<div className="flex gap-2">
 						<button
-							onClick={() => handleTabChange('main')}
+							onClick={() => handleTabChange("main")}
 							className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 ${
-								activeTab === 'main' 
-									? 'bg-blue-100 border-blue-500 text-blue-700' 
-									: 'bg-gray-100 border-gray-300 text-gray-700'
+								activeTab === "main"
+									? "bg-blue-100 border-blue-500 text-blue-700"
+									: "bg-gray-100 border-gray-300 text-gray-700"
 							}`}
 						>
 							メインナビ
 						</button>
 						<button
-							onClick={() => handleTabChange('locations')}
+							onClick={() => handleTabChange("locations")}
 							className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 ${
-								activeTab === 'locations' 
-									? 'bg-blue-100 border-blue-500 text-blue-700' 
-									: 'bg-gray-100 border-gray-300 text-gray-700'
+								activeTab === "locations"
+									? "bg-blue-100 border-blue-500 text-blue-700"
+									: "bg-gray-100 border-gray-300 text-gray-700"
 							}`}
 						>
 							全員の位置
 						</button>
 						<button
-							onClick={() => handleTabChange('rest')}
+							onClick={() => handleTabChange("rest")}
 							className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 ${
-								activeTab === 'rest' 
-									? 'bg-blue-100 border-blue-500 text-blue-700' 
-									: 'bg-gray-100 border-gray-300 text-gray-700'
+								activeTab === "rest"
+									? "bg-blue-100 border-blue-500 text-blue-700"
+									: "bg-gray-100 border-gray-300 text-gray-700"
 							}`}
 						>
 							休憩地点のセット
@@ -1219,17 +1300,17 @@ const CarNavigationAdvanced = () => {
 					if (callParticipants.length > 0) {
 						return callParticipants;
 					}
-					
+
 					if (members.length > 0) {
-						return members.map(member => ({
+						return members.map((member) => ({
 							session_id: member.uid,
 							user_name: member.name,
 							audio: false,
 							photoURL: member.photoURL,
-							local: member.uid === currentUserUid
+							local: member.uid === currentUserUid,
 						}));
 					}
-					
+
 					return [];
 				})()}
 				participantPhotoURLs={participantPhotoURLs}

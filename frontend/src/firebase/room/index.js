@@ -1,4 +1,11 @@
-import { get, push, ref, remove, serverTimestamp, set } from "firebase/database";
+import {
+	get,
+	push,
+	ref,
+	remove,
+	serverTimestamp,
+	set,
+} from "firebase/database";
 import { auth, rtdb } from "../firebaseConfig";
 
 /**
@@ -119,16 +126,18 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 			env: {
 				DEV: import.meta.env.DEV,
 				NODE_ENV: import.meta.env.NODE_ENV,
-				MODE: import.meta.env.MODE
+				MODE: import.meta.env.MODE,
 			},
 			roomId,
 			userId,
-			userName
+			userName,
 		});
 
 		// APIエンドポイントが利用できない場合のフォールバック
 		if (!apiBaseUrl) {
-			console.warn("⚠️ APIエンドポイントが設定されていません。フォールバックトークンを使用します。");
+			console.warn(
+				"⚠️ APIエンドポイントが設定されていません。フォールバックトークンを使用します。",
+			);
 			// フォールバック用のダミートークン（実際の通話はできませんが、エラーを防ぎます）
 			return `fallback-token-${roomId}-${userId}-${Date.now()}`;
 		}
@@ -152,16 +161,20 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 			console.error("❌ API Response Error:", {
 				status: response.status,
 				statusText: response.statusText,
-				body: errorText
+				body: errorText,
 			});
-			
+
 			// APIが利用できない場合のフォールバック
 			if (response.status === 404) {
-				console.warn("⚠️ APIエンドポイントが見つかりません。フォールバックトークンを使用します。");
+				console.warn(
+					"⚠️ APIエンドポイントが見つかりません。フォールバックトークンを使用します。",
+				);
 				return `fallback-token-${roomId}-${userId}-${Date.now()}`;
 			}
-			
-			throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+
+			throw new Error(
+				`API request failed: ${response.status} ${response.statusText}`,
+			);
 		}
 
 		const result = await response.json();
@@ -173,21 +186,28 @@ export const getDailyToken = async (roomId, userId, userName, userPhotoURL) => {
 		return result.token;
 	} catch (error) {
 		console.error("❌ Daily token generation error:", error);
-		
+
 		// ネットワークエラーやAPIエンドポイントが利用できない場合のフォールバック
-		const isNetworkError = error.message.includes('Failed to fetch') || 
-							  error.message.includes('404') || 
-							  error.message.includes('ERR_CONNECTION_REFUSED') ||
-							  error.message.includes('NetworkError') ||
-							  error.message.includes('TypeError');
-		
+		const isNetworkError =
+			error.message.includes("Failed to fetch") ||
+			error.message.includes("404") ||
+			error.message.includes("ERR_CONNECTION_REFUSED") ||
+			error.message.includes("NetworkError") ||
+			error.message.includes("TypeError");
+
 		if (isNetworkError) {
-			console.warn("⚠️ APIエンドポイントにアクセスできません。フォールバックトークンを使用します。");
-			console.warn("💡 Cloudflare Pages Functionsが正しく設定されているか確認してください。");
-			console.warn("💡 functions/api/daily-token.js が正しくデプロイされているか確認してください。");
+			console.warn(
+				"⚠️ APIエンドポイントにアクセスできません。フォールバックトークンを使用します。",
+			);
+			console.warn(
+				"💡 Cloudflare Pages Functionsが正しく設定されているか確認してください。",
+			);
+			console.warn(
+				"💡 functions/api/daily-token.js が正しくデプロイされているか確認してください。",
+			);
 			return `fallback-token-${roomId}-${userId}-${Date.now()}`;
 		}
-		
+
 		throw error;
 	}
 };
@@ -295,12 +315,12 @@ const deleteDailyRoom = async (dailyRoomId) => {
 	try {
 		// 一時的に本番環境のエンドポイントを使用（Cloudflare Functionsサーバーが起動していないため）
 		const apiBaseUrl = window.location.origin; // 本番環境のエンドポイント（Cloudflare Pages Functions - 現在のドメイン）
-		
+
 		console.log("🌐 Daily.coルーム削除API呼び出し:", {
 			apiBaseUrl,
-			dailyRoomId
+			dailyRoomId,
 		});
-		
+
 		const response = await fetch(`${apiBaseUrl}/api/daily-room`, {
 			method: "DELETE",
 			headers: {
@@ -312,7 +332,10 @@ const deleteDailyRoom = async (dailyRoomId) => {
 		});
 
 		console.log("📊 API Response Status:", response.status);
-		console.log("📊 API Response Headers:", Object.fromEntries(response.headers.entries()));
+		console.log(
+			"📊 API Response Headers:",
+			Object.fromEntries(response.headers.entries()),
+		);
 
 		if (!response.ok) {
 			const errorText = await response.text();
@@ -320,27 +343,35 @@ const deleteDailyRoom = async (dailyRoomId) => {
 				status: response.status,
 				statusText: response.statusText,
 				errorText: errorText,
-				dailyRoomId: dailyRoomId
+				dailyRoomId: dailyRoomId,
 			});
-			
+
 			// 404エラーの場合は成功として扱う（ルームが既に削除済み）
 			if (response.status === 404) {
-				console.log("✅ Daily.coルームは既に削除済みまたは存在しません:", dailyRoomId);
-				return { success: true, message: `Room ${dailyRoomId} was already deleted or does not exist` };
+				console.log(
+					"✅ Daily.coルームは既に削除済みまたは存在しません:",
+					dailyRoomId,
+				);
+				return {
+					success: true,
+					message: `Room ${dailyRoomId} was already deleted or does not exist`,
+				};
 			}
-			
+
 			console.error("❌ API Response Error (非404):", {
 				status: response.status,
 				statusText: response.statusText,
 				errorText: errorText,
-				dailyRoomId: dailyRoomId
+				dailyRoomId: dailyRoomId,
 			});
-			throw new Error(`Daily room deletion failed: ${response.status} ${response.statusText} - ${errorText}`);
+			throw new Error(
+				`Daily room deletion failed: ${response.status} ${response.statusText} - ${errorText}`,
+			);
 		}
 
 		const result = await response.json();
 		console.log("✅ API Response Success:", result);
-		
+
 		if (!result.success) {
 			throw new Error(`Daily room deletion failed: ${result.error}`);
 		}
@@ -350,7 +381,7 @@ const deleteDailyRoom = async (dailyRoomId) => {
 		console.error("❌ Daily.coルーム削除エラー:", {
 			error: error.message,
 			dailyRoomId: dailyRoomId,
-			stack: error.stack
+			stack: error.stack,
 		});
 		throw error;
 	}
@@ -369,37 +400,37 @@ export const checkAndDeleteRoomIfEmpty = async (roomId) => {
 		console.log("🔄 ルーム削除処理が既に進行中です:", roomId);
 		return;
 	}
-	
+
 	// 削除処理開始をマーク
 	roomDeletionInProgress.set(roomId, true);
 	try {
 		const roomRef = ref(rtdb, `rooms/${roomId}`);
 		const snapshot = await get(roomRef);
 		const roomData = snapshot.val();
-		
+
 		if (!roomData || !roomData.members) {
 			console.log("🔄 ルームデータまたはメンバーが見つかりません:", roomId);
 			return;
 		}
-		
+
 		const members = roomData.members;
 		const memberValues = Object.values(members);
-		
+
 		// 全メンバーの参加状態をチェック
-		const allMembersInactive = memberValues.every(member => 
-			member.accepted === false || member.accepted === undefined
+		const allMembersInactive = memberValues.every(
+			(member) => member.accepted === false || member.accepted === undefined,
 		);
-		
+
 		if (allMembersInactive && memberValues.length > 0) {
 			console.log("🗑️ 全メンバーが非参加状態のため、ルームを削除します:", {
 				roomId,
 				memberCount: memberValues.length,
-				members: memberValues.map(m => ({ 
-					name: m.name, 
-					accepted: m.accepted 
-				}))
+				members: memberValues.map((m) => ({
+					name: m.name,
+					accepted: m.accepted,
+				})),
 			});
-			
+
 			// Daily.coのルームも削除
 			if (roomData.dailyRoom && roomData.dailyRoom.id) {
 				try {
@@ -407,22 +438,22 @@ export const checkAndDeleteRoomIfEmpty = async (roomId) => {
 					const deleteResult = await deleteDailyRoom(roomData.dailyRoom.id);
 					console.log("✅ Daily.coルーム削除処理完了:", {
 						roomId: roomData.dailyRoom.id,
-						result: deleteResult
+						result: deleteResult,
 					});
 				} catch (error) {
 					console.error("❌ Daily.coルーム削除エラー:", error);
 					// Daily.coルームの削除に失敗しても、Firebaseルームは削除を続行
 				}
 			}
-			
+
 			// Firebaseルームを削除
 			await remove(roomRef);
 			console.log("✅ Firebaseルームを削除しました:", roomId);
 		} else {
 			console.log("🔄 ルームはまだアクティブなメンバーがいます:", {
 				roomId,
-				activeMembers: memberValues.filter(m => m.accepted === true).length,
-				totalMembers: memberValues.length
+				activeMembers: memberValues.filter((m) => m.accepted === true).length,
+				totalMembers: memberValues.length,
 			});
 		}
 	} catch (error) {

@@ -11,7 +11,14 @@ import { useDailyConnection } from "@/hooks/useDailyConnection";
 import { useParticipantManager } from "@/hooks/useParticipantManager";
 import { useUserUid } from "@/hooks/useUserUid";
 
-const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallStateUpdate }) => {
+const AudioCallRoom = ({
+	roomId,
+	roomName,
+	ownerUid,
+	members,
+	onCallEnd,
+	onCallStateUpdate,
+}) => {
 	const iframeRef = useRef(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState(null);
@@ -42,7 +49,12 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 		leaveRoom,
 		destroyDaily,
 		toggleMicrophone,
-	} = useDailyConnection(roomId, dailyRoomUrl, handleParticipantUpdate, members);
+	} = useDailyConnection(
+		roomId,
+		dailyRoomUrl,
+		handleParticipantUpdate,
+		members,
+	);
 
 	// 通話時間の定期更新
 	useEffect(() => {
@@ -56,26 +68,26 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
 	// participantsをメモ化して無限ループを防ぐ
 	const memoizedParticipants = useMemo(() => {
-		const mappedParticipants = participants.map(p => ({
+		const mappedParticipants = participants.map((p) => ({
 			session_id: p.session_id,
 			user_name: p.user_name,
 			audio: p.audio,
 			photoURL: p.photoURL,
 			// Daily.coから提供されるlocalプロパティをそのまま使用
-			local: p.local || false
+			local: p.local || false,
 		}));
-		
+
 		// デバッグログを追加
 		console.log("🎤 memoizedParticipants更新:", {
 			totalParticipants: mappedParticipants.length,
-			participants: mappedParticipants.map(p => ({
+			participants: mappedParticipants.map((p) => ({
 				user_name: p.user_name,
 				audio: p.audio,
 				local: p.local,
-				session_id: p.session_id
-			}))
+				session_id: p.session_id,
+			})),
 		});
-		
+
 		return mappedParticipants;
 	}, [participants]);
 
@@ -87,28 +99,33 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 		if (updateTimeoutRef.current) {
 			clearTimeout(updateTimeoutRef.current);
 		}
-		
+
 		updateTimeoutRef.current = setTimeout(() => {
 			if (onCallStateUpdate) {
 				console.log("📡 VideoCallRoom: 通話状態を親に通知:", {
 					isActive: isJoined,
 					participantCount: memoizedParticipants.length,
 					isMicrophoneEnabled: dailyMicrophoneEnabled,
-					participants: memoizedParticipants.map(p => ({
+					participants: memoizedParticipants.map((p) => ({
 						user_name: p.user_name,
 						audio: p.audio,
-						local: p.local
-					}))
+						local: p.local,
+					})),
 				});
-				
+
 				onCallStateUpdate({
 					isActive: isJoined,
 					participants: memoizedParticipants,
-					isMicrophoneEnabled: dailyMicrophoneEnabled
+					isMicrophoneEnabled: dailyMicrophoneEnabled,
 				});
 			}
 		}, 100); // 100msのデバウンス
-	}, [onCallStateUpdate, isJoined, memoizedParticipants, dailyMicrophoneEnabled]);
+	}, [
+		onCallStateUpdate,
+		isJoined,
+		memoizedParticipants,
+		dailyMicrophoneEnabled,
+	]);
 
 	useEffect(() => {
 		notifyCallStateUpdate();
@@ -138,7 +155,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 	useEffect(() => {
 		// 初期化済みの場合は実行しない
 		if (isInitialized) return;
-		
+
 		// リトライ制限（最大3回まで）
 		if (retryCount >= 3) {
 			console.error("❌ 最大リトライ回数に達しました。初期化を停止します。");
@@ -152,7 +169,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 		const initializeCall = async () => {
 			try {
 				if (!isMounted) return;
-				
+
 				setIsLoading(true);
 				setError(null);
 
@@ -190,10 +207,13 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 				if (!isMounted) return;
 
 				// フォールバックトークンの場合は警告を表示
-				if (token.startsWith('fallback-token-')) {
-					console.warn("⚠️ フォールバックトークンが使用されています。実際の通話はできません。");
-					const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
-					const errorMessage = isDevelopment 
+				if (token.startsWith("fallback-token-")) {
+					console.warn(
+						"⚠️ フォールバックトークンが使用されています。実際の通話はできません。",
+					);
+					const isDevelopment =
+						import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
+					const errorMessage = isDevelopment
 						? "APIサーバーに接続できません。開発環境ではCloudflare Workersを起動してください。"
 						: "APIサーバーに接続できません。本番環境ではCloudflare Pages Functionsの設定を確認してください。";
 					setError(errorMessage);
@@ -214,7 +234,10 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
 				// Join the room (既に接続中でない場合のみ)
 				if (!isJoined && !isConnecting) {
-					console.log("🚀 ルームに参加を開始します:", { roomUrl, token: token.substring(0, 20) + "..." });
+					console.log("🚀 ルームに参加を開始します:", {
+						roomUrl,
+						token: token.substring(0, 20) + "...",
+					});
 					await joinRoom(token, roomUrl);
 
 					// iframe の状態を確認
@@ -229,7 +252,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 						}
 					}, 1000);
 				}
-				
+
 				if (isMounted) {
 					setIsLoading(false);
 					setIsInitialized(true); // 初期化完了フラグを設定
@@ -237,7 +260,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 			} catch (err) {
 				console.error("Video call initialization error:", err);
 				if (isMounted) {
-					setRetryCount(prev => prev + 1);
+					setRetryCount((prev) => prev + 1);
 					setError(err.message);
 					setIsLoading(false);
 					setIsInitialized(false); // エラー時は初期化フラグをリセット
@@ -282,7 +305,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 		try {
 			setError(null);
 			setIsLoading(true);
-			
+
 			// 現在のユーザー情報を取得
 			const currentUser = auth.currentUser;
 			if (!currentUser) {
@@ -309,22 +332,27 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 	const displayError = error || dailyError;
 
 	if (displayError) {
-		const isMicrophoneError = displayError.includes("マイク") || 
-								  displayError.includes("microphone") || 
-								  displayError.includes("audio");
-		
-		const isApiError = displayError.includes("APIサーバー") || 
-						  displayError.includes("Cloudflare Workers");
+		const isMicrophoneError =
+			displayError.includes("マイク") ||
+			displayError.includes("microphone") ||
+			displayError.includes("audio");
+
+		const isApiError =
+			displayError.includes("APIサーバー") ||
+			displayError.includes("Cloudflare Workers");
 
 		return (
 			<div className="flex flex-col items-center justify-center h-96 bg-gray-100 rounded-lg">
 				<div className="text-red-600 text-center max-w-md">
 					<p className="text-lg font-semibold mb-4">
-						{isMicrophoneError ? "🎤 マイクエラー" : 
-						 isApiError ? "🔧 APIサーバーエラー" : "通話エラー"}
+						{isMicrophoneError
+							? "🎤 マイクエラー"
+							: isApiError
+								? "🔧 APIサーバーエラー"
+								: "通話エラー"}
 					</p>
 					<p className="text-sm mb-4">{displayError}</p>
-					
+
 					{isMicrophoneError && (
 						<div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
 							<p className="text-sm text-yellow-800 mb-2">
@@ -337,20 +365,29 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 							</ol>
 						</div>
 					)}
-					
+
 					{isApiError && (
 						<div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
 							<p className="text-sm text-blue-800 mb-2">
 								<strong>開発環境での解決方法:</strong>
 							</p>
 							<ol className="text-xs text-blue-700 text-left list-decimal list-inside space-y-1">
-								<li>ターミナルで <code className="bg-blue-100 px-1 rounded">cd functions</code> を実行</li>
-								<li><code className="bg-blue-100 px-1 rounded">npx wrangler dev --port 8787</code> を実行</li>
+								<li>
+									ターミナルで{" "}
+									<code className="bg-blue-100 px-1 rounded">cd functions</code>{" "}
+									を実行
+								</li>
+								<li>
+									<code className="bg-blue-100 px-1 rounded">
+										npx wrangler dev --port 8787
+									</code>{" "}
+									を実行
+								</li>
 								<li>サーバーが起動したら、このページを再読み込み</li>
 							</ol>
 						</div>
 					)}
-					
+
 					<div className="flex gap-2 justify-center">
 						{isMicrophoneError && (
 							<button
@@ -382,14 +419,26 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 					<p className="text-gray-600 mb-4 text-lg font-semibold">
 						{isLoading ? "通話を開始しています..." : "接続中..."}
 					</p>
-					
+
 					{isConnecting && (
 						<div className="text-sm text-blue-600 bg-blue-50 px-6 py-4 rounded-lg border border-blue-200">
 							<div className="flex items-center justify-center mb-3">
-								<svg className="w-8 h-8 mr-2 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+								<svg
+									className="w-8 h-8 mr-2 animate-pulse"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+									/>
 								</svg>
-								<span className="font-bold text-lg">🎤 マイクの使用を許可しますか？</span>
+								<span className="font-bold text-lg">
+									🎤 マイクの使用を許可しますか？
+								</span>
 							</div>
 							<div className="bg-white p-4 rounded-lg border-2 border-blue-300 mb-3">
 								<p className="text-sm font-semibold text-gray-800 mb-2">
@@ -403,7 +452,9 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 								</div>
 							</div>
 							<div className="text-xs text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200">
-								<p className="font-semibold mb-2 text-yellow-800">⚠️ もしダイアログが表示されない場合:</p>
+								<p className="font-semibold mb-2 text-yellow-800">
+									⚠️ もしダイアログが表示されない場合:
+								</p>
 								<ol className="text-left space-y-1 text-yellow-700">
 									<li>1. ブラウザのアドレスバー左の🔒マークをクリック</li>
 									<li>2. 「マイク」を「許可」に設定</li>
@@ -412,7 +463,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 							</div>
 						</div>
 					)}
-					
+
 					{isLoading && (
 						<div className="text-sm text-gray-600 bg-gray-50 px-4 py-3 rounded-lg">
 							<p className="mb-2">📞 音声通話ルームに参加しています...</p>
@@ -477,13 +528,15 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 						type="button"
 						onClick={handleToggleMicrophone}
 						className={`px-6 py-3 rounded-full shadow-lg transition-colors ${
-							dailyMicrophoneEnabled 
-								? 'bg-green-500 hover:bg-green-600 text-white' 
-								: 'bg-red-500 hover:bg-red-600 text-white'
+							dailyMicrophoneEnabled
+								? "bg-green-500 hover:bg-green-600 text-white"
+								: "bg-red-500 hover:bg-red-600 text-white"
 						}`}
-						title={dailyMicrophoneEnabled ? 'マイクをミュート' : 'マイクを有効化'}
+						title={
+							dailyMicrophoneEnabled ? "マイクをミュート" : "マイクを有効化"
+						}
 					>
-						{dailyMicrophoneEnabled ? '🎤 マイクON' : '🔇 マイクOFF'}
+						{dailyMicrophoneEnabled ? "🎤 マイクON" : "🔇 マイクOFF"}
 					</button>
 					<button
 						type="button"

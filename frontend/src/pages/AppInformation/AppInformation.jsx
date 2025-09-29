@@ -15,7 +15,7 @@ const AppInformation = () => {
 				{/* アプリ情報カード */}
 				<div className="bg-white rounded-lg shadow-md p-6 mb-6">
 					<h2 className="text-xl font-bold text-center mb-4">アプリ情報</h2>
-					
+
 					{/* アプリ名 */}
 					<div className="mb-4">
 						<h3 className="text-lg font-semibold mb-2">アプリ名</h3>
@@ -85,7 +85,6 @@ const AppInformation = () => {
 						</p>
 					</div>
 				</div>
-
 			</div>
 		</PageLayout>
 	);
