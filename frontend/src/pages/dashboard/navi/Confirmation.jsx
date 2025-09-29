@@ -4,6 +4,7 @@ import PageLayout from "../../../components/layout/PageLayout";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
 import { auth, rtdb } from "../../../firebase/firebaseConfig";
+import { createRoomWithInvitesAndRoute } from "../../../firebase/room";
 
 const Confirmation = () => {
 	console.log("🚀🚀🚀 Confirmation.jsx LOADED - VERSION 2025-09-29-11:25 🚀🚀🚀");
@@ -187,7 +188,7 @@ const Confirmation = () => {
 						}
 
 						try {
-							console.log("🔥 Firebase側のみでルーム作成開始（ルート情報含む）:", {
+							console.log("🔥 通話機能付きルーム作成開始（ルート情報含む）:", {
 								roomName: roomName.trim(),
 								selectedFriends,
 								selectedLocation,
@@ -425,9 +426,8 @@ const Confirmation = () => {
 								ownerUid: currentUser.uid,
 								ownerName: currentUser.displayName || "",
 								ownerPhotoURL: currentUser.photoURL || "",
-								// Daily側の情報は含めない（テスト用）
 								members,
-								testMode: true, // テストモードであることを明示
+								testMode: false, // 通話機能を有効にする
 								// ルート情報を含める
 								routeData: routeData,
 								hasRoute: !!routeData, // ルート情報があるかどうかのフラグ
@@ -446,39 +446,36 @@ const Confirmation = () => {
 							});
 
 							try {
-								// 段階的にデータを保存してテスト
-								console.log("🔍 段階的保存テスト開始");
-								
-								// 1. 基本的なルームデータのみ
-								const basicRoomData = {
-									name: roomName.trim(),
-									createdAt: serverTimestamp(),
-									ownerUid: currentUser.uid,
-									ownerName: currentUser.displayName || "",
-									ownerPhotoURL: currentUser.photoURL || "",
-									members,
-									testMode: true,
-								};
-								
-								await set(roomRef, basicRoomData);
-								console.log("✅ 基本ルームデータ保存成功");
-								
-								// 2. ルートデータを別途追加
-								if (routeData) {
-									const routeRef = ref(rtdb, `rooms/${roomId}/routeData`);
+								// Daily.coルーム作成とFirebase保存を同時実行
+								console.log("🔍 通話機能付きルーム作成開始");
+
+								// Daily.coルーム作成
+								const dailyRoomResult = await createRoomWithInvitesAndRoute({
+									roomName: roomName.trim(),
+									selectedFriends: selectedFriends || [],
+									selectedLocation,
+									selectedDeparture,
+									currentUser,
+								});
+
+								console.log("✅ Daily.coルーム作成成功:", dailyRoomResult);
+
+								// Firebaseにルート情報を追加保存
+								if (routeData && dailyRoomResult.roomId) {
+									const routeRef = ref(rtdb, `rooms/${dailyRoomResult.roomId}/routeData`);
 									await set(routeRef, routeData);
 									console.log("✅ ルートデータ保存成功");
-									
-									// 3. hasRouteフラグを追加
-									const hasRouteRef = ref(rtdb, `rooms/${roomId}/hasRoute`);
+
+									// hasRouteフラグを追加
+									const hasRouteRef = ref(rtdb, `rooms/${dailyRoomResult.roomId}/hasRoute`);
 									await set(hasRouteRef, true);
 									console.log("✅ hasRouteフラグ保存成功");
 								}
-								
-								console.log("✅ Firebase段階的保存成功");
+
+								console.log("✅ 通話機能付きルーム作成完了");
 							} catch (writeError) {
-								console.error("❌ Firebase書き込みエラー:", writeError);
-								console.error("❌ 書き込みエラー詳細:", {
+								console.error("❌ ルーム作成エラー:", writeError);
+								console.error("❌ エラー詳細:", {
 									code: writeError.code,
 									message: writeError.message,
 									stack: writeError.stack,
@@ -488,12 +485,13 @@ const Confirmation = () => {
 							}
 
 							// 保存後にFirebaseから実際のデータを確認
-							const savedRoomRef = ref(rtdb, `rooms/${roomId}`);
+							const actualRoomId = dailyRoomResult?.roomId || roomId;
+							const savedRoomRef = ref(rtdb, `rooms/${actualRoomId}`);
 							const savedSnapshot = await get(savedRoomRef);
 							const savedData = savedSnapshot.val();
 							
 							console.log("🔍 保存後のFirebaseデータ確認:", {
-								roomId,
+								roomId: actualRoomId,
 								hasRouteData: !!savedData?.routeData,
 								routeDataKeys: savedData?.routeData ? Object.keys(savedData.routeData) : null,
 								routeDataSize: savedData?.routeData ? JSON.stringify(savedData.routeData).length : 0,
@@ -502,8 +500,8 @@ const Confirmation = () => {
 								fullSavedData: savedData,
 							});
 
-							console.log("✅ Firebase側のみでルーム作成完了（ルート情報含む）:", {
-								roomId,
+							console.log("✅ 通話機能付きルーム作成完了（ルート情報含む）:", {
+								roomId: actualRoomId,
 								roomName: roomName.trim(),
 								membersCount: Object.keys(members).length,
 								hasRoute: !!routeData,
@@ -514,22 +512,23 @@ const Confirmation = () => {
 											test: routeData.test || false,
 										}
 									: null,
-								testMode: true,
+								testMode: false,
+								dailyRoomUrl: dailyRoomResult?.roomUrl,
 							});
 
 							const routeMessage = routeData
-								? `\n\n🗺️ ルート情報も保存されました（最小限テスト版）:\n距離: ${routeData.routeInfo?.distanceKm || 0}km\n所要時間: ${routeData.routeInfo?.durationMin || 0}分\nデータサイズ: ${Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100}KB\nテストモード: ${routeData.test ? '有効' : '無効'}`
+								? `\n\n🗺️ ルート情報も保存されました:\n距離: ${routeData.routeInfo?.distanceKm || 0}km\n所要時間: ${routeData.routeInfo?.durationMin || 0}分\nデータサイズ: ${Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100}KB`
 								: "\n\n⚠️ ルート情報は保存されませんでした（出発地・目的地が未設定）";
 
 							alert(
-								`Firebase側のみでルーム「${roomName.trim()}」を作成しました！\nルームID: ${roomId}${routeMessage}\n\n※Daily側ではルーム作成されていません（テスト用）`,
+								`通話機能付きルーム「${roomName.trim()}」を作成しました！\nルームID: ${actualRoomId}${routeMessage}\n\n🎤 通話機能が有効になっています！`,
 							);
 
 							// ホーム画面に遷移
 							navigate("/dashboard");
 						} catch (error) {
-							console.error("❌ Firebase側のみルーム作成エラー:", error);
-							alert(`Firebase側のみルーム作成に失敗しました: ${error.message}`);
+							console.error("❌ 通話機能付きルーム作成エラー:", error);
+							alert(`通話機能付きルーム作成に失敗しました: ${error.message}`);
 						}
 					}}
 					icon="🚀"
