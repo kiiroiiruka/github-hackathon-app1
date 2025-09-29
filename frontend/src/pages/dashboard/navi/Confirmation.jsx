@@ -6,6 +6,7 @@ import Card from "../../../components/ui/Card";
 import { auth, rtdb } from "../../../firebase/firebaseConfig";
 
 const Confirmation = () => {
+	console.log("🚀🚀🚀 Confirmation.jsx LOADED - VERSION 2025-09-29-11:25 🚀🚀🚀");
 	const navigate = useNavigate();
 	const location = useLocation();
 	const {
@@ -171,8 +172,9 @@ const Confirmation = () => {
 						console.log("🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀");
 						console.log("🚀 NEW CONFIRMATION CODE EXECUTED! 🚀");
 						console.log("🚀 THIS IS THE UPDATED VERSION! 🚀");
+						console.log("🚀 TIMESTAMP: 2025-09-29-11:25:00 🚀");
 						console.log("🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀");
-						alert("新しいコードが実行されました！");
+						alert("✅ 新しいコードが実行されました！\n\nルート情報を段階的に保存します。\n\nタイムスタンプ: 2025-09-29-11:25:00");
 						const currentUser = auth.currentUser;
 						if (!currentUser || !currentUser.uid) {
 							alert("ログインが必要です。");
