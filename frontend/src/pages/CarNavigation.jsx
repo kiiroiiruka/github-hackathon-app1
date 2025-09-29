@@ -756,6 +756,39 @@ useEffect(() => {
 		};
 	}, []);
 
+	// 丸型アイコン用のCSSを注入
+	useEffect(() => {
+		const css = `
+			.rounded-map-icon-wrapper { background: transparent; border: none; }
+			.rounded-map-icon {
+				border-radius: 9999px; /* fully rounded */
+				object-fit: cover;
+				display: block;
+				border: 2px solid #ffffff;
+				box-shadow: 0 0 0 2px rgba(59,130,246,0.6); /* blue ring */
+			}
+			@keyframes blinkFade { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+			.blink-text { animation: blinkFade 1.2s ease-in-out infinite; }
+		`;
+		const style = document.createElement('style');
+		style.textContent = css;
+		document.head.appendChild(style);
+		return () => document.head.removeChild(style);
+	}, []);
+
+	// 丸型の写真アイコンを生成
+	const createRoundedImageIcon = (url, sizePx) => {
+		const size = Math.max(24, Math.min(96, sizePx || 32));
+		const html = `<img src="${url}" alt="icon" class="rounded-map-icon" style="width:${size}px;height:${size}px;"/>`;
+		return L.divIcon({
+			html,
+			className: 'rounded-map-icon-wrapper',
+			iconSize: [size, size],
+			iconAnchor: [size/2, size/2],
+			popupAnchor: [0, -size/2]
+		});
+	};
+
 	// タブ切り替え
 	const handleTabChange = (tab) => {
 		setActiveTab(tab);
@@ -807,10 +840,19 @@ useEffect(() => {
 		await computeRestRoute(currentLocation, { lat: latlng.lat, lng: latlng.lng });
 	};
 
+	// 休憩地点の解除
+	const clearRestPoint = () => {
+		setRestPoint(null);
+		setRestRoute(null);
+	};
+
 	// 休憩タブ時は紫ルートの維持と再計算（4秒）
 	useEffect(() => {
 		if (activeTab !== 'rest') return;
-		if (!restPoint || !currentLocation) return;
+		if (!restPoint || !currentLocation) {
+			setRestRoute(null);
+			return;
+		}
 
 		const tick = async () => {
 			// 既存の紫ルートに対してオンルート判定（なければ再計算）
@@ -1066,7 +1108,22 @@ useEffect(() => {
 					<div className="space-y-4">
 						<div className="bg-gray-50 p-4 rounded-lg">
 							<h3 className="font-semibold mb-3">休憩地点のセット</h3>
-						<p className="text-gray-600 text-sm">マップをタップして休憩地点を設定します（別ルート表示）。</p>
+						<p className={`text-sm ${activeTab === 'rest' && !restPoint ? 'text-blue-700 blink-text' : 'text-gray-600'}`}>
+								{activeTab === 'rest' && !restPoint ? 'マップをタップして休憩地点を設定してください（別ルート表示）' : 'マップをタップして休憩地点を設定します（別ルート表示）。'}
+							</p>
+						{restPoint && (
+							<div className="mt-3 flex items-center justify-between">
+								<div className="text-xs text-gray-600">
+									現在の休憩地点: {restPoint.lat.toFixed(4)}, {restPoint.lng.toFixed(4)}
+								</div>
+								<button
+									onClick={clearRestPoint}
+									className="px-3 py-1.5 text-xs rounded-md bg-gray-200 hover:bg-gray-300 text-gray-800 border border-gray-300"
+								>
+									解除
+								</button>
+							</div>
+						)}
 						</div>
 					</div>
 				);
@@ -1366,7 +1423,7 @@ useEffect(() => {
 		// 位置情報共有を停止
 		stopLocationSharing();
 		
-		navigate("/dashboard/home");
+		navigate("/dashboard/parking/input");
 	};
 
 	if (loading) {
@@ -1468,7 +1525,7 @@ useEffect(() => {
 											/>
 
 							{/* 休憩地点への別ルート（紫）: 正規ルートとは独立して表示 */}
-							{restRoute && restRoute.length > 0 && (
+							{restPoint && restRoute && restRoute.length > 0 && (
 								<Polyline
 									positions={getOptimizedCoordinates(restRoute, mapZoom).map(coord => [coord[1], coord[0]])}
 									color="#7c3aed" // violet-600
@@ -1523,24 +1580,16 @@ useEffect(() => {
 								</Marker>
 							)}
 
-							{/* 現在地マーカー（自分のユーザーアイコン） */}
+							{/* 現在地マーカー（自分のユーザーアイコン、丸型） */}
 							{currentLocation && (
 								<Marker
 									position={[currentLocation.lat, currentLocation.lng]}
 									icon={(() => {
 										const currentMember = members.find(m => m.uid === currentUserUid);
-										if (currentMember) {
-											return new Icon({
-												iconUrl: currentMember.photoURL && !currentMember.photoURL.includes("ui-avatars.com") 
-													? currentMember.photoURL 
-													: `https://ui-avatars.com/api/?name=${encodeURIComponent(currentMember.name || '?')}&background=4F46E5&color=fff&size=40&rounded=true`,
-												iconSize: [40, 40],
-												iconAnchor: [20, 20],
-												popupAnchor: [0, -20],
-												className: 'current-user-icon'
-											});
-										}
-										return currentLocationIcon;
+										const url = currentMember?.photoURL && !currentMember.photoURL.includes("ui-avatars.com")
+											? currentMember.photoURL
+											: `https://ui-avatars.com/api/?name=${encodeURIComponent(currentMember?.name || '?')}&background=4F46E5&color=fff&size=80&rounded=true`;
+										return createRoundedImageIcon(url, 40);
 									})()}
 								>
 									<Popup
@@ -1626,23 +1675,17 @@ useEffect(() => {
 								</Marker>
 							)}
 
-							{/* メンバーの位置マーカー（Googleアイコン・フォーカス機能対応） */}
+							{/* メンバーの位置マーカー（丸型） */}
 							{Array.from(memberLocations.entries()).map(([uid, location]) => {
 								const member = members.find(m => m.uid === uid);
 								if (!member) return null;
 
 								const isFocused = focusedMember && focusedMember.uid === uid;
 
-								// Googleアイコンまたはデフォルトアイコン（フォーカス時は大きく）
-								const memberIcon = new Icon({
-									iconUrl: member.photoURL && !member.photoURL.includes("ui-avatars.com") 
-										? member.photoURL 
-										: `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || '?')}&background=4F46E5&color=fff&size=${isFocused ? 48 : 32}&rounded=true`,
-									iconSize: isFocused ? [48, 48] : [32, 32],
-									iconAnchor: isFocused ? [24, 24] : [16, 16],
-									popupAnchor: isFocused ? [0, -24] : [0, -16],
-									className: `member-location-icon ${isFocused ? 'focused-member' : ''}`
-								});
+								const url = member.photoURL && !member.photoURL.includes("ui-avatars.com")
+									? member.photoURL
+									: `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || '?')}&background=4F46E5&color=fff&size=${isFocused ? 96 : 64}&rounded=true`;
+								const memberIcon = createRoundedImageIcon(url, isFocused ? 48 : 32);
 
 								return (
 									<Marker

@@ -73,42 +73,50 @@ const Parkinginput = () => {
     };
 
     return (
-        <div>
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100">
             <HeaderComponent title="駐車場情報入力" />
 
             <div
-                className="flex flex-col items-center justify-center min-h-[calc(100vh-88px)]"
+                className="flex flex-col items-center justify-center min-h-[calc(100vh-88px)] px-4"
                 style={{ paddingTop: "88px" }}
             >
-                <div className="w-full max-w-md bg-white rounded-lg p-6 flex flex-col items-center space-y-6">
+                <div className="w-full max-w-md bg-white/90 rounded-2xl p-6 shadow-xl border border-slate-200">
+                    {/* タイトル */}
+                    <div className="text-center mb-4">
+                        <h2 className="text-lg font-bold text-slate-800">🚗 駐車情報の記録</h2>
+                        <p className="text-xs text-slate-500 mt-1">駐車した時刻と場所を保存します</p>
+                    </div>
+
                     {/* 到着日時表示 */}
                     {arrivalTime && (
-                        <div className="text-base font-semibold text-blue-700">
-                            駐車日時: {arrivalTime.toLocaleString("ja-JP")}
+                        <div className="flex items-center justify-center gap-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg py-2">
+                            <span>駐車日時</span>
+                            <span className="font-bold">{arrivalTime.toLocaleString("ja-JP")}</span>
                         </div>
                     )}
 
                     {/* 出発時間入力欄 */}
-                    <div className="w-full">
-                        <label className="block text-gray-700 font-semibold mb-2 text-center">
-                            出発予定時刻
+                    <div className="mt-6">
+                        <label className="block text-slate-700 font-semibold mb-2">
+                            🕒 出発予定時刻
                         </label>
-                        <div className="relative w-full max-w-xs mx-auto">
+                        <div className="relative w-full">
                             <input
                                 type="datetime-local"
                                 value={departureTime}
                                 onChange={(e) => setDepartureTime(e.target.value)}
-                                className="border border-gray-300 rounded px-3 py-2 w-full"
+                                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                             />
                         </div>
+                        <p className="text-xs text-slate-500 mt-1">あとから編集できます</p>
                     </div>
 
                     {/* 地図表示 */}
-                    <div className="w-full">
-                        <label className="block text-gray-700 font-semibold mb-2 text-center">
-                            駐車場
+                    <div className="mt-6">
+                        <label className="block text-slate-700 font-semibold mb-2">
+                            📍 駐車場所
                         </label>
-                        <div className="w-full max-w-xs h-64 bg-gray-200 rounded overflow-hidden mx-auto">
+                        <div className="w-full h-64 bg-slate-100 rounded-xl overflow-hidden ring-1 ring-slate-200">
                             {position ? (
                                 <iframe
                                     title="現在地マップ"
@@ -121,21 +129,28 @@ const Parkinginput = () => {
                                     src={`https://www.openstreetmap.org/export/embed.html?bbox=${position.lng-0.005},${position.lat-0.003},${position.lng+0.005},${position.lat+0.003}&layer=mapnik&marker=${position.lat},${position.lng}`}
                                 />
                             ) : (
-                                <div className="flex items-center justify-center h-full text-gray-500">
+                                <div className="flex items-center justify-center h-full text-slate-500">
                                     位置情報を取得中...
                                 </div>
                             )}
                         </div>
+                        {position && (
+                            <div className="text-[11px] text-slate-500 mt-2 text-right">
+                                {position.lat.toFixed(5)}, {position.lng.toFixed(5)}
+                            </div>
+                        )}
                     </div>
 
-                    {/* ホームに戻るボタン */}
-                    <button
-                        type="button"
-                        onClick={handleGoHome}
-                        className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors mt-4"
-                    >
-                        ホームに戻る
-                    </button>
+                    {/* アクション */}
+                    <div className="mt-8">
+                        <button
+                            type="button"
+                            onClick={handleGoHome}
+                            className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold shadow hover:from-blue-600 hover:to-indigo-600 active:from-blue-700 active:to-indigo-700 transition-colors"
+                        >
+                            保存してホームへ
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
