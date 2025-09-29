@@ -213,7 +213,8 @@ const CarNavigation = () => {
 	const [isCallActive, setIsCallActive] = useState(false); // 通話状態
 	const [callParticipants, setCallParticipants] = useState([]); // 通話参加者
 	const [participantPhotoURLs, setParticipantPhotoURLs] = useState(new Map()); // 参加者のphotoURL情報
-	const [routeData, setRouteData] = useState(null); // ルート情報
+    const [routeData, setRouteData] = useState(null); // ルート情報
+    const [routeEnsured, setRouteEnsured] = useState(false); // ルート欠落時のフォールバック生成フラグ
 	const [memos, setMemos] = useState([]);
 	const [activeTab, setActiveTab] = useState("main"); // 'main', 'locations', 'rest'
 	const [mapZoom, setMapZoom] = useState(10);
@@ -1282,6 +1283,99 @@ const CarNavigation = () => {
 								? `[${room.routeData.polyline.geometry.coordinates[0][0]}, ${room.routeData.polyline.geometry.coordinates[0][1]}]`
 								: "N/A",
 						});
+					} else if (!routeEnsured) {
+						// フォールバック: ルート情報が無い場合はローカル保存値から生成して保存
+						(async () => {
+							try {
+								const storedLoc = localStorage.getItem("roomCreat_selectedLocation");
+								const storedDep = localStorage.getItem("roomCreat_selectedDeparture");
+								if (!storedLoc || !storedDep) return;
+								const selectedLocation = JSON.parse(storedLoc);
+								const selectedDeparture = JSON.parse(storedDep);
+								if (!selectedLocation?.coordinates || !selectedDeparture?.coordinates) return;
+
+								const url = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
+								const res = await fetch(url);
+								if (!res.ok) return;
+								const data = await res.json();
+								const route = data?.routes?.[0];
+								if (!route) return;
+
+								const builtRouteData = {
+									departure: {
+										name: selectedDeparture.name || "出発地",
+										coordinates: selectedDeparture.coordinates,
+									},
+									destination: {
+										name: selectedLocation.name || "目的地",
+										coordinates: selectedLocation.coordinates,
+									},
+									routeInfo: {
+										distanceKm: Math.round((route.distance / 1000) * 10) / 10,
+										durationMin: Math.round(route.duration / 60),
+										arrivalTime: new Date(Date.now() + route.duration * 1000).toISOString(),
+									},
+									polyline: {
+										geometry: route.geometry
+											? {
+													type: route.geometry.type,
+													coordinates: (() => {
+														const coords = route.geometry.coordinates || [];
+														if (coords.length <= 1000) return coords;
+														const simplified = [];
+														const maxPoints = 50000;
+														const step = Math.max(1, Math.floor(coords.length / maxPoints));
+														simplified.push(coords[0]);
+														for (let i = step; i < coords.length - step; i += step) {
+															const prev = coords[i - step];
+															const curr = coords[i];
+															const next = coords[i + step];
+															const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
+															const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
+															const angleDiff = Math.abs(angle1 - angle2);
+															if (angleDiff > 0.02 || i % Math.floor(step * 1.2) === 0) {
+																simplified.push(curr);
+															}
+														}
+														simplified.push(coords[coords.length - 1]);
+														return simplified;
+													})(),
+											}
+										: null,
+										steps:
+											route.legs?.[0]?.steps?.map((step) => ({
+												distance: step.distance,
+												duration: step.duration,
+												maneuver: step.maneuver?.type,
+												name: step.name,
+											})) || [],
+										waypoints:
+											route.waypoints?.map((wp) => ({
+												location: wp.location,
+												name: wp.name,
+											})) || [],
+										summary: {
+											distance: route.distance,
+											duration: route.duration,
+											profile: "driving",
+										},
+									},
+									createdAt: new Date().toISOString(),
+								};
+
+								// DBに保存し、状態も更新
+								await update(ref(rtdb, `rooms/${roomId}`), {
+									routeData: builtRouteData,
+									hasRoute: true,
+								});
+								setRouteData(builtRouteData);
+								setRouteEnsured(true);
+								console.log("🗺️ ルート情報をフォールバック生成・保存しました");
+							} catch (e) {
+								console.warn("⚠️ ルート情報フォールバック生成に失敗", e);
+								setRouteEnsured(true);
+							}
+						})();
 					}
 
 					// 参加者のphotoURL情報を初期化
