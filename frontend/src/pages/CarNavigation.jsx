@@ -30,6 +30,20 @@ const fixedPopupStyle = `
 // ルート上判定のしきい値（m）: 小さめにして軽微な逸脱でも合流ルートを表示
 const ROUTE_THRESHOLD_METERS = 20;
 
+// 緯度経度間の距離（m）
+const getDistanceMeters = (a, b) => {
+	const R = 6371000; // 地球半径(m)
+	const toRad = (d) => (d * Math.PI) / 180;
+	const dLat = toRad(b.lat - a.lat);
+	const dLng = toRad(b.lng - a.lng);
+	const lat1 = toRad(a.lat);
+	const lat2 = toRad(b.lat);
+	const sinDLat = Math.sin(dLat / 2);
+	const sinDLng = Math.sin(dLng / 2);
+	const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+	return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+
 // 地図コンテナ内でズームと中心を制御するコンポーネント（ボタンズームのみ有効版・フォーカス機能対応）
 const MapController = ({ zoomLevel, center, currentLocation, focusedMember }) => {
 	const map = useMap();
@@ -193,11 +207,17 @@ const CarNavigation = () => {
 	const [memberLocations, setMemberLocations] = useState(new Map()); // メンバーの位置情報
 	const [moveDistance, setMoveDistance] = useState(0.001); // 移動距離（デフォルト100m）
 	const [focusedMember, setFocusedMember] = useState(null); // フォーカス中のメンバー
+	const [etaTime, setEtaTime] = useState(null); // 動的到着時刻
+	const [etaSource, setEtaSource] = useState('route'); // 'route' | 'rejoin' | 'rest'
 	const [restPoint, setRestPoint] = useState(null); // 休憩地点
 	const [restRoute, setRestRoute] = useState(null); // 休憩地点への新ルート
 	const currentUserUid = useUserUid();
 	const updateTimeoutRef = useRef(null);
 	const gpsIntervalRef = useRef(null);
+	const rejoinCalcDebounceRef = useRef(null); // 現在地更新時のデバウンス
+	const lastRecalcTimeRef = useRef(0); // 直近の合流ルート再計算時刻
+	const lastRejoinInfoRef = useRef(null); // { start: {lat,lng}, joinPoint: {lat,lng} }
+	const isUpdatingRejoinRef = useRef(false);
 
 	// 初期状態で適当な座標をセット
 	const setInitialMockLocation = () => {
@@ -432,8 +452,8 @@ const CarNavigation = () => {
 		return optimized;
 	};
 
-	// ルート判定と合流ルート計算（OSRM API使用版）
-	const updateRouteStatus = async () => {
+// ルート判定と合流ルート計算（OSRM API使用版）
+const updateRouteStatus = async (source = 'timer') => {
 		if (!currentLocation || !routeData) return;
 
 		// 高精度の最短距離で判定（20m閾値）
@@ -442,12 +462,30 @@ const CarNavigation = () => {
 		setRouteStatus({ isOnRoute: onRoute, distance: distance || 0 });
 
 		if (!onRoute) {
+			// 休憩タブ中は合流ルートを更新しない（UI要件）
+			if (activeTab === 'rest') return;
+
+			// 位置ノイズによるルートのコロコロ切替を抑制（ヒステリシス）
+			const now = Date.now();
+			const last = lastRejoinInfoRef.current;
+			if (last) {
+				const movedFromLastStart = getDistanceMeters(currentLocation, last.start);
+				const elapsedMs = now - lastRecalcTimeRef.current;
+				// 直近再計算から8秒以内かつ開始点からの移動が25m未満なら再計算をスキップ
+				if (elapsedMs < 8000 && movedFromLastStart < 25) {
+					return;
+				}
+			}
+			if (isUpdatingRejoinRef.current) return;
+			isUpdatingRejoinRef.current = true;
 			// ルートから外れている場合、OSRM APIを使用して道路に沿った合流ルートを生成
 			try {
 				const osrmInfo = await generateOSRMRejoinRoute(currentLocation, routeData);
 				if (osrmInfo) {
 					setJoinPoint(osrmInfo.joinPoint);
 					setRejoinRoute(osrmInfo.route);
+					lastRejoinInfoRef.current = { start: { ...currentLocation }, joinPoint: osrmInfo.joinPoint };
+					lastRecalcTimeRef.current = now;
 					console.log('🛣️ OSRM API合流ルート生成:', {
 						current: currentLocation,
 						joinPoint: osrmInfo.joinPoint,
@@ -455,6 +493,18 @@ const CarNavigation = () => {
 						routePoints: osrmInfo.route.length,
 						routeType: 'OSRM API道路ルート'
 					});
+
+					// 合流までのETAをOSRMから取得
+					try {
+						const etaUrl = `https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${osrmInfo.joinPoint.lng},${osrmInfo.joinPoint.lat}?overview=false&geometries=geojson`;
+						const etaRes = await fetch(etaUrl);
+						const etaData = await etaRes.json();
+						const durSec = etaData?.routes?.[0]?.duration;
+						if (typeof durSec === 'number') {
+							setEtaTime(new Date(Date.now() + durSec * 1000));
+							setEtaSource('rejoin');
+						}
+					} catch (_) {}
 				}
 			} catch (error) {
 				console.warn('⚠️ OSRM API合流ルート生成エラー:', error);
@@ -471,6 +521,9 @@ const CarNavigation = () => {
 						routeType: '従来の道路ベースルート'
 					});
 				}
+			}
+			finally {
+				isUpdatingRejoinRef.current = false;
 			}
 		} else {
 			// ルート上にいる場合、合流ルートをクリア
@@ -550,6 +603,14 @@ const CarNavigation = () => {
 		loadMemos();
 	}, [currentUserUid]);
 
+// 初期ETAをルート情報から設定
+useEffect(() => {
+	if (routeData?.routeInfo?.arrivalTime) {
+		setEtaTime(new Date(routeData.routeInfo.arrivalTime));
+		setEtaSource('route');
+	}
+}, [routeData?.routeInfo?.arrivalTime]);
+
 	// 他のメンバーの位置情報をリアルタイム取得
 	useEffect(() => {
 		if (!roomId) return;
@@ -596,10 +657,21 @@ const CarNavigation = () => {
 		return () => unsubscribe();
 	}, [roomId, currentUserUid]);
 
-	// 現在地変更時にルート状態を更新
-	useEffect(() => {
-		updateRouteStatus();
-	}, [currentLocation, routeData]);
+// 現在地変更時にルート状態をデバウンス更新（500ms）
+useEffect(() => {
+	if (!currentLocation || !routeData) return;
+	if (rejoinCalcDebounceRef.current) {
+		clearTimeout(rejoinCalcDebounceRef.current);
+	}
+	rejoinCalcDebounceRef.current = setTimeout(() => {
+		updateRouteStatus('location');
+	}, 500);
+	return () => {
+		if (rejoinCalcDebounceRef.current) {
+			clearTimeout(rejoinCalcDebounceRef.current);
+		}
+	};
+}, [currentLocation, routeData]);
 
 	// 4秒間隔でルート判定とオレンジルート再計算を行うタイマー
 	useEffect(() => {
@@ -718,6 +790,11 @@ const CarNavigation = () => {
 			const coords = data?.routes?.[0]?.geometry?.coordinates || [];
 			setRestRoute(coords.length > 0 ? coords : null);
 			console.log('🟣 休憩地点ルート生成', { points: coords.length });
+		const durationSec = data?.routes?.[0]?.duration;
+		if (typeof durationSec === 'number') {
+			setEtaTime(new Date(Date.now() + durationSec * 1000));
+			setEtaSource('rest');
+		}
 		} catch (e) {
 			console.warn('⚠️ 休憩地点ルート生成エラー', e);
 		}
@@ -1308,13 +1385,13 @@ const CarNavigation = () => {
 			{/* ヘッダー */}
 			<div className="bg-green-500 text-white p-4">
 				<div className="flex items-center justify-center">
-					{routeData && (
+						{(routeData || etaTime) && (
 						<div className="bg-red-500 px-3 py-1 rounded text-sm">
-							到着時刻: {routeData.routeInfo?.arrivalTime ? 
-								new Date(routeData.routeInfo.arrivalTime).toLocaleTimeString('ja-JP', { 
-									hour: '2-digit', 
-									minute: '2-digit' 
-								}) : '○○:00'}
+								到着時刻: {(etaTime || routeData?.routeInfo?.arrivalTime) ?
+									new Date(etaTime || routeData.routeInfo.arrivalTime).toLocaleTimeString('ja-JP', {
+										hour: '2-digit',
+										minute: '2-digit'
+									}) : '○○:00'}
 									</div>
 								)}
 										</div>
@@ -1368,12 +1445,12 @@ const CarNavigation = () => {
 								focusedMember={focusedMember}
 							/>
 							
-							{/* オレンジの合流ルート表示（休憩タブ中は非表示） */}
+							{/* 赤い合流ルート表示（休憩タブ中は非表示） */}
 							{rejoinRoute && rejoinRoute.length > 0 && !routeStatus.isOnRoute && activeTab !== 'rest' && (
 								<>
 											<Polyline
 										positions={getOptimizedCoordinates(rejoinRoute, mapZoom).map(coord => [coord[1], coord[0]])}
-										color="orange"
+									color="red"
 										weight={5}
 										opacity={0.9}
 										dashArray="8, 4"

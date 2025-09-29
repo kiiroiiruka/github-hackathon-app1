@@ -974,12 +974,12 @@ const CarNavigationAdvanced = () => {
 								currentLocation={currentLocation}
 							/>
 							
-							{/* オレンジの合流ルート表示（正規ルートの下に表示、ルート外の時のみ表示・実用上限対応） */}
-							{rejoinRoute && rejoinRoute.length > 0 && !routeStatus.isOnRoute && (
+								{/* 赤い合流ルート表示（正規ルートの下に表示、ルート外の時のみ表示・実用上限対応） */}
+								{rejoinRoute && rejoinRoute.length > 0 && !routeStatus.isOnRoute && (
 								<>
 									<Polyline
 										positions={getOptimizedCoordinates(rejoinRoute, mapZoom).map(coord => [coord[1], coord[0]])}
-										color="orange"
+											color="red"
 										weight={5}
 										opacity={0.9}
 										dashArray="8, 4"
