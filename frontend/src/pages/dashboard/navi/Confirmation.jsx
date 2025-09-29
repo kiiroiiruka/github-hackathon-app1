@@ -183,7 +183,7 @@ const Confirmation = () => {
           variant="secondary"
           size="lg"
           className="w-full"
-          onClick={() => navigate("/dashboard/navi/room", {
+          onClick={() => navigate("/dashboard/navi", {
             state: {
               roomName,
               selectedFriends,

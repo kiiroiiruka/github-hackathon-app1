@@ -416,7 +416,7 @@ const PurlieuLocation = () => {
                     localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(selectedDestination));
                   }
                   
-                  navigate("/dashboard/navi/room", {
+                  navigate("/dashboard/navi", {
                     state: { 
                       selectedLocation: selectedDestination,
                       selectedDeparture: selectedDeparture

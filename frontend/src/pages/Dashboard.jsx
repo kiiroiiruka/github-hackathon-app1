@@ -4,6 +4,7 @@ import FooterTab from "../components/layout/FooterTab";
 import { useIsLoggedIn } from "../hooks/useUser";
 import { useUserUid } from "../hooks/useUserUid";
 import CarNavigation from "./CarNavigation";
+import CarNavigationAdvanced from "./CarNavigationAdvanced";
 import FriendsAddScreen from "./dashboard/friends";
 import HomeScreen from "./dashboard/home";
 import FriendPage from "./dashboard/home/FriendPage";
@@ -179,6 +180,7 @@ const Dashboard = () => {
                     <Route path="parking/:id" element={<ParkingDetail />} />
                     <Route path="parking/input" element={<Parkinginput />} />
                     <Route path="car/:roomId" element={<CarNavigation />} />
+                    <Route path="car-advanced/:roomId" element={<CarNavigationAdvanced />} />
                     <Route path="memo" element={<MemoScreen />} />
                     <Route path="memo/creatememo" element={<CreateMemo />} />
                     <Route path="policy" element={<UserPolicy />} />

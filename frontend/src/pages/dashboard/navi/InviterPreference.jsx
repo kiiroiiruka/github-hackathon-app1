@@ -23,10 +23,10 @@ const InviterPreference = () => {
     }
     console.log("InviterPreference - 確定時のselectedFriends:", selectedFriends);
     console.log("InviterPreference - selectedFriendsの各要素:", selectedFriends.map(f => ({ uid: f.uid, displayName: f.displayName, email: f.email })));
-    navigate("/dashboard/navi/room", { state: { selectedFriends } });
+    navigate("/dashboard/navi", { state: { selectedFriends } });
   }, [selectedFriends, navigate]);
 
-  const handleBack = () => navigate("/dashboard/navi/room");
+  const handleBack = () => navigate("/dashboard/navi");
 
   if (loading) return <LoadingScreen />;
   if (error) return <ErrorScreen error={error} onRetry={retryFetch} onBack={handleBack} />;

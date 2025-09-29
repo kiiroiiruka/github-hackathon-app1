@@ -7,6 +7,149 @@ import { auth, rtdb } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
 import { getGooglePhotoURL } from "@/hooks/useUser";
 import { checkAndDeleteRoomIfEmpty } from "@/firebase/room";
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import { Icon } from "leaflet";
+import { getMemosByUser } from "@/firebase";
+import { isOnRoute, calculateJoinPoint, generateRejoinRoute, generateRoadFollowingRejoinRoute, generateAdvancedRoadBasedRejoinRoute, generateNaturalRoadBasedRejoinRoute, generateUltraDenseRejoinRoute, generateOSRMRejoinRoute, calculateShortestDistanceToRoute } from "@/utils/routeUtils";
+import { getDirectionName } from "@/utils/mapRotationUtils";
+
+// 固定ポップアップのCSSスタイル
+const fixedPopupStyle = `
+	.fixed-popup {
+		transform-origin: center center !important;
+	}
+	.fixed-popup .leaflet-popup-content-wrapper {
+		transform-origin: center center !important;
+	}
+	.fixed-popup .leaflet-popup-tip {
+		transform-origin: center center !important;
+	}
+`;
+
+// ルート上判定のしきい値（m）: 小さめにして軽微な逸脱でも合流ルートを表示
+const ROUTE_THRESHOLD_METERS = 20;
+
+// 地図コンテナ内でズームと中心を制御するコンポーネント（ボタンズームのみ有効版・フォーカス機能対応）
+const MapController = ({ zoomLevel, center, currentLocation, focusedMember }) => {
+	const map = useMap();
+	
+	useEffect(() => {
+		if (map) {
+			// すべてのズーム操作を無効化（ボタンズームのみ有効）
+			map.dragging.disable(); // ドラッグ移動を無効化
+			map.boxZoom.disable(); // ボックスズームを無効化
+			map.keyboard.disable(); // キーボード操作を無効化
+			map.touchZoom.disable(); // タッチズームを無効化
+			map.doubleClickZoom.disable(); // ダブルクリックズームを無効化
+			map.scrollWheelZoom.disable(); // マウスホイールズームを無効化
+			
+			// ズームレベルを設定
+			if (zoomLevel !== undefined) {
+				map.setZoom(zoomLevel);
+			}
+		}
+	}, [map, zoomLevel]);
+
+	useEffect(() => {
+		if (map && center) {
+			// フォーカス中のメンバーがいる場合はその位置を中心にする
+			if (focusedMember) {
+				map.setView(center, zoomLevel, {
+					animate: true,
+					duration: 0.8
+				});
+			} else if (currentLocation) {
+				// 現在地がある場合は絶対に現在地を中心にする
+				map.setView([currentLocation.lat, currentLocation.lng], zoomLevel, {
+					animate: true,
+					duration: 0.5
+				});
+			} else {
+				map.setView(center, zoomLevel, {
+					animate: true,
+					duration: 0.5
+				});
+			}
+		}
+	}, [map, center, zoomLevel, currentLocation, focusedMember]);
+	
+	return null;
+};
+
+// メモの自動スクロールコンポーネント
+const MemoScroller = ({ memos }) => {
+	const [currentMemoIndex, setCurrentMemoIndex] = useState(0);
+	const [scrollPosition, setScrollPosition] = useState(0);
+	const containerRef = useRef(null);
+	const intervalRef = useRef(null);
+	
+	useEffect(() => {
+		if (memos.length === 0) return;
+		
+		// 3秒間隔でメモを切り替え
+		intervalRef.current = setInterval(() => {
+			setCurrentMemoIndex((prev) => (prev + 1) % memos.length);
+			setScrollPosition(0); // スクロール位置をリセット
+		}, 5000);
+		
+		return () => {
+			if (intervalRef.current) {
+				clearInterval(intervalRef.current);
+			}
+		};
+	}, [memos.length]);
+	
+	useEffect(() => {
+		if (!containerRef.current || memos.length === 0) return;
+		
+		const container = containerRef.current;
+		const textWidth = container.scrollWidth;
+		const containerWidth = container.clientWidth;
+		
+		if (textWidth <= containerWidth) return;
+		
+		// 2秒間隔でスクロール
+		const scrollInterval = setInterval(() => {
+			setScrollPosition((prev) => {
+				const maxScroll = textWidth - containerWidth;
+				if (prev >= maxScroll) {
+					return 0; // 最初に戻る
+				}
+				return prev + 1;
+			});
+		}, 50);
+		
+		return () => clearInterval(scrollInterval);
+	}, [currentMemoIndex, memos]);
+	
+	if (memos.length === 0) {
+		return (
+			<div className="bg-pink-200 border-2 border-pink-300 rounded-lg p-3 h-16 flex items-center justify-center">
+				<span className="text-gray-600">メモがありません</span>
+			</div>
+		);
+	}
+	
+	const currentMemo = memos[currentMemoIndex];
+	
+	return (
+		<div 
+			ref={containerRef}
+			className="bg-pink-200 border-2 border-pink-300 rounded-lg p-3 h-16 overflow-hidden relative"
+		>
+			<div 
+				className="whitespace-nowrap text-gray-800 font-medium"
+				style={{ 
+					transform: `translateX(-${scrollPosition}px)`,
+					transition: 'transform 0.1s ease-out'
+				}}
+			>
+				{currentMemo.content}
+			</div>
+		</div>
+	);
+};
 
 const CarNavigation = () => {
 	const { roomId } = useParams();
@@ -18,8 +161,778 @@ const CarNavigation = () => {
 	const [isCallActive, setIsCallActive] = useState(false); // 通話状態
 	const [callParticipants, setCallParticipants] = useState([]); // 通話参加者
 	const [participantPhotoURLs, setParticipantPhotoURLs] = useState(new Map()); // 参加者のphotoURL情報
+	const [routeData, setRouteData] = useState(null); // ルート情報
+	const [memos, setMemos] = useState([]);
+	const [activeTab, setActiveTab] = useState('main'); // 'main', 'locations', 'rest'
+	const [mapZoom, setMapZoom] = useState(10);
+	const [mapRotation, setMapRotation] = useState(0); // 地図の回転角度（常に0度で北向き）
+	const [isLandscape, setIsLandscape] = useState(false);
+	const [currentLocation, setCurrentLocation] = useState(null);
+	const [isUsingMockLocation, setIsUsingMockLocation] = useState(true);
+	const [mockLocationIndex, setMockLocationIndex] = useState(0);
+	const [routeStatus, setRouteStatus] = useState({ isOnRoute: true, distance: 0 });
+	const [rejoinRoute, setRejoinRoute] = useState(null);
+	const [joinPoint, setJoinPoint] = useState(null);
+	const [memberLocations, setMemberLocations] = useState(new Map()); // メンバーの位置情報
+	const [moveDistance, setMoveDistance] = useState(0.001); // 移動距離（デフォルト100m）
+	const [focusedMember, setFocusedMember] = useState(null); // フォーカス中のメンバー
 	const currentUserUid = useUserUid();
 	const updateTimeoutRef = useRef(null);
+	const gpsIntervalRef = useRef(null);
+
+	// 初期状態で適当な座標をセット
+	const setInitialMockLocation = () => {
+		// 東京駅周辺の適当な座標をセット
+		const initialLocation = {
+			lat: 35.6812 + (Math.random() - 0.5) * 0.01, // ±0.005度の範囲
+			lng: 139.7671 + (Math.random() - 0.5) * 0.01
+		};
+		setCurrentLocation(initialLocation);
+		setIsUsingMockLocation(true);
+		setMockLocationIndex(0);
+		console.log('🎯 初期適当座標設定:', initialLocation);
+	};
+
+	// GPS位置情報の取得
+	const getCurrentPosition = () => {
+		if (!navigator.geolocation) {
+			console.log('GPS not supported');
+			return;
+		}
+
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				const { latitude, longitude } = position.coords;
+				const newLocation = { lat: latitude, lng: longitude };
+				setCurrentLocation(newLocation);
+				setIsUsingMockLocation(false);
+				console.log('📍 GPS位置取得:', { latitude, longitude });
+				
+				// Firebaseに位置情報を送信
+				sendLocationToFirebase(newLocation);
+			},
+			(error) => {
+				console.error('GPS error:', error);
+				// GPSが失敗した場合はモック位置を使用
+				setIsUsingMockLocation(true);
+			},
+			{
+				enableHighAccuracy: true,
+				timeout: 10000,
+				maximumAge: 60000
+			}
+		);
+	};
+
+	// Firebaseに位置情報を送信
+	const sendLocationToFirebase = async (location) => {
+		if (!roomId || !currentUserUid || !location) return;
+
+		try {
+			const locationData = {
+				lat: location.lat,
+				lng: location.lng,
+				timestamp: Date.now(),
+				isUsingMockLocation: isUsingMockLocation,
+				lastUpdated: new Date().toISOString()
+			};
+
+			await update(ref(rtdb, `rooms/${roomId}/memberLocations/${currentUserUid}`), locationData);
+			console.log('📍 位置情報をFirebaseに送信:', locationData);
+		} catch (error) {
+			console.error('❌ 位置情報送信エラー:', error);
+		}
+	};
+
+	// 5秒間隔でGPS位置情報を送信
+	const startLocationSharing = () => {
+		if (gpsIntervalRef.current) {
+			clearInterval(gpsIntervalRef.current);
+		}
+
+		// 初回送信
+		if (currentLocation) {
+			sendLocationToFirebase(currentLocation);
+		}
+
+		// 5秒間隔で送信
+		gpsIntervalRef.current = setInterval(() => {
+			if (currentLocation) {
+				sendLocationToFirebase(currentLocation);
+			}
+		}, 5000);
+
+		console.log('🔄 GPS位置情報共有開始（5秒間隔）');
+	};
+
+	// 位置情報共有を停止
+	const stopLocationSharing = () => {
+		if (gpsIntervalRef.current) {
+			clearInterval(gpsIntervalRef.current);
+			gpsIntervalRef.current = null;
+		}
+		console.log('⏹️ GPS位置情報共有停止');
+	};
+
+	// テスト用の仮座標をルート上に生成
+	const generateMockLocations = () => {
+		if (!routeData || !routeData.polyline?.geometry?.coordinates) return [];
+		
+		const coordinates = routeData.polyline.geometry.coordinates;
+		const mockLocations = [];
+		
+		// ルート上に等間隔でテスト座標を生成
+		for (let i = 0; i < coordinates.length; i += Math.max(1, Math.floor(coordinates.length / 20))) {
+			const coord = coordinates[i];
+			mockLocations.push({
+				lat: coord[1],
+				lng: coord[0],
+				index: i
+			});
+		}
+		
+		return mockLocations;
+	};
+
+	// モック位置を次の位置に移動
+	const moveToNextMockLocation = () => {
+		const mockLocations = generateMockLocations();
+		if (mockLocations.length === 0) return;
+		
+		setMockLocationIndex((prev) => (prev + 1) % mockLocations.length);
+		const nextLocation = mockLocations[(mockLocationIndex + 1) % mockLocations.length];
+		setCurrentLocation(nextLocation);
+		console.log('🎯 モック位置移動:', nextLocation);
+		
+		// 回転機能は無効化（常に北向き）
+		console.log('🧭 回転機能は無効化されています - 常に北向きを維持');
+	};
+
+	// 開発用の位置操作関数
+	const moveLocation = (direction) => {
+		if (!currentLocation) return;
+		
+		const offset = moveDistance; // 設定された移動距離を使用
+		let newLocation = { ...currentLocation };
+		
+		switch (direction) {
+			case 'north':
+				newLocation.lat += offset;
+				break;
+			case 'south':
+				newLocation.lat -= offset;
+				break;
+			case 'east':
+				newLocation.lng += offset;
+				break;
+			case 'west':
+				newLocation.lng -= offset;
+				break;
+			case 'northeast':
+				newLocation.lat += offset;
+				newLocation.lng += offset;
+				break;
+			case 'northwest':
+				newLocation.lat += offset;
+				newLocation.lng -= offset;
+				break;
+			case 'southeast':
+				newLocation.lat -= offset;
+				newLocation.lng += offset;
+				break;
+			case 'southwest':
+				newLocation.lat -= offset;
+				newLocation.lng -= offset;
+				break;
+		}
+		
+		setCurrentLocation(newLocation);
+		console.log(`🎮 位置移動 (${direction}, ${offset}度):`, newLocation);
+		
+		// 位置移動後、Firebaseに送信
+		sendLocationToFirebase(newLocation);
+	};
+
+	// 地図のズーム制御
+	const handleZoomIn = () => {
+		setMapZoom(prev => Math.min(prev + 1, 18));
+	};
+
+	const handleZoomOut = () => {
+		setMapZoom(prev => Math.max(prev - 1, 1));
+	};
+
+	// ズームレベルに応じた座標の最適化（実用上限対応）
+	const getOptimizedCoordinates = (coordinates, zoomLevel) => {
+		if (!coordinates || coordinates.length === 0) return [];
+		
+		// 1000点以下はそのまま返す
+		if (coordinates.length <= 1000) return coordinates;
+		
+		// ズームレベルに応じて表示する点数を決定
+		let maxPoints;
+		if (zoomLevel >= 16) {
+			maxPoints = Math.min(5000, coordinates.length); // 高ズーム: 最大5000点
+		} else if (zoomLevel >= 14) {
+			maxPoints = Math.min(3000, coordinates.length); // 中ズーム: 最大3000点
+		} else if (zoomLevel >= 12) {
+			maxPoints = Math.min(1500, coordinates.length); // 低ズーム: 最大1500点
+		} else {
+			maxPoints = Math.min(800, coordinates.length); // 超低ズーム: 最大800点
+		}
+		
+		// 間引き計算
+		const step = Math.max(1, Math.floor(coordinates.length / maxPoints));
+		const optimized = [];
+		
+		// 最初の点を必ず含める
+		optimized.push(coordinates[0]);
+		
+		// 曲がり角を検出して重要な点を保持
+		for (let i = step; i < coordinates.length - step; i += step) {
+			const prev = coordinates[i - step];
+			const curr = coordinates[i];
+			const next = coordinates[i + step];
+			
+			// 角度変化を計算
+			const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
+			const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
+			const angleDiff = Math.abs(angle1 - angle2);
+			
+			// 角度変化が大きい場合（曲がり角）は保持
+			if (angleDiff > 0.1 || i % (step * 2) === 0) {
+				optimized.push(curr);
+			}
+		}
+		
+		// 最後の点を必ず含める
+		optimized.push(coordinates[coordinates.length - 1]);
+		
+		console.log(`🗺️ ポリライン最適化: ${coordinates.length}点 → ${optimized.length}点 (ズーム: ${zoomLevel})`);
+		
+		return optimized;
+	};
+
+	// ルート判定と合流ルート計算（OSRM API使用版）
+	const updateRouteStatus = async () => {
+		if (!currentLocation || !routeData) return;
+
+		// 高精度の最短距離で判定（20m閾値）
+		const { distance } = calculateShortestDistanceToRoute(currentLocation, routeData);
+		const onRoute = distance <= ROUTE_THRESHOLD_METERS;
+		setRouteStatus({ isOnRoute: onRoute, distance: distance || 0 });
+
+		if (!onRoute) {
+			// ルートから外れている場合、OSRM APIを使用して道路に沿った合流ルートを生成
+			try {
+				const osrmInfo = await generateOSRMRejoinRoute(currentLocation, routeData);
+				if (osrmInfo) {
+					setJoinPoint(osrmInfo.joinPoint);
+					setRejoinRoute(osrmInfo.route);
+					console.log('🛣️ OSRM API合流ルート生成:', {
+						current: currentLocation,
+						joinPoint: osrmInfo.joinPoint,
+						distance: (osrmInfo.distance || distance).toFixed ? (osrmInfo.distance || distance).toFixed(1) + 'm' : `${Math.round(distance)}m`,
+						routePoints: osrmInfo.route.length,
+						routeType: 'OSRM API道路ルート'
+					});
+				}
+			} catch (error) {
+				console.warn('⚠️ OSRM API合流ルート生成エラー:', error);
+				// フォールバック: 従来の方法を使用
+				const ultraDenseInfo = generateUltraDenseRejoinRoute(currentLocation, routeData);
+				if (ultraDenseInfo) {
+					setJoinPoint(ultraDenseInfo.joinPoint);
+					setRejoinRoute(ultraDenseInfo.route);
+					console.log('🛣️ フォールバック合流ルート生成:', {
+						current: currentLocation,
+						joinPoint: ultraDenseInfo.joinPoint,
+						distance: (ultraDenseInfo.distance || distance).toFixed ? (ultraDenseInfo.distance || distance).toFixed(1) + 'm' : `${Math.round(distance)}m`,
+						routePoints: ultraDenseInfo.route.length,
+						routeType: '従来の道路ベースルート'
+					});
+				}
+			}
+		} else {
+			// ルート上にいる場合、合流ルートをクリア
+			setRejoinRoute(null);
+			setJoinPoint(null);
+			console.log('✅ ルート上にいます');
+		}
+	};
+
+	// 現在地を中心とした地図の中心座標を計算（フォーカス機能対応）
+	const getMapCenter = () => {
+		// フォーカス中のメンバーがいる場合はその位置を中心にする
+		if (focusedMember) {
+			const memberLocation = memberLocations.get(focusedMember.uid);
+			if (memberLocation) {
+				return [memberLocation.lat, memberLocation.lng];
+			}
+		}
+		
+		if (currentLocation) {
+			// 現在地を絶対に中心に固定
+			return [currentLocation.lat, currentLocation.lng];
+		}
+		// デフォルト座標（東京駅周辺）
+		return [35.6812, 139.7671];
+	};
+
+	// カスタムアイコンの設定
+	const startIcon = new Icon({
+		iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+		shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+		iconSize: [25, 41],
+		iconAnchor: [12, 41],
+		popupAnchor: [1, -34],
+		shadowSize: [41, 41]
+	});
+
+	const goalIcon = new Icon({
+		iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+		shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+		iconSize: [25, 41],
+		iconAnchor: [12, 41],
+		popupAnchor: [1, -34],
+		shadowSize: [41, 41]
+	});
+
+	const currentLocationIcon = new Icon({
+		iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+		shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+		iconSize: [30, 50],
+		iconAnchor: [15, 50],
+		popupAnchor: [1, -34],
+		shadowSize: [50, 50]
+	});
+
+	const joinPointIcon = new Icon({
+		iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
+		shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+		iconSize: [25, 41],
+		iconAnchor: [12, 41],
+		popupAnchor: [1, -34],
+		shadowSize: [41, 41]
+	});
+
+	// メモデータを取得
+	useEffect(() => {
+		const loadMemos = async () => {
+			if (!currentUserUid) return;
+			try {
+				const userMemos = await getMemosByUser(currentUserUid);
+				setMemos(userMemos);
+			} catch (error) {
+				console.error("メモ取得エラー:", error);
+			}
+		};
+		
+		loadMemos();
+	}, [currentUserUid]);
+
+	// 他のメンバーの位置情報をリアルタイム取得
+	useEffect(() => {
+		if (!roomId) return;
+
+		const memberLocationsRef = ref(rtdb, `rooms/${roomId}/memberLocations`);
+		const unsubscribe = onValue(
+			memberLocationsRef,
+			(snapshot) => {
+				const locations = snapshot.val();
+				if (locations) {
+					const locationMap = new Map();
+					
+					Object.entries(locations).forEach(([uid, locationData]) => {
+						// 自分の位置情報は除外
+						if (uid !== currentUserUid && locationData) {
+							// 5分以内の位置情報のみ有効
+							const isRecent = Date.now() - locationData.timestamp < 5 * 60 * 1000;
+							if (isRecent) {
+								locationMap.set(uid, {
+									lat: locationData.lat,
+									lng: locationData.lng,
+									timestamp: locationData.timestamp,
+									isUsingMockLocation: locationData.isUsingMockLocation,
+									lastUpdated: locationData.lastUpdated
+								});
+							}
+						}
+					});
+					
+					setMemberLocations(locationMap);
+					console.log('📍 メンバー位置情報を更新:', {
+						count: locationMap.size,
+						locations: Array.from(locationMap.entries())
+					});
+				} else {
+					setMemberLocations(new Map());
+				}
+			},
+			(error) => {
+				console.error('❌ メンバー位置情報取得エラー:', error);
+			}
+		);
+
+		return () => unsubscribe();
+	}, [roomId, currentUserUid]);
+
+	// 現在地変更時にルート状態を更新
+	useEffect(() => {
+		updateRouteStatus();
+	}, [currentLocation, routeData]);
+
+	// 4秒間隔でルート判定とオレンジルート再計算を行うタイマー
+	useEffect(() => {
+		if (!currentLocation || !routeData) return;
+
+		const routeCheckInterval = setInterval(async () => {
+			console.log('🔄 4秒間隔ルート判定・オレンジルート再計算実行');
+			await updateRouteStatus();
+		}, 4000);
+
+		return () => {
+			clearInterval(routeCheckInterval);
+		};
+	}, [currentLocation, routeData]);
+
+	// 初期状態で適当な座標をセット
+	useEffect(() => {
+		if (!currentLocation) {
+			setInitialMockLocation();
+		}
+	}, []);
+
+	// 位置情報共有の開始・停止制御
+	useEffect(() => {
+		if (roomId && currentUserUid && currentLocation) {
+			// 位置情報共有を開始
+			startLocationSharing();
+		}
+
+		// クリーンアップ
+		return () => {
+			stopLocationSharing();
+		};
+	}, [roomId, currentUserUid, currentLocation]);
+
+	// 固定ポップアップのCSSスタイルを適用
+	useEffect(() => {
+		const styleElement = document.createElement('style');
+		styleElement.textContent = fixedPopupStyle;
+		document.head.appendChild(styleElement);
+		
+		return () => {
+			document.head.removeChild(styleElement);
+		};
+	}, []);
+
+	// 地図の移動とズーム操作を無効化するためのCSS（ボタンズームのみ有効）
+	useEffect(() => {
+		const disableMapInteractionStyle = `
+			.leaflet-container {
+				cursor: default !important;
+			}
+			.leaflet-container .leaflet-control-container {
+				pointer-events: auto !important;
+			}
+			.leaflet-container .leaflet-popup {
+				pointer-events: auto !important;
+			}
+			.leaflet-container .leaflet-marker-icon {
+				pointer-events: auto !important;
+			}
+			/* カスタムズームボタンのみ有効 */
+			.leaflet-container .leaflet-control-zoom {
+				display: none !important;
+			}
+			/* マウスホイールズームを完全に無効化 */
+			.leaflet-container {
+				overflow: hidden !important;
+			}
+			/* タッチズームを無効化 */
+			.leaflet-container.leaflet-touch {
+				touch-action: none !important;
+			}
+		`;
+		
+		const styleElement = document.createElement('style');
+		styleElement.textContent = disableMapInteractionStyle;
+		document.head.appendChild(styleElement);
+		
+		return () => {
+			document.head.removeChild(styleElement);
+		};
+	}, []);
+
+	// タブ切り替え
+	const handleTabChange = (tab) => {
+		setActiveTab(tab);
+		// タブ切り替え時にフォーカスをリセット
+		if (tab !== 'locations') {
+			setFocusedMember(null);
+		}
+	};
+
+	// メンバーをフォーカスする関数
+	const focusOnMember = (member) => {
+		setFocusedMember(member);
+		console.log('🎯 メンバーにフォーカス:', {
+			name: member.name,
+			uid: member.uid,
+			hasLocation: memberLocations.has(member.uid)
+		});
+	};
+
+	// フォーカスをリセットする関数
+	const resetFocus = () => {
+		setFocusedMember(null);
+		console.log('🔄 フォーカスをリセット');
+	};
+
+	// タブコンテンツのレンダリング
+	const renderTabContent = () => {
+		switch (activeTab) {
+			case 'main':
+				return (
+					<div className="space-y-4">
+						{/* GPS座標操作UI */}
+							<div className="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-md">
+								<h3 className="font-semibold mb-2 text-yellow-800 text-sm">🔧 GPS座標操作（開発用）</h3>
+							
+
+
+							{/* 移動距離設定 */}
+							<div className="mb-2">
+								<label className="text-xs font-medium text-gray-700 mb-1 block">移動距離</label>
+								<div className="flex gap-1.5">
+									<button
+										onClick={() => setMoveDistance(0.0001)}
+										className={`px-2 py-1 rounded text-xs ${moveDistance === 0.0001 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+									>
+										10m
+									</button>
+									<button
+										onClick={() => setMoveDistance(0.001)}
+										className={`px-2 py-1 rounded text-xs ${moveDistance === 0.001 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+									>
+										100m
+									</button>
+									<button
+										onClick={() => setMoveDistance(0.01)}
+										className={`px-2 py-1 rounded text-xs ${moveDistance === 0.01 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+									>
+										1km
+									</button>
+								</div>
+							</div>
+
+							{/* 方向操作ボタン */}
+							<div className="mb-2">
+								<div className="text-xs font-medium text-gray-700 mb-1">方向操作</div>
+								<div className="grid grid-cols-3 gap-1.5">
+									<button
+										onClick={() => moveLocation('northwest')}
+										className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+									>
+										↖
+									</button>
+									<button
+										onClick={() => moveLocation('north')}
+										className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+									>
+										↑
+									</button>
+									<button
+										onClick={() => moveLocation('northeast')}
+										className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+									>
+										↗
+									</button>
+									<button
+										onClick={() => moveLocation('west')}
+										className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+									>
+										←
+									</button>
+										<div className="bg-yellow-200 px-2 py-1 rounded text-xs text-center text-yellow-800 font-bold">
+										📍
+									</div>
+									<button
+										onClick={() => moveLocation('east')}
+										className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+									>
+										→
+									</button>
+									<button
+										onClick={() => moveLocation('southwest')}
+										className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+									>
+										↙
+									</button>
+									<button
+										onClick={() => moveLocation('south')}
+										className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+									>
+										↓
+									</button>
+									<button
+										onClick={() => moveLocation('southeast')}
+										className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm font-bold"
+									>
+										↘
+									</button>
+								</div>
+							</div>
+
+							{/* 特殊操作ボタン */}
+							<div className="flex gap-2 flex-wrap">
+								<button
+									onClick={() => {
+										if (routeData?.polyline?.geometry?.coordinates) {
+											const coords = routeData.polyline.geometry.coordinates;
+											const randomIndex = Math.floor(Math.random() * coords.length);
+											const randomCoord = coords[randomIndex];
+											const newLocation = {
+												lat: randomCoord[1],
+												lng: randomCoord[0]
+											};
+											setCurrentLocation(newLocation);
+											sendLocationToFirebase(newLocation);
+											console.log('🎯 ルート上ランダム位置に移動:', newLocation);
+										}
+									}}
+									className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
+									disabled={!routeData?.polyline?.geometry?.coordinates}
+								>
+									ルート上ランダム
+								</button>
+								<button
+									onClick={() => {
+										const newLocation = {
+											lat: 35.6812 + (Math.random() - 0.5) * 0.1,
+											lng: 139.7671 + (Math.random() - 0.5) * 0.1
+										};
+										setCurrentLocation(newLocation);
+										sendLocationToFirebase(newLocation);
+										console.log('🎯 東京周辺ランダム位置に移動:', newLocation);
+									}}
+									className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs"
+								>
+									東京周辺ランダム
+								</button>
+								<button
+									onClick={() => {
+										getCurrentPosition();
+									}}
+									className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+								>
+									GPS取得
+								</button>
+							</div>
+						</div>
+
+						{/* 運転メモ */}
+						<div className="bg-blue-50 p-4 rounded-lg">
+							<h3 className="font-semibold mb-3">運転メモ</h3>
+							<MemoScroller memos={memos} />
+						</div>
+					</div>
+				);
+			case 'locations':
+				return (
+					<div className="space-y-4">
+							<div className="bg-gray-50 p-4 rounded-lg">
+								<div className="flex items-center justify-between mb-3">
+									<h3 className="font-semibold">他の車の位置</h3>
+								{focusedMember && (
+									<button
+										onClick={resetFocus}
+										className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+									>
+										フォーカス解除
+									</button>
+								)}
+							</div>
+								<div className="space-y-2">
+									{members.filter((m) => m.uid !== currentUserUid).map((member, index) => {
+									const memberLocation = memberLocations.get(member.uid);
+									const isOnline = memberLocation && (Date.now() - memberLocation.timestamp < 5 * 60 * 1000);
+									const isFocused = focusedMember && focusedMember.uid === member.uid;
+									
+									return (
+										<div 
+											key={index} 
+											className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-all duration-200 ${
+												isFocused 
+													? 'bg-blue-100 border-2 border-blue-500 shadow-md' 
+													: 'bg-white hover:bg-gray-50 border border-gray-200'
+											}`}
+											onClick={() => {
+												if (memberLocation) {
+													focusOnMember(member);
+												}
+											}}
+										>
+											<img 
+												src={member.photoURL && !member.photoURL.includes("ui-avatars.com") 
+													? member.photoURL 
+													: `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || '?')}&background=4F46E5&color=fff&size=32&rounded=true`}
+												alt={member.name}
+												className="w-8 h-8 rounded-full"
+											/>
+											<div className="flex-1">
+												<div className="flex items-center gap-2">
+													<span className="text-sm font-medium">{member.name}</span>
+													<div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+													{isFocused && (
+														<span className="text-xs bg-blue-500 text-white px-1 py-0.5 rounded">
+															フォーカス中
+														</span>
+													)}
+												</div>
+												{memberLocation ? (
+													<div className="text-xs text-gray-500">
+														{memberLocation.isUsingMockLocation ? 'テスト位置' : 'GPS位置'} - 
+														{new Date(memberLocation.timestamp).toLocaleTimeString('ja-JP', {
+															hour: '2-digit',
+															minute: '2-digit'
+														})}
+														<div className="text-xs text-gray-400 mt-1">
+															{memberLocation.lat.toFixed(4)}, {memberLocation.lng.toFixed(4)}
+														</div>
+													</div>
+												) : (
+													<div className="text-xs text-gray-400">
+														位置情報なし
+													</div>
+												)}
+											</div>
+											{memberLocation && (
+												<div className="text-xs text-gray-400">
+													👆 タップでフォーカス
+												</div>
+											)}
+										</div>
+									);
+								})}
+							</div>
+						</div>
+					</div>
+				);
+			case 'rest':
+				return (
+					<div className="space-y-4">
+						<div className="bg-gray-50 p-4 rounded-lg">
+							<h3 className="font-semibold mb-3">休憩地点のセット</h3>
+							<p className="text-gray-600 text-sm">休憩地点の設定機能は準備中です。</p>
+						</div>
+					</div>
+				);
+			default:
+				return null;
+		}
+	};
 
 	useEffect(() => {
 		if (!roomId || !currentUserUid) {
@@ -46,6 +959,24 @@ const CarNavigation = () => {
 					const membersValue = room.members || {};
 					const list = Object.values(membersValue).filter((m) => m?.accepted);
 					setMembers(list);
+					
+					// ルート情報を設定
+					if (room.routeData) {
+						setRouteData(room.routeData);
+						console.log("🗺️ ルート情報を取得:", {
+							hasRoute: !!room.routeData,
+							hasPolyline: !!room.routeData?.polyline,
+							distance: room.routeData?.routeInfo?.distanceKm,
+							duration: room.routeData?.routeInfo?.durationMin,
+							coordinatesCount: room.routeData?.polyline?.geometry?.coordinates?.length || 0,
+							departureCoords: room.routeData?.departure?.coordinates,
+							destinationCoords: room.routeData?.destination?.coordinates,
+							firstPolylineCoord: room.routeData?.polyline?.geometry?.coordinates?.[0],
+							lastPolylineCoord: room.routeData?.polyline?.geometry?.coordinates?.[room.routeData?.polyline?.geometry?.coordinates?.length - 1],
+							polylineCoordsFormat: room.routeData?.polyline?.geometry?.coordinates?.[0] ? 
+								`[${room.routeData.polyline.geometry.coordinates[0][0]}, ${room.routeData.polyline.geometry.coordinates[0][1]}]` : 'N/A'
+						});
+					}
 					
 					// 参加者のphotoURL情報を初期化
 					const photoURLMap = new Map();
@@ -279,6 +1210,9 @@ const CarNavigation = () => {
 					accepted: false,
 				});
 				
+				// 位置情報も削除
+				await update(ref(rtdb, `rooms/${roomId}/memberLocations/${currentUserUid}`), null);
+				
 				// 参加状態をfalseにした後、ルーム削除チェックを実行
 				setTimeout(() => {
 					checkAndDeleteRoomIfEmpty(roomId);
@@ -288,44 +1222,404 @@ const CarNavigation = () => {
 			}
 		}
 		
+		// 位置情報共有を停止
+		stopLocationSharing();
+		
 		navigate("/dashboard/home");
 	};
 
+	if (loading) {
+	return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div className="text-center">
+					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+					<p className="text-gray-600">読み込み中...</p>
+					</div>
+					</div>
+		);
+	}
+
 	return (
 		<div className="min-h-screen bg-gray-50">
-			{/* Main Content with bottom padding to account for footer */}
-			<div className="pb-24 p-4 space-y-4">
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-2xl font-bold">カーナビ</h1>
-						{roomData && (
-							<p className="text-gray-600">ルーム: {roomData.name || roomId}</p>
-						)}
-					</div>
-					<button
-						type="button"
-						onClick={handleLeaveRoom}
-						className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-					>
-						ルームを出る
-					</button>
+			{/* ヘッダー */}
+			<div className="bg-green-500 text-white p-4">
+				<div className="flex items-center justify-center">
+					{routeData && (
+						<div className="bg-red-500 px-3 py-1 rounded text-sm">
+							到着時刻: {routeData.routeInfo?.arrivalTime ? 
+								new Date(routeData.routeInfo.arrivalTime).toLocaleTimeString('ja-JP', { 
+									hour: '2-digit', 
+									minute: '2-digit' 
+								}) : '○○:00'}
+									</div>
+								)}
+										</div>
+							</div>
+
+			{/* メインコンテンツ */}
+			<div className="h-[calc(100vh-80px)] flex flex-col">
+				{/* 地図エリア - 正方形 */}
+				<div className="w-full aspect-square relative overflow-hidden">
+					{routeData && routeData.polyline?.geometry?.coordinates ? (
+						<div 
+							className="w-full h-full"
+							style={{
+								transform: `rotate(${mapRotation}deg)`,
+								transformOrigin: 'center center',
+								transition: 'transform 0.8s ease-in-out',
+								width: '100%',
+								height: '100%',
+								marginLeft: '0%',
+								marginTop: '0%'
+							}}
+						>
+										<MapContainer
+								center={getMapCenter()}
+								zoom={currentLocation ? Math.max(mapZoom, 12) : mapZoom}
+								style={{ 
+									height: '100%', 
+									width: '100%'
+								}}
+								zoomControl={false} // デフォルトのズームコントロールを無効化（カスタムボタンを使用）
+								dragging={false} // ドラッグによる移動を無効化
+								touchZoom={false} // タッチズームを無効化
+								doubleClickZoom={false} // ダブルクリックズームを無効化
+								scrollWheelZoom={false} // マウスホイールズームを無効化
+								boxZoom={false} // ボックスズームを無効化
+								keyboard={false} // キーボード操作を無効化
+								attributionControl={false} // アトリビューション表示を無効化
+										>
+											<TileLayer
+												url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+												attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+											/>
+											
+							<MapController 
+								zoomLevel={focusedMember ? Math.max(mapZoom, 14) : (currentLocation ? Math.max(mapZoom, 12) : mapZoom)} 
+								center={getMapCenter()} 
+								currentLocation={focusedMember ? null : currentLocation}
+								focusedMember={focusedMember}
+							/>
+							
+							{/* オレンジの合流ルート表示（正規ルートの下に表示、ルート外の時のみ表示・実用上限対応） */}
+							{rejoinRoute && rejoinRoute.length > 0 && !routeStatus.isOnRoute && (
+								<>
+											<Polyline
+										positions={getOptimizedCoordinates(rejoinRoute, mapZoom).map(coord => [coord[1], coord[0]])}
+										color="orange"
+										weight={5}
+										opacity={0.9}
+										dashArray="8, 4"
+										smoothFactor={1.0}
+									/>
+								</>
+							)}
+
+							{/* 青い正規ルート表示（オレンジルートの上に表示・実用上限対応） */}
+							<Polyline
+								positions={getOptimizedCoordinates(routeData.polyline.geometry.coordinates, mapZoom).map(coord => [coord[1], coord[0]])}
+												color="blue"
+												weight={4}
+												opacity={0.8}
+											/>
+											
+											{/* 出発地マーカー */}
+											{routeData.departure && (
+												<Marker 
+													position={[routeData.departure.coordinates[0], routeData.departure.coordinates[1]]}
+													icon={startIcon}
+												>
+									<Popup
+										className="fixed-popup"
+										style={{
+											transform: `rotate(${-mapRotation}deg)`,
+											transformOrigin: 'center center'
+										}}
+									>
+										<div className="text-center max-w-32">
+											<div className="text-sm">🚀</div>
+											<div className="font-semibold text-green-600 text-xs">スタート地点</div>
+											<div className="font-medium text-xs break-words">{routeData.departure.name}</div>
+														</div>
+													</Popup>
+												</Marker>
+											)}
+											
+											{/* 目的地マーカー */}
+											{routeData.destination && (
+												<Marker 
+													position={[routeData.destination.coordinates[0], routeData.destination.coordinates[1]]}
+													icon={goalIcon}
+												>
+									<Popup
+										className="fixed-popup"
+										style={{
+											transform: `rotate(${-mapRotation}deg)`,
+											transformOrigin: 'center center'
+										}}
+									>
+										<div className="text-center max-w-32">
+											<div className="text-sm">🚩</div>
+											<div className="font-semibold text-red-600 text-xs">ゴール地点</div>
+											<div className="font-medium text-xs break-words">{routeData.destination.name}</div>
+										</div>
+									</Popup>
+								</Marker>
+							)}
+
+							{/* 現在地マーカー（自分のユーザーアイコン） */}
+							{currentLocation && (
+								<Marker
+									position={[currentLocation.lat, currentLocation.lng]}
+									icon={(() => {
+										const currentMember = members.find(m => m.uid === currentUserUid);
+										if (currentMember) {
+											return new Icon({
+												iconUrl: currentMember.photoURL && !currentMember.photoURL.includes("ui-avatars.com") 
+													? currentMember.photoURL 
+													: `https://ui-avatars.com/api/?name=${encodeURIComponent(currentMember.name || '?')}&background=4F46E5&color=fff&size=40&rounded=true`,
+												iconSize: [40, 40],
+												iconAnchor: [20, 20],
+												popupAnchor: [0, -20],
+												className: 'current-user-icon'
+											});
+										}
+										return currentLocationIcon;
+									})()}
+								>
+									<Popup
+										className="fixed-popup"
+										style={{
+											transform: `rotate(${-mapRotation}deg)`,
+											transformOrigin: 'center center'
+										}}
+									>
+										<div className="text-center max-w-40">
+											<div className="flex items-center gap-2 mb-2">
+												<img 
+													src={(() => {
+														const currentMember = members.find(m => m.uid === currentUserUid);
+														return currentMember?.photoURL && !currentMember.photoURL.includes("ui-avatars.com") 
+															? currentMember.photoURL 
+															: `https://ui-avatars.com/api/?name=${encodeURIComponent(currentMember?.name || '?')}&background=4F46E5&color=fff&size=24&rounded=true`;
+													})()}
+													alt="自分"
+													className="w-6 h-6 rounded-full"
+												/>
+												<div className="font-semibold text-blue-600 text-xs">現在地（自分）</div>
+											</div>
+											<div className="text-xs text-gray-600 mb-1">
+												{isUsingMockLocation ? 'テスト位置' : 'GPS位置'}
+											</div>
+											<div className="text-xs text-gray-500 break-all">
+												{currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
+											</div>
+											<div className="text-xs mt-1">
+												{routeStatus.isOnRoute ? (
+													<span className="text-green-600">✅ ルート上</span>
+												) : (
+													<span className="text-red-600">❌ ルート外 ({routeStatus.distance.toFixed(0)}m)</span>
+												)}
+											</div>
+											<div className="text-xs text-gray-400 mt-1">
+												5秒間隔で更新中
+															</div>
+														</div>
+													</Popup>
+												</Marker>
+											)}
+
+							{/* 合流点マーカー（ルート外の時のみ表示） */}
+							{joinPoint && !routeStatus.isOnRoute && (
+								<Marker
+									position={[joinPoint.lat, joinPoint.lng]}
+									icon={joinPointIcon}
+								>
+									<Popup
+										className="fixed-popup"
+										style={{
+											transform: `rotate(${-mapRotation}deg)`,
+											transformOrigin: 'center center'
+										}}
+									>
+										<div className="text-center max-w-32">
+											<div className="text-sm">🛣️</div>
+											<div className="font-semibold text-orange-600 text-xs">合流点</div>
+											<div className="text-xs text-gray-500">
+												道路に沿ったルート<br />
+												自然な合流パス
+									</div>
+								</div>
+									</Popup>
+								</Marker>
+							)}
+
+							{/* メンバーの位置マーカー（Googleアイコン・フォーカス機能対応） */}
+							{Array.from(memberLocations.entries()).map(([uid, location]) => {
+								const member = members.find(m => m.uid === uid);
+								if (!member) return null;
+
+								const isFocused = focusedMember && focusedMember.uid === uid;
+
+								// Googleアイコンまたはデフォルトアイコン（フォーカス時は大きく）
+								const memberIcon = new Icon({
+									iconUrl: member.photoURL && !member.photoURL.includes("ui-avatars.com") 
+										? member.photoURL 
+										: `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || '?')}&background=4F46E5&color=fff&size=${isFocused ? 48 : 32}&rounded=true`,
+									iconSize: isFocused ? [48, 48] : [32, 32],
+									iconAnchor: isFocused ? [24, 24] : [16, 16],
+									popupAnchor: isFocused ? [0, -24] : [0, -16],
+									className: `member-location-icon ${isFocused ? 'focused-member' : ''}`
+								});
+
+								return (
+									<Marker
+										key={uid}
+										position={[location.lat, location.lng]}
+										icon={memberIcon}
+									>
+										<Popup
+											className="fixed-popup"
+											style={{
+												transform: `rotate(${-mapRotation}deg)`,
+												transformOrigin: 'center center'
+											}}
+										>
+											<div className="text-center max-w-40">
+												<div className="flex items-center gap-2 mb-2">
+													<img 
+														src={member.photoURL && !member.photoURL.includes("ui-avatars.com") 
+															? member.photoURL 
+															: `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || '?')}&background=4F46E5&color=fff&size=24&rounded=true`}
+														alt={member.name}
+														className="w-6 h-6 rounded-full"
+													/>
+													<div className="font-semibold text-blue-600 text-xs">{member.name}</div>
+													{isFocused && (
+														<span className="text-xs bg-blue-500 text-white px-1 py-0.5 rounded">
+															フォーカス中
+														</span>
+													)}
+												</div>
+												<div className="text-xs text-gray-600 mb-1">
+													{location.isUsingMockLocation ? 'テスト位置' : 'GPS位置'}
+												</div>
+												<div className="text-xs text-gray-500 break-all">
+													{location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+												</div>
+												<div className="text-xs text-gray-400 mt-1">
+													{new Date(location.timestamp).toLocaleTimeString('ja-JP', {
+														hour: '2-digit',
+														minute: '2-digit',
+														second: '2-digit'
+													})}
+												</div>
+											</div>
+										</Popup>
+									</Marker>
+								);
+							})}
+						</MapContainer>
+						</div>
+					) : (
+						<div className="h-full flex items-center justify-center bg-gray-100">
+							<div className="text-center text-gray-600">
+								<div className="text-4xl mb-2">🗺️</div>
+								<p>ルート情報がありません</p>
+							</div>
+						</div>
+					)}
 				</div>
 
-			{loading ? (
-				<p className="text-gray-600">読み込み中...</p>
-			) : (
-				<>
-					{/* 音声通話機能 */}
-					<div className="bg-white rounded-lg shadow-md p-4">
+				{/* 地図下のコントロールパネル */}
+				<div className="bg-white border-t border-gray-200 p-4 flex-1">
+					{/* コントロールボタン（均等配置） */}
 						<div className="flex items-center justify-between mb-4">
-							<h2 className="text-lg font-semibold">🎤 音声通話</h2>
-							{!roomData?.dailyRoom && (
-								<p className="text-gray-500 text-sm">
-									Daily.coルームが準備されていません
-								</p>
-							)}
+						{/* 左側：ズームコントロール */}
+						<div className="flex items-center gap-3">
+							<div className="bg-gray-100 px-3 py-2 rounded-lg text-sm font-medium">
+								Zoom: {mapZoom}
+								{focusedMember && (
+									<div className="text-xs text-blue-600 mt-1">
+										{focusedMember.name} をフォーカス中
+									</div>
+								)}
+								{routeData?.polyline?.geometry?.coordinates && (
+									<div className="text-xs text-gray-600 mt-1">
+										{routeData.polyline.geometry.coordinates.length > 1000 ? 
+											`最適化: ${getOptimizedCoordinates(routeData.polyline.geometry.coordinates, mapZoom).length}点` :
+											`${routeData.polyline.geometry.coordinates.length}点`
+										}
+									</div>
+								)}
+							</div>
+							<button
+								onClick={handleZoomOut}
+								className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white w-10 h-10 rounded-lg shadow-lg flex items-center justify-center font-bold text-lg transition-colors duration-200"
+								title="ズームアウト"
+							>
+								−
+							</button>
+							<button
+								onClick={handleZoomIn}
+								className="bg-green-500 hover:bg-green-600 active:bg-green-700 text-white w-10 h-10 rounded-lg shadow-lg flex items-center justify-center font-bold text-lg transition-colors duration-200"
+								title="ズームイン"
+							>
+								+
+							</button>
 						</div>
 
+						{/* 右側：通話終了ボタン */}
+						<button
+							onClick={handleCallEnd}
+							className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded text-sm"
+						>
+							通話終了&到着
+						</button>
+					</div>
+
+					{/* タブコンテンツ */}
+					<div className="mb-4">
+						{renderTabContent()}
+					</div>
+
+					{/* タブボタン */}
+					<div className="flex gap-2">
+						<button
+							onClick={() => handleTabChange('main')}
+							className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 ${
+								activeTab === 'main' 
+									? 'bg-blue-100 border-blue-500 text-blue-700' 
+									: 'bg-gray-100 border-gray-300 text-gray-700'
+							}`}
+						>
+							メインナビ
+						</button>
+						<button
+							onClick={() => handleTabChange('locations')}
+							className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 ${
+								activeTab === 'locations' 
+									? 'bg-blue-100 border-blue-500 text-blue-700' 
+									: 'bg-gray-100 border-gray-300 text-gray-700'
+							}`}
+							>
+								他の車の位置
+						</button>
+						<button
+							onClick={() => handleTabChange('rest')}
+							className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 ${
+								activeTab === 'rest' 
+									? 'bg-blue-100 border-blue-500 text-blue-700' 
+									: 'bg-gray-100 border-gray-300 text-gray-700'
+							}`}
+						>
+							休憩地点のセット
+						</button>
+					</div>
+				</div>
+			</div>
+
+			{/* 音声通話機能 */}
 						{roomData?.dailyRoom && (
 							<AudioCallRoom
 								roomId={roomId}
@@ -336,52 +1630,24 @@ const CarNavigation = () => {
 								onCallStateUpdate={handleCallStateUpdate}
 							/>
 						)}
-					</div>
-				</>
-			)}
-			</div>
 			
 			{/* Audio Call Footer */}
 			<AudioCallFooter
 				participants={(() => {
-					// 通話参加者がいる場合はそれを使用
 					if (callParticipants.length > 0) {
-						console.log("🎤 通話参加者データを使用:", callParticipants.length);
 						return callParticipants;
 					}
 					
-					// 通話参加者がいない場合は、メンバーから参加者データを作成
-					// ただし、音声状態は適切に初期化（デバッグログを削減）
 					if (members.length > 0) {
-						console.log("📝 members配列の内容:", {
-							membersCount: members.length,
-							members: members.map(m => ({ name: m.name, uid: m.uid, photoURL: m.photoURL }))
-						});
-						
-						const fallbackParticipants = members.map(member => ({
+						return members.map(member => ({
 							session_id: member.uid,
 							user_name: member.name,
-							audio: false, // 初期状態では全員音声OFF
+							audio: false,
 							photoURL: member.photoURL,
 							local: member.uid === currentUserUid
 						}));
-						
-						// フォールバック使用時のみログ出力
-						console.log("📝 フォールバック参加者データを使用:", {
-							count: fallbackParticipants.length,
-							reason: "callParticipantsが空",
-							participants: fallbackParticipants.map(p => ({ 
-								user_name: p.user_name, 
-								photoURL: p.photoURL, 
-								local: p.local,
-								audio: p.audio
-							}))
-						});
-						
-						return fallbackParticipants;
 					}
 					
-					// メンバーもいない場合は空配列
 					return [];
 				})()}
 				participantPhotoURLs={participantPhotoURLs}
