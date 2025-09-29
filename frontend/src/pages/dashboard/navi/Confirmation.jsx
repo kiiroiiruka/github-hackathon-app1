@@ -187,16 +187,18 @@ const Confirmation = () => {
 							return;
 						}
 
-							try {
-								console.log("🔥 通話機能付きルーム作成開始（ルート情報含む）:", {
-									roomName: roomName,
-									roomNameType: typeof roomName,
-									roomNameTrimmed: String(roomName || "").trim(),
-									selectedFriends,
-									selectedLocation,
-									selectedDeparture,
-									ownerUid: currentUser.uid,
-								});
+						let createdRoomId = null;
+						
+						try {
+							console.log("🔥 通話機能付きルーム作成開始（ルート情報含む）:", {
+								roomName: roomName,
+								roomNameType: typeof roomName,
+								roomNameTrimmed: String(roomName || "").trim(),
+								selectedFriends,
+								selectedLocation,
+								selectedDeparture,
+								ownerUid: currentUser.uid,
+							});
 
 							// ルームID作成
 							const roomRef = push(ref(rtdb, "rooms"));
@@ -452,7 +454,7 @@ const Confirmation = () => {
 								console.log("🔍 通話機能付きルーム作成開始");
 
 								// Daily.coルーム作成
-								const createdRoomId = await createRoomWithInvitesAndRoute(
+								createdRoomId = await createRoomWithInvitesAndRoute(
 									String(roomName || "").trim(),
 									selectedFriends || [],
 									selectedLocation,
