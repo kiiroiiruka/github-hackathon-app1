@@ -421,93 +421,97 @@ export const createRoomWithInvitesAndRoute = async (
 		};
 	}
 
-    // ルート情報（任意）: OSRM失敗時も最小情報は保持
-    let routeData = null;
-    if (selectedLocation || selectedDeparture) {
-        routeData = {
-            departure: selectedDeparture
-                ? {
-                        name: selectedDeparture.name || "出発地",
-                        coordinates: selectedDeparture.coordinates,
-                  }
-                : null,
-            destination: selectedLocation
-                ? {
-                        name: selectedLocation.name || "目的地",
-                        coordinates: selectedLocation.coordinates,
-                  }
-                : null,
-            routeInfo: null,
-            polyline: null,
-            createdAt: new Date().toISOString(),
-        };
-
-        if (selectedLocation && selectedDeparture) {
-            try {
-                const routeResponse = await fetch(
-                    `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`,
-                );
-                if (routeResponse.ok) {
-                    const routeResult = await routeResponse.json();
-                    if (routeResult.routes && routeResult.routes.length > 0) {
-                        const route = routeResult.routes[0];
-                        routeData.routeInfo = {
-                            distanceKm: Math.round((route.distance / 1000) * 10) / 10,
-                            durationMin: Math.round(route.duration / 60),
-                            arrivalTime: new Date(Date.now() + route.duration * 1000).toISOString(),
-                        };
-                        routeData.polyline = {
-                            geometry: route.geometry
-                                ? {
-                                        type: route.geometry.type,
-                                        coordinates: (() => {
-                                            const coords = route.geometry.coordinates;
-                                            if (coords.length <= 1000) return coords;
-                                            const simplified = [];
-                                            const maxPoints = 50000;
-                                            const step = Math.max(1, Math.floor(coords.length / maxPoints));
-                                            simplified.push(coords[0]);
-                                            for (let i = step; i < coords.length - step; i += step) {
-                                                const prev = coords[i - step];
-                                                const curr = coords[i];
-                                                const next = coords[i + step];
-                                                const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
-                                                const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
-                                                const angleDiff = Math.abs(angle1 - angle2);
-                                                if (angleDiff > 0.02 || i % Math.floor(step * 1.2) === 0) {
-                                                    simplified.push(curr);
-                                                }
-                                            }
-                                            simplified.push(coords[coords.length - 1]);
-                                            return simplified;
-                                        })(),
-                                  }
-                                : null,
-                            steps:
-                                route.legs[0]?.steps?.map((step) => ({
-                                        distance: step.distance,
-                                        duration: step.duration,
-                                        maneuver: step.maneuver?.type,
-                                        name: step.name,
-                                    })) || [],
-                            waypoints:
-                                route.waypoints?.map((wp) => ({
-                                        location: wp.location,
-                                        name: wp.name,
-                                    })) || [],
-                            summary: {
-                                distance: route.distance,
-                                duration: route.duration,
-                                profile: "driving",
-                            },
-                        };
-                    }
-                }
-            } catch (routeError) {
-                console.warn("⚠️ ルート計算に失敗しました:", routeError);
-            }
-        }
-    }
+	// ルート情報（任意）: OSRM失敗時も最小情報は保持（テスト関数と同等の処理）
+	let routeData = null;
+	if (selectedLocation && selectedDeparture) {
+		try {
+			const routeResponse = await fetch(
+				`https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`,
+			);
+			if (routeResponse.ok) {
+				const routeResult = await routeResponse.json();
+				if (routeResult.routes && routeResult.routes.length > 0) {
+					const route = routeResult.routes[0];
+					routeData = {
+						departure: {
+							name: selectedDeparture.name || "出発地",
+							coordinates: selectedDeparture.coordinates,
+						},
+						destination: {
+							name: selectedLocation.name || "目的地",
+							coordinates: selectedLocation.coordinates,
+						},
+						routeInfo: {
+							distanceKm: Math.round((route.distance / 1000) * 10) / 10,
+							durationMin: Math.round(route.duration / 60),
+							arrivalTime: new Date(Date.now() + route.duration * 1000).toISOString(),
+						},
+						polyline: {
+							geometry: route.geometry
+								? {
+										type: route.geometry.type,
+										coordinates: (() => {
+											const coords = route.geometry.coordinates || [];
+											if (coords.length <= 1000) return coords;
+											const simplified = [];
+											const maxPoints = 50000;
+											const step = Math.max(1, Math.floor(coords.length / maxPoints));
+											simplified.push(coords[0]);
+											for (let i = step; i < coords.length - step; i += step) {
+												const prev = coords[i - step];
+												const curr = coords[i];
+												const next = coords[i + step];
+												const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
+												const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
+												const angleDiff = Math.abs(angle1 - angle2);
+												if (angleDiff > 0.02 || i % Math.floor(step * 1.2) === 0) {
+													simplified.push(curr);
+												}
+											}
+											simplified.push(coords[coords.length - 1]);
+											return simplified;
+										})(),
+							  }
+							: null,
+							steps:
+								route.legs?.[0]?.steps?.map((step) => ({
+									distance: step.distance,
+									duration: step.duration,
+									maneuver: step.maneuver?.type,
+									name: step.name,
+								})) || [],
+							waypoints:
+								route.waypoints?.map((wp) => ({
+									location: wp.location,
+									name: wp.name,
+								})) || [],
+							summary: {
+								distance: route.distance,
+								duration: route.duration,
+								profile: "driving",
+							},
+						},
+						createdAt: new Date().toISOString(),
+					};
+				}
+			}
+		} catch (routeError) {
+			console.warn("⚠️ ルート計算に失敗しました:", routeError);
+		}
+	} else if (selectedLocation || selectedDeparture) {
+		// どちらかだけでも最小構造を保存
+		routeData = {
+			departure: selectedDeparture
+				? { name: selectedDeparture.name || "出発地", coordinates: selectedDeparture.coordinates }
+				: null,
+			destination: selectedLocation
+				? { name: selectedLocation.name || "目的地", coordinates: selectedLocation.coordinates }
+				: null,
+			routeInfo: null,
+			polyline: null,
+			createdAt: new Date().toISOString(),
+		};
+	}
 
 	const roomData = {
 		name: roomName.trim(),
@@ -523,6 +527,7 @@ export const createRoomWithInvitesAndRoute = async (
 	};
 
 	await set(roomRef, roomData);
+    console.log("✅ Room saved (with routeData?):", { roomId, hasRoute: !!routeData, hasPolyline: !!routeData?.polyline });
 	return roomId;
 };
 
