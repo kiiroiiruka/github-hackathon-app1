@@ -168,6 +168,7 @@ const Confirmation = () => {
 					size="lg"
 					className="w-full"
 					onClick={async () => {
+						console.log("🚀🚀🚀 NEW CONFIRMATION CODE EXECUTED! 🚀🚀🚀");
 						const currentUser = auth.currentUser;
 						if (!currentUser || !currentUser.uid) {
 							alert("ログインが必要です。");
