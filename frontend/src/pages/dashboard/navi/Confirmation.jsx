@@ -178,23 +178,35 @@ const Confirmation = () => {
 								selectedDeparture,
 							});
 
-                            // Daily連携あり + ルート情報保存
-                            const roomId = await createRoomWithInvitesAndRoute(
-                                roomName,
-                                selectedFriends || [],
-                                selectedLocation || null,
-                                selectedDeparture || null,
-                            );
-
-							console.log("ルーム作成成功:", roomId);
+							// まずは Daily 連携ありで作成（ルート情報も保存）
+							let roomId;
+							try {
+								roomId = await createRoomWithInvitesAndRoute(
+									roomName,
+									selectedFriends || [],
+									selectedLocation || null,
+									selectedDeparture || null,
+								);
+								console.log("ルーム作成成功 (Daily連携あり):", roomId);
+							} catch (dailyError) {
+								console.warn("Daily連携付き作成に失敗。Firebaseのみで再試行します:", dailyError);
+								// フォールバック: Firebase側のみで作成（テスト用と同等の保存内容）
+								roomId = await createFirebaseRoomWithRoute(
+									roomName,
+									selectedFriends || [],
+									selectedLocation || null,
+									selectedDeparture || null,
+								);
+								console.log("ルーム作成成功 (Firebaseのみ・フォールバック):", roomId);
+							}
 
 							// 成功メッセージを表示
 							alert(
 								`ルーム「${roomName}」が正常に作成されました！\nルームID: ${roomId}`,
 							);
 
-                            // ホーム画面に遷移
-                            navigate("/dashboard");
+							// ホーム画面に遷移
+							navigate("/dashboard");
 						} catch (error) {
 							console.error("ルーム作成失敗:", error);
 							alert(
