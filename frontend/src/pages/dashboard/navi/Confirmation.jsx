@@ -236,16 +236,34 @@ const Confirmation = () => {
 								routeData = {
 									departure: {
 										name: selectedDeparture.name || "出発地",
-										lat: selectedDeparture.coordinates[0], // 緯度を分離
-										lng: selectedDeparture.coordinates[1], // 経度を分離
+										coordinates: selectedDeparture.coordinates,
 									},
 									destination: {
 										name: selectedLocation.name || "目的地",
-										lat: selectedLocation.coordinates[0], // 緯度を分離
-										lng: selectedLocation.coordinates[1], // 経度を分離
+										coordinates: selectedLocation.coordinates,
 									},
-									distance: 0,
-									duration: 0,
+									routeInfo: {
+										distanceKm: 0,
+										durationMin: 0,
+										arrivalTime: new Date().toISOString(),
+									},
+									polyline: {
+										geometry: {
+											type: "LineString",
+											coordinates: [
+												selectedDeparture.coordinates,
+												selectedLocation.coordinates
+											],
+										},
+										steps: [],
+										waypoints: [],
+										summary: {
+											distance: 0,
+											duration: 0,
+											profile: "driving",
+										},
+									},
+									createdAt: new Date().toISOString(),
 									test: true,
 								};
 								
@@ -491,8 +509,8 @@ const Confirmation = () => {
 								hasRoute: !!routeData,
 								routeInfo: routeData
 									? {
-											distance: routeData.distance || 0,
-											duration: routeData.duration || 0,
+											distance: routeData.routeInfo?.distanceKm || 0,
+											duration: routeData.routeInfo?.durationMin || 0,
 											test: routeData.test || false,
 										}
 									: null,
@@ -500,7 +518,7 @@ const Confirmation = () => {
 							});
 
 							const routeMessage = routeData
-								? `\n\n🗺️ ルート情報も保存されました（最小限テスト版）:\n距離: ${routeData.distance || 0}km\n所要時間: ${routeData.duration || 0}分\nデータサイズ: ${Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100}KB\nテストモード: ${routeData.test ? '有効' : '無効'}`
+								? `\n\n🗺️ ルート情報も保存されました（最小限テスト版）:\n距離: ${routeData.routeInfo?.distanceKm || 0}km\n所要時間: ${routeData.routeInfo?.durationMin || 0}分\nデータサイズ: ${Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100}KB\nテストモード: ${routeData.test ? '有効' : '無効'}`
 								: "\n\n⚠️ ルート情報は保存されませんでした（出発地・目的地が未設定）";
 
 							alert(
