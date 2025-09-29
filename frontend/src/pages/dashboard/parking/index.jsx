@@ -552,15 +552,6 @@ const ParkingInfoDisplay = () => {
 
           {/* アクションボタン */}
           <div className="space-y-4">
-            <Button
-              variant="primary"
-              size="lg"
-              className="w-full"
-          onClick={handleGoInput}
-              icon="✏️"
-        >
-              駐車情報を編集
-            </Button>
       </div>
         </>
       ) : (
