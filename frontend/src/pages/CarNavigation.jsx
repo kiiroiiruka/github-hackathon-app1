@@ -244,6 +244,11 @@ const CarNavigation = () => {
 	const lastRejoinInfoRef = useRef(null); // { start: {lat,lng}, joinPoint: {lat,lng} }
 	const isUpdatingRejoinRef = useRef(false);
 
+	// デバッグ: コンポーネントマウント時の状態
+	useEffect(() => {
+		console.log("🧭 CarNavigation mounted", { roomId });
+	}, [roomId]);
+
 	// 初期状態で適当な座標をセット
 	const setInitialMockLocation = () => {
 		// 東京駅周辺の適当な座標をセット
@@ -1236,6 +1241,10 @@ const CarNavigation = () => {
 
 	useEffect(() => {
 		if (!roomId || !currentUserUid) {
+			console.warn("⚠️ CarNavigation初期化スキップ: roomIdまたはcurrentUserUidが未設定", {
+				roomId,
+				currentUserUid,
+			});
 			setLoading(false);
 			return;
 		}

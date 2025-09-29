@@ -1,8 +1,9 @@
+import { get, push, ref, serverTimestamp, set } from "firebase/database";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageLayout from "../../../components/layout/PageLayout";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
-import { createRoomWithInvitesAndRoute } from "../../../firebase/room";
+import { auth, rtdb } from "../../../firebase/firebaseConfig";
 
 const Confirmation = () => {
 	const navigate = useNavigate();
@@ -167,49 +168,224 @@ const Confirmation = () => {
 					size="lg"
 					className="w-full"
 					onClick={async () => {
+						const currentUser = auth.currentUser;
+						if (!currentUser || !currentUser.uid) {
+							alert("ログインが必要です。");
+							return;
+						}
+
+						if (!roomName.trim()) {
+							alert("ルーム名を入力してください。");
+							return;
+						}
+
 						try {
-                            // フォールバック用にローカルへ直前の選択を保存
-                            if (selectedLocation) {
-                                localStorage.setItem(
-                                    "roomCreat_selectedLocation",
-                                    JSON.stringify(selectedLocation),
-                                );
-                            }
-                            if (selectedDeparture) {
-                                localStorage.setItem(
-                                    "roomCreat_selectedDeparture",
-                                    JSON.stringify(selectedDeparture),
-                                );
-                            }
-							// ルーム作成処理を実行
-							console.log("ルーム作成を決定:", {
-								roomName,
+							console.log("🔥 Firebase側のみでルーム作成開始（ルート情報含む）:", {
+								roomName: roomName.trim(),
 								selectedFriends,
 								selectedLocation,
 								selectedDeparture,
+								ownerUid: currentUser.uid,
 							});
 
-						// Firebase + Daily を同時に作成し、テストボタン同様のルート情報を保存
-						const roomId = await createRoomWithInvitesAndRoute(
-							roomName,
-							selectedFriends || [],
-							selectedLocation || null,
-							selectedDeparture || null,
-						);
-						console.log("ルーム作成成功 (Firebase+Daily 同時):", roomId);
+							// ルームID作成
+							const roomRef = push(ref(rtdb, "rooms"));
+							const roomId = roomRef.key;
 
-							// 成功メッセージを表示
+							// メンバー一覧: 作成者も含める（デフォルトaccepted: true）
+							const members = {
+								[currentUser.uid]: {
+									uid: currentUser.uid,
+									name: currentUser.displayName || "",
+									photoURL: currentUser.photoURL || "",
+									invited: true,
+									accepted: true,
+								},
+							};
+
+							// 選択されたフレンドを追加
+							for (const friend of selectedFriends || []) {
+								members[friend.uid] = {
+									uid: friend.uid,
+									name: friend.name || friend.displayName || "",
+									photoURL: friend.photoURL || "",
+									invited: true,
+									accepted: false, // 初期状態: 未参加
+								};
+							}
+
+							// ルート情報を構築
+							let routeData = null;
+							if (selectedLocation && selectedDeparture) {
+								// ルート計算（OSRM API使用）
+								try {
+									const routeResponse = await fetch(
+										`https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`,
+									);
+
+									if (routeResponse.ok) {
+										const routeResult = await routeResponse.json();
+										if (routeResult.routes && routeResult.routes.length > 0) {
+											const route = routeResult.routes[0];
+											routeData = {
+												departure: {
+													name: selectedDeparture.name || "出発地",
+													coordinates: selectedDeparture.coordinates,
+												},
+												destination: {
+													name: selectedLocation.name || "目的地",
+													coordinates: selectedLocation.coordinates,
+												},
+												routeInfo: {
+													distanceKm: Math.round((route.distance / 1000) * 10) / 10,
+													durationMin: Math.round(route.duration / 60),
+													arrivalTime: new Date(
+														Date.now() + route.duration * 1000,
+													).toISOString(),
+												},
+												// ポリライン情報を含む詳細なルートデータ（実用上限版・高品質保持）
+												polyline: {
+													// 道の形状を保持しながら座標点を間引く（実用上限版）
+													geometry: route.geometry
+														? {
+																type: route.geometry.type,
+																coordinates: (() => {
+																	const coords = route.geometry.coordinates;
+																	if (coords.length <= 1000) return coords; // 1000点以下はそのまま
+
+																	const simplified = [];
+																	const maxPoints = 50000; // 実用上限：最大5万点に制限
+																	const step = Math.max(
+																		1,
+																		Math.floor(coords.length / maxPoints),
+																	);
+
+																	// 最初の点を必ず含める
+																	simplified.push(coords[0]);
+
+																	// 曲がり角を検出して重要な点を保持（高品質保持）
+																	for (
+																		let i = step;
+																		i < coords.length - step;
+																		i += step
+																	) {
+																		const prev = coords[i - step];
+																		const curr = coords[i];
+																		const next = coords[i + step];
+
+																		// 角度変化を計算
+																		const angle1 = Math.atan2(
+																			curr[1] - prev[1],
+																			curr[0] - prev[0],
+																		);
+																		const angle2 = Math.atan2(
+																			next[1] - curr[1],
+																			next[0] - curr[0],
+																		);
+																		const angleDiff = Math.abs(angle1 - angle2);
+
+																		// 角度変化が大きい場合（曲がり角）は保持（より細かく保持）
+																		if (angleDiff > 0.02 || i % (step * 1.2) === 0) {
+																			simplified.push(curr);
+																		}
+																	}
+
+																	// 最後の点を必ず含める
+																	simplified.push(coords[coords.length - 1]);
+
+																	return simplified;
+																})(),
+															}
+														: null,
+													// ステップ情報を簡略化（重要な情報のみ）
+													steps:
+														route.legs[0]?.steps?.map((step) => ({
+															distance: step.distance,
+															duration: step.duration,
+															maneuver: step.maneuver?.type,
+															name: step.name,
+														})) || [],
+													// ウェイポイント情報を簡略化
+													waypoints:
+														route.waypoints?.map((wp) => ({
+															location: wp.location,
+															name: wp.name,
+														})) || [],
+													summary: {
+														distance: route.distance, // メートル
+														duration: route.duration, // 秒
+														profile: "driving",
+													},
+												},
+												createdAt: new Date().toISOString(),
+											};
+											// データサイズの計算とログ出力（実用上限版）
+											const dataSize = JSON.stringify(routeData).length;
+											const dataSizeKB = Math.round((dataSize / 1024) * 100) / 100;
+											const dataSizeMB =
+												Math.round((dataSize / (1024 * 1024)) * 100) / 100;
+											console.log("🗺️ ルート情報を取得（実用上限版）:", {
+												dataSize: `${dataSizeKB}KB (${dataSizeMB}MB)`,
+												coordinatesCount: route.geometry?.coordinates?.length || 0,
+												simplifiedCount: routeData.polyline.geometry.coordinates.length,
+												compressionRatio: `${Math.round((routeData.polyline.geometry.coordinates.length / (route.geometry?.coordinates?.length || 1)) * 100)}%`,
+												stepsCount: route.legs[0]?.steps?.length || 0,
+												waypointsCount: route.waypoints?.length || 0,
+												maxPoints: 50000,
+												qualityLevel: "実用上限（高品質保持）",
+											});
+										}
+									}
+								} catch (routeError) {
+									console.warn("⚠️ ルート計算に失敗しました:", routeError);
+									// ルート計算に失敗してもルーム作成は続行
+								}
+							}
+
+							const roomData = {
+								name: roomName.trim(),
+								createdAt: serverTimestamp(),
+								ownerUid: currentUser.uid,
+								ownerName: currentUser.displayName || "",
+								ownerPhotoURL: currentUser.photoURL || "",
+								// Daily側の情報は含めない（テスト用）
+								members,
+								testMode: true, // テストモードであることを明示
+								// ルート情報を含める
+								routeData: routeData,
+								hasRoute: !!routeData, // ルート情報があるかどうかのフラグ
+							};
+
+							await set(roomRef, roomData);
+
+							console.log("✅ Firebase側のみでルーム作成完了（ルート情報含む）:", {
+								roomId,
+								roomName: roomName.trim(),
+								membersCount: Object.keys(members).length,
+								hasRoute: !!routeData,
+								routeInfo: routeData
+									? {
+											distance: routeData.routeInfo.distanceKm,
+											duration: routeData.routeInfo.durationMin,
+											polylinePoints: routeData.polyline.geometry.coordinates.length,
+										}
+									: null,
+								testMode: true,
+							});
+
+							const routeMessage = routeData
+								? `\n\n🗺️ ルート情報も保存されました（実用上限版・高品質保持）:\n距離: ${routeData.routeInfo.distanceKm}km\n所要時間: ${routeData.routeInfo.durationMin}分\nポリラインポイント数: ${routeData.polyline.geometry.coordinates.length}個\nデータサイズ: ${Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100}KB (${Math.round((JSON.stringify(routeData).length / (1024 * 1024)) * 100) / 100}MB)\n品質レベル: 実用上限（最大5万点）`
+								: "\n\n⚠️ ルート情報は保存されませんでした（出発地・目的地が未設定）";
+
 							alert(
-								`ルーム「${roomName}」が正常に作成されました！\nルームID: ${roomId}`,
+								`Firebase側のみでルーム「${roomName.trim()}」を作成しました！\nルームID: ${roomId}${routeMessage}\n\n※Daily側ではルーム作成されていません（テスト用）`,
 							);
 
 							// ホーム画面に遷移
 							navigate("/dashboard");
 						} catch (error) {
-							console.error("ルーム作成失敗:", error);
-							alert(
-								"ルームの作成に失敗しました。ログイン状態を確認して再試行してください。",
-							);
+							console.error("❌ Firebase側のみルーム作成エラー:", error);
+							alert(`Firebase側のみルーム作成に失敗しました: ${error.message}`);
 						}
 					}}
 					icon="🚀"
