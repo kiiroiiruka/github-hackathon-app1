@@ -1019,29 +1019,47 @@ export const useDailyConnection = (
 						if (event.track && event.track.readyState === "live") {
 							console.log("🔊 音声トラックの再生を確認中...");
 
-							// 音声要素を手動で作成
-							const createAudioElement = () => {
-								try {
-									// 既存の音声要素を確認
-									const existingAudio = document.querySelector(
-										`audio[data-participant="${event.participant.session_id}"]`,
-									);
-									if (existingAudio) {
-										console.log("🎵 既存の音声要素が見つかりました");
-										return existingAudio;
-									}
+								// 音声要素を手動で作成（エコーバック防止）
+								const createAudioElement = () => {
+									try {
+										// 既存の音声要素を確認
+										const existingAudio = document.querySelector(
+											`audio[data-participant="${event.participant.session_id}"]`,
+										);
+										if (existingAudio) {
+											console.log("🎵 既存の音声要素が見つかりました");
+											
+											// エコーバック防止：ローカル参加者の音声要素は必ずミュート
+											if (event.participant.local) {
+												existingAudio.muted = true;
+												existingAudio.volume = 0.0;
+												console.log("🔇 既存のローカル音声要素をミュートしました（エコーバック防止）");
+											}
+											
+											return existingAudio;
+										}
 
-									// 新しい音声要素を作成
-									const audioElement = document.createElement("audio");
-									audioElement.setAttribute(
-										"data-participant",
-										event.participant.session_id,
-									);
-									audioElement.setAttribute("data-track-id", event.track.id);
-									audioElement.autoplay = true;
-									audioElement.muted = false;
-									audioElement.volume = 1.0;
-									audioElement.style.display = "none";
+										// 新しい音声要素を作成
+										const audioElement = document.createElement("audio");
+										audioElement.setAttribute(
+											"data-participant",
+											event.participant.session_id,
+										);
+										audioElement.setAttribute("data-track-id", event.track.id);
+										audioElement.autoplay = true;
+										
+										// エコーバック防止：ローカル参加者の音声要素は必ずミュート
+										if (event.participant.local) {
+											audioElement.muted = true;
+											audioElement.volume = 0.0;
+											console.log("🔇 ローカル参加者の音声要素をミュートで作成しました（エコーバック防止）");
+										} else {
+											audioElement.muted = false;
+											audioElement.volume = 1.0;
+											console.log("🔊 リモート参加者の音声要素を正常音量で作成しました");
+										}
+										
+										audioElement.style.display = "none";
 
 									// MediaStreamを音声要素に接続
 									if (
@@ -1083,7 +1101,7 @@ export const useDailyConnection = (
 							// 音声要素を作成
 							const audioElement = createAudioElement();
 
-							// 音声要素の確認と設定を複数回試行
+							// 音声要素の確認と設定を複数回試行（エコーバック防止）
 							const ensureAudioPlayback = (attempts = 0) => {
 								if (attempts >= 3) {
 									console.log("🔄 音声要素確認の最大試行回数に達しました");
@@ -1100,6 +1118,9 @@ export const useDailyConnection = (
 											);
 
 											audioElements.forEach((audio, index) => {
+												const participantId = audio.getAttribute("data-participant");
+												const isLocalParticipant = callObject.participants()[participantId]?.local;
+												
 												console.log(`🎵 音声要素 ${index + 1}:`, {
 													src: audio.src || "MediaStream",
 													muted: audio.muted,
@@ -1108,23 +1129,31 @@ export const useDailyConnection = (
 													currentTime: audio.currentTime,
 													duration: audio.duration || "N/A",
 													autoplay: audio.autoplay,
-													participant: audio.getAttribute("data-participant"),
+													participant: participantId,
+													isLocal: isLocalParticipant,
 												});
 
-												// 音声要素の設定を最適化
-												audio.muted = false;
-												audio.volume = 1.0;
-												audio.autoplay = true;
+												// エコーバック防止：ローカル参加者の音声要素は必ずミュート
+												if (isLocalParticipant) {
+													audio.muted = true;
+													audio.volume = 0.0;
+													console.log("🔇 ローカル参加者の音声要素をミュートしました（エコーバック防止）");
+												} else {
+													// リモート参加者の音声要素は正常に設定
+													audio.muted = false;
+													audio.volume = 1.0;
+													audio.autoplay = true;
 
-												// 音声要素が一時停止されている場合は再生
-												if (audio.paused) {
-													console.log("▶️ 音声要素の再生を開始します");
-													audio.play().catch((error) => {
-														console.warn(
-															"⚠️ 音声の自動再生が失敗しました:",
-															error,
-														);
-													});
+													// 音声要素が一時停止されている場合は再生
+													if (audio.paused) {
+														console.log("▶️ リモート参加者の音声要素の再生を開始します");
+														audio.play().catch((error) => {
+															console.warn(
+																"⚠️ 音声の自動再生が失敗しました:",
+																error,
+															);
+														});
+													}
 												}
 											});
 
@@ -1577,7 +1606,7 @@ export const useDailyConnection = (
 					token: token.substring(0, 20) + "...",
 				});
 
-				// Daily.coの正しい設定（音声トラック安定性を重視）
+				// Daily.coの正しい設定（エコーバック防止を重視）
 				const callObject = DailyIframe.createCallObject({
 					url: urlToUse,
 					token: token,
@@ -1588,6 +1617,10 @@ export const useDailyConnection = (
 					// 音声トラックの安定性を向上させる設定
 					audioSource: true,
 					videoSource: false,
+					// エコーバック防止設定
+					echoCancellation: true,
+					noiseSuppression: true,
+					autoGainControl: true,
 					// 音声受信設定（マイクの状態に関係なく常に有効）
 					receiveSettings: {
 						audio: {
@@ -1881,7 +1914,7 @@ export const useDailyConnection = (
 									participantTrack,
 								);
 
-								// 音声要素を手動で作成
+								// 音声要素を手動で作成（エコーバック防止）
 								const audioElement = document.createElement("audio");
 								audioElement.setAttribute(
 									"data-participant",
@@ -1892,8 +1925,18 @@ export const useDailyConnection = (
 									participant.user_name,
 								);
 								audioElement.autoplay = true;
-								audioElement.muted = false;
-								audioElement.volume = 1.0;
+								
+								// エコーバック防止：ローカル参加者の音声要素は必ずミュート
+								if (participant.local) {
+									audioElement.muted = true;
+									audioElement.volume = 0.0;
+									console.log("🔇 ローカル参加者の音声要素をミュートで作成しました（エコーバック防止）");
+								} else {
+									audioElement.muted = false;
+									audioElement.volume = 1.0;
+									console.log("🔊 リモート参加者の音声要素を正常音量で作成しました");
+								}
+								
 								audioElement.style.display = "none";
 
 								// MediaStreamを作成して音声要素に接続
