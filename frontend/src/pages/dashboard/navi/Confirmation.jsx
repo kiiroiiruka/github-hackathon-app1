@@ -4,6 +4,7 @@ import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
 import { createRoomWithInvites } from "../../../firebase/room";
 import { createFirebaseRoomWithRoute } from "../../../firebase/room";
+import { createRoomWithInvitesAndRoute } from "../../../firebase/room";
 
 const Confirmation = () => {
 	const navigate = useNavigate();
@@ -177,8 +178,8 @@ const Confirmation = () => {
 								selectedDeparture,
 							});
 
-                            // デバッグボタンと同等のFirebaseのみ作成（ルート情報含む）を実行
-                            const roomId = await createFirebaseRoomWithRoute(
+                            // Daily連携あり + ルート情報保存
+                            const roomId = await createRoomWithInvitesAndRoute(
                                 roomName,
                                 selectedFriends || [],
                                 selectedLocation || null,
