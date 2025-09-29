@@ -77,6 +77,23 @@ const MapController = ({ zoomLevel, center, currentLocation, focusedMember }) =>
 	return null;
 };
 
+// 休憩地点設定用のマップクリックハンドラ
+const MapClickHandler = ({ enabled, onClick }) => {
+	const map = useMap();
+	useEffect(() => {
+		if (!map) return;
+		const handler = (e) => {
+			if (!enabled) return;
+			onClick?.(e.latlng);
+		};
+		map.on('click', handler);
+		return () => {
+			map.off('click', handler);
+		};
+	}, [map, enabled, onClick]);
+	return null;
+};
+
 // メモの自動スクロールコンポーネント
 const MemoScroller = ({ memos }) => {
 	const [currentMemoIndex, setCurrentMemoIndex] = useState(0);
@@ -176,6 +193,8 @@ const CarNavigation = () => {
 	const [memberLocations, setMemberLocations] = useState(new Map()); // メンバーの位置情報
 	const [moveDistance, setMoveDistance] = useState(0.001); // 移動距離（デフォルト100m）
 	const [focusedMember, setFocusedMember] = useState(null); // フォーカス中のメンバー
+	const [restPoint, setRestPoint] = useState(null); // 休憩地点
+	const [restRoute, setRestRoute] = useState(null); // 休憩地点への新ルート
 	const currentUserUid = useUserUid();
 	const updateTimeoutRef = useRef(null);
 	const gpsIntervalRef = useRef(null);
@@ -690,6 +709,51 @@ const CarNavigation = () => {
 		console.log('🔄 フォーカスをリセット');
 	};
 
+	// 休憩地点クリック時: 現在地→休憩地点の経路をOSRMで取得
+	const computeRestRoute = async (from, to) => {
+		try {
+			const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+			const res = await fetch(url);
+			const data = await res.json();
+			const coords = data?.routes?.[0]?.geometry?.coordinates || [];
+			setRestRoute(coords.length > 0 ? coords : null);
+			console.log('🟣 休憩地点ルート生成', { points: coords.length });
+		} catch (e) {
+			console.warn('⚠️ 休憩地点ルート生成エラー', e);
+		}
+	};
+
+	const handleRestPointSelected = async (latlng) => {
+		if (!latlng) return;
+		setRestPoint({ lat: latlng.lat, lng: latlng.lng });
+		if (!currentLocation) return;
+		await computeRestRoute(currentLocation, { lat: latlng.lat, lng: latlng.lng });
+	};
+
+	// 休憩タブ時は紫ルートの維持と再計算（4秒）
+	useEffect(() => {
+		if (activeTab !== 'rest') return;
+		if (!restPoint || !currentLocation) return;
+
+		const tick = async () => {
+			// 既存の紫ルートに対してオンルート判定（なければ再計算）
+			if (!restRoute || restRoute.length === 0) {
+				await computeRestRoute(currentLocation, restPoint);
+				return;
+			}
+			const restRouteData = { polyline: { geometry: { coordinates: restRoute } } };
+			const { distance } = calculateShortestDistanceToRoute(currentLocation, restRouteData);
+			const onRestRoute = (distance || 0) <= ROUTE_THRESHOLD_METERS;
+			if (!onRestRoute) {
+				await computeRestRoute(currentLocation, restPoint);
+			}
+		};
+
+		tick();
+		const id = setInterval(tick, 4000);
+		return () => clearInterval(id);
+	}, [activeTab, restPoint, currentLocation, restRoute]);
+
 	// タブコンテンツのレンダリング
 	const renderTabContent = () => {
 		switch (activeTab) {
@@ -925,7 +989,7 @@ const CarNavigation = () => {
 					<div className="space-y-4">
 						<div className="bg-gray-50 p-4 rounded-lg">
 							<h3 className="font-semibold mb-3">休憩地点のセット</h3>
-							<p className="text-gray-600 text-sm">休憩地点の設定機能は準備中です。</p>
+						<p className="text-gray-600 text-sm">マップをタップして休憩地点を設定します（別ルート表示）。</p>
 						</div>
 					</div>
 				);
@@ -1293,6 +1357,9 @@ const CarNavigation = () => {
 												url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
 												attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 											/>
+
+								{/* 休憩地点のためのマップクリック（休憩タブ有効時のみ） */}
+								<MapClickHandler enabled={activeTab === 'rest'} onClick={handleRestPointSelected} />
 											
 							<MapController 
 								zoomLevel={focusedMember ? Math.max(mapZoom, 14) : (currentLocation ? Math.max(mapZoom, 12) : mapZoom)} 
@@ -1301,8 +1368,8 @@ const CarNavigation = () => {
 								focusedMember={focusedMember}
 							/>
 							
-							{/* オレンジの合流ルート表示（正規ルートの下に表示、ルート外の時のみ表示・実用上限対応） */}
-							{rejoinRoute && rejoinRoute.length > 0 && !routeStatus.isOnRoute && (
+							{/* オレンジの合流ルート表示（休憩タブ中は非表示） */}
+							{rejoinRoute && rejoinRoute.length > 0 && !routeStatus.isOnRoute && activeTab !== 'rest' && (
 								<>
 											<Polyline
 										positions={getOptimizedCoordinates(rejoinRoute, mapZoom).map(coord => [coord[1], coord[0]])}
@@ -1322,6 +1389,18 @@ const CarNavigation = () => {
 												weight={4}
 												opacity={0.8}
 											/>
+
+							{/* 休憩地点への別ルート（紫）: 正規ルートとは独立して表示 */}
+							{restRoute && restRoute.length > 0 && (
+								<Polyline
+									positions={getOptimizedCoordinates(restRoute, mapZoom).map(coord => [coord[1], coord[0]])}
+									color="#7c3aed" // violet-600
+									weight={4}
+									opacity={0.9}
+									dashArray="6, 6"
+									smoothFactor={1.0}
+								/>
+							)}
 											
 											{/* 出発地マーカー */}
 											{routeData.departure && (
@@ -1450,6 +1529,22 @@ const CarNavigation = () => {
 												自然な合流パス
 									</div>
 								</div>
+									</Popup>
+								</Marker>
+							)}
+
+							{/* 休憩地点ピン */}
+							{restPoint && (
+								<Marker position={[restPoint.lat, restPoint.lng]} icon={new Icon({
+									iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-violet.png",
+									shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
+									iconSize: [25, 41],
+									iconAnchor: [12, 41],
+									popupAnchor: [1, -34],
+									shadowSize: [41, 41]
+								})}>
+									<Popup className="fixed-popup">
+										<div className="text-xs">休憩地点</div>
 									</Popup>
 								</Marker>
 							)}
