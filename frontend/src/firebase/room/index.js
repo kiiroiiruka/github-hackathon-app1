@@ -405,6 +405,35 @@ export const createRoomWithInvitesAndRoute = async (
 };
 
 /**
+ * 既存のFirebaseルームにDaily.coルーム情報を後付けで紐付ける
+ * @param {string} roomId FirebaseのroomId（既に作成済み）
+ * @param {string} roomName ルーム名
+ * @returns {Promise<void>}
+ */
+export const attachDailyRoomToExisting = async (roomId, roomName) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser || !currentUser.uid) {
+        throw new Error("ログインが必要です。ユーザー情報を取得できません。");
+    }
+
+    // Daily.coのビデオルームを作成
+    const apiBaseUrl = window.location.origin;
+    const response = await fetch(`${apiBaseUrl}/api/daily-room`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId, roomName, ownerUid: currentUser.uid }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+        throw new Error(`Daily room creation failed: ${result.error || response.statusText}`);
+    }
+
+    // Firebase上の既存ルームにdailyRoomフィールドを追加
+    const dailyRoomRef = ref(rtdb, `rooms/${roomId}/dailyRoom`);
+    await set(dailyRoomRef, result.dailyRoom);
+};
+
+/**
  * Daily.coの参加トークンを取得する
  * @param {string} roomId Firebase room ID
  * @param {string} userId User ID

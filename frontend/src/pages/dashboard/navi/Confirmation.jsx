@@ -5,6 +5,7 @@ import Card from "../../../components/ui/Card";
 import { createRoomWithInvites } from "../../../firebase/room";
 import { createFirebaseRoomWithRoute } from "../../../firebase/room";
 import { createRoomWithInvitesAndRoute } from "../../../firebase/room";
+import { attachDailyRoomToExisting } from "../../../firebase/room";
 
 const Confirmation = () => {
 	const navigate = useNavigate();
@@ -178,26 +179,21 @@ const Confirmation = () => {
 								selectedDeparture,
 							});
 
-							// まずは Daily 連携ありで作成（ルート情報も保存）
-							let roomId;
+							// 1) テストボタンと同じFirebase側の作成を先に実行（必ずFirebaseに作る）
+							let roomId = await createFirebaseRoomWithRoute(
+								roomName,
+								selectedFriends || [],
+								selectedLocation || null,
+								selectedDeparture || null,
+							);
+							console.log("ルーム作成成功 (Firebase基盤):", roomId);
+
+							// 2) 作成済みFirebaseルームにDailyルームを後付けで紐付け
 							try {
-								roomId = await createRoomWithInvitesAndRoute(
-									roomName,
-									selectedFriends || [],
-									selectedLocation || null,
-									selectedDeparture || null,
-								);
-								console.log("ルーム作成成功 (Daily連携あり):", roomId);
-							} catch (dailyError) {
-								console.warn("Daily連携付き作成に失敗。Firebaseのみで再試行します:", dailyError);
-								// フォールバック: Firebase側のみで作成（テスト用と同等の保存内容）
-								roomId = await createFirebaseRoomWithRoute(
-									roomName,
-									selectedFriends || [],
-									selectedLocation || null,
-									selectedDeparture || null,
-								);
-								console.log("ルーム作成成功 (Firebaseのみ・フォールバック):", roomId);
+								await attachDailyRoomToExisting(roomId, roomName);
+								console.log("Dailyルームを既存Firebaseルームに紐付け完了:", roomId);
+							} catch (dailyAttachError) {
+								console.warn("Daily紐付けに失敗しましたが、Firebaseルームは作成済みです:", dailyAttachError);
 							}
 
 							// 成功メッセージを表示
