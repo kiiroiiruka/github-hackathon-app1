@@ -7,7 +7,6 @@ import { auth, rtdb } from "../../../firebase/firebaseConfig";
 import { createRoomWithInvitesAndRoute } from "../../../firebase/room";
 
 const Confirmation = () => {
-	console.log("🚀🚀🚀 Confirmation.jsx LOADED - VERSION 2025-09-29-11:25 🚀🚀🚀");
 	const navigate = useNavigate();
 	const location = useLocation();
 	const {
@@ -18,13 +17,6 @@ const Confirmation = () => {
 		selectedDeparture,
 	} = location.state || {};
 
-	// デバッグ情報
-	console.log("Confirmation - 全体のlocation.state:", location.state);
-	console.log("Confirmation - selectedFriends:", selectedFriends);
-	console.log("Confirmation - selectedFriendsの型:", typeof selectedFriends);
-	console.log("Confirmation - selectedFriendsの長さ:", selectedFriends?.length);
-	console.log("Confirmation - selectedLocation:", selectedLocation);
-	console.log("Confirmation - selectedDeparture:", selectedDeparture);
 
 	return (
 		<PageLayout title="ルーム情報の再チェック">
@@ -190,15 +182,7 @@ const Confirmation = () => {
 						let createdRoomId = null;
 						
 						try {
-							console.log("🔥 通話機能付きルーム作成開始（ルート情報含む）:", {
-								roomName: roomName,
-								roomNameType: typeof roomName,
-								roomNameTrimmed: String(roomName || "").trim(),
-								selectedFriends,
-								selectedLocation,
-								selectedDeparture,
-								ownerUid: currentUser.uid,
-							});
+							console.log("🎤 通話機能付きルーム作成開始:", roomName);
 
 							// ルームID作成
 							const roomRef = push(ref(rtdb, "rooms"));
@@ -228,36 +212,17 @@ const Confirmation = () => {
 
 							// ルート情報を構築
 							let routeData = null;
-							console.log("🗺️ ルート情報構築開始:", {
-								selectedLocation: !!selectedLocation,
-								selectedDeparture: !!selectedDeparture,
-								selectedLocationCoords: selectedLocation?.coordinates,
-								selectedDepartureCoords: selectedDeparture?.coordinates,
-							});
 							
 							// 実際のルートデータを取得
 							if (selectedLocation && selectedDeparture) {
 								// ルート計算（OSRM API使用）
 								try {
-									const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=true`;
-									console.log("🌐 OSRM API呼び出し:", apiUrl);
-									
-									const routeResponse = await fetch(apiUrl);
-									console.log("🌐 OSRM API レスポンス:", {
-										ok: routeResponse.ok,
-										status: routeResponse.status,
-										statusText: routeResponse.statusText,
-									});
+								const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=true`;
+								
+								const routeResponse = await fetch(apiUrl);
 
-									if (routeResponse.ok) {
-										const routeResult = await routeResponse.json();
-										console.log("🌐 OSRM API 結果:", {
-											routesCount: routeResult.routes?.length || 0,
-											hasRoutes: !!routeResult.routes?.[0],
-											routeDistance: routeResult.routes?.[0]?.distance,
-											routeDuration: routeResult.routes?.[0]?.duration,
-											coordinatesCount: routeResult.routes?.[0]?.geometry?.coordinates?.length || 0,
-										});
+								if (routeResponse.ok) {
+									const routeResult = await routeResponse.json();
 
 										if (routeResult.routes && routeResult.routes.length > 0) {
 											const route = routeResult.routes[0];
@@ -292,22 +257,15 @@ const Confirmation = () => {
 												test: false,
 											};
 											
-											console.log("🗺️ 実際のルートデータ作成完了:", {
-												hasRouteData: !!routeData,
-												routeDataSize: JSON.stringify(routeData).length,
-												routeDataSizeKB: Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100,
-												coordinatesCount: routeData.polyline.geometry.coordinates.length,
-												distanceKm,
-												durationMin,
-											});
-										} else {
-											console.warn("⚠️ OSRM API: ルートが見つかりません");
-										}
+									console.log("🗺️ ルート情報取得完了:", distanceKm + "km, " + durationMin + "分");
 									} else {
-										console.warn("⚠️ OSRM API エラー:", routeResponse.status, routeResponse.statusText);
+										console.warn("⚠️ ルートが見つかりません");
 									}
-								} catch (routeError) {
-									console.warn("⚠️ ルート計算エラー:", routeError);
+								} else {
+									console.warn("⚠️ ルート計算エラー:", routeResponse.status);
+								}
+							} catch (routeError) {
+								console.warn("⚠️ ルート計算に失敗、直線ルートを使用");
 									// エラー時は直線ルートを作成
 									routeData = {
 										departure: {
@@ -342,10 +300,7 @@ const Confirmation = () => {
 										createdAt: new Date().toISOString(),
 										test: true,
 									};
-									console.log("🗺️ フォールバック直線ルートデータ作成:", {
-										hasRouteData: !!routeData,
-										coordinatesCount: routeData.polyline.geometry.coordinates.length,
-									});
+								console.log("🗺️ 直線ルートで作成");
 								}
 							}
 							
@@ -364,21 +319,9 @@ const Confirmation = () => {
 								hasRoute: !!routeData, // ルート情報があるかどうかのフラグ
 							};
 
-							console.log("🔍 保存前のroomData確認:", {
-								roomId,
-								hasRouteData: !!routeData,
-								routeDataSize: routeData ? JSON.stringify(routeData).length : 0,
-								routeDataSizeKB: routeData ? Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100 : 0,
-								routeDataSizeMB: routeData ? Math.round((JSON.stringify(routeData).length / (1024 * 1024)) * 100) / 100 : 0,
-								routeDataKeys: routeData ? Object.keys(routeData) : null,
-								fullRoomDataSize: JSON.stringify(roomData).length,
-								fullRoomDataSizeKB: Math.round((JSON.stringify(roomData).length / 1024) * 100) / 100,
-								fullRoomDataSizeMB: Math.round((JSON.stringify(roomData).length / (1024 * 1024)) * 100) / 100,
-							});
 
 							try {
 								// Daily.coルーム作成とFirebase保存を同時実行
-								console.log("🔍 通話機能付きルーム作成開始");
 
 								// Daily.coルーム作成
 								createdRoomId = await createRoomWithInvitesAndRoute(
@@ -388,73 +331,35 @@ const Confirmation = () => {
 									selectedDeparture
 								);
 
-								console.log("✅ Daily.coルーム作成成功:", createdRoomId);
-
 								// testModeをfalseに変更して通話機能を有効にする
 								const testModeRef = ref(rtdb, `rooms/${createdRoomId}/testMode`);
 								await set(testModeRef, false);
-								console.log("✅ 通話機能を有効化");
 
 								// Firebaseにルート情報を追加保存
 								if (routeData) {
 									const routeRef = ref(rtdb, `rooms/${createdRoomId}/routeData`);
 									await set(routeRef, routeData);
-									console.log("✅ ルートデータ保存成功");
 
 									// hasRouteフラグを追加
 									const hasRouteRef = ref(rtdb, `rooms/${createdRoomId}/hasRoute`);
 									await set(hasRouteRef, true);
-									console.log("✅ hasRouteフラグ保存成功");
 								}
-
-								console.log("✅ 通話機能付きルーム作成完了");
 							} catch (writeError) {
-								console.error("❌ ルーム作成エラー:", writeError);
-								console.error("❌ エラー詳細:", {
-									code: writeError.code,
-									message: writeError.message,
-									stack: writeError.stack,
-									errorType: writeError.constructor.name,
-								});
+								console.error("❌ ルーム作成エラー:", writeError.message);
 								throw writeError;
 							}
 
-							// 保存後にFirebaseから実際のデータを確認
-							const actualRoomId = createdRoomId || roomId;
-							const savedRoomRef = ref(rtdb, `rooms/${actualRoomId}`);
-							const savedSnapshot = await get(savedRoomRef);
-							const savedData = savedSnapshot.val();
-							
-							console.log("🔍 保存後のFirebaseデータ確認:", {
-								roomId: actualRoomId,
-								hasRouteData: !!savedData?.routeData,
-								routeDataKeys: savedData?.routeData ? Object.keys(savedData.routeData) : null,
-								routeDataSize: savedData?.routeData ? JSON.stringify(savedData.routeData).length : 0,
-								hasRoute: savedData?.hasRoute,
-								testMode: savedData?.testMode,
-								dailyRoom: savedData?.dailyRoom,
-								fullSavedData: savedData,
-							});
+						// 保存後にFirebaseから実際のデータを確認
+						const actualRoomId = createdRoomId || roomId;
+						const savedRoomRef = ref(rtdb, `rooms/${actualRoomId}`);
+						const savedSnapshot = await get(savedRoomRef);
+						const savedData = savedSnapshot.val();
 
-							console.log("✅ 通話機能付きルーム作成完了（ルート情報含む）:", {
-								roomId: actualRoomId,
-								roomName: String(roomName || "").trim(),
-								membersCount: Object.keys(members).length,
-								hasRoute: !!routeData,
-								routeInfo: routeData
-									? {
-											distance: routeData.routeInfo?.distanceKm || 0,
-											duration: routeData.routeInfo?.durationMin || 0,
-											test: routeData.test || false,
-										}
-									: null,
-								testMode: savedData?.testMode,
-								dailyRoomUrl: savedData?.dailyRoom?.url,
-							});
+						console.log("✅ 通話機能付きルーム作成完了:", actualRoomId);
 
-							const routeMessage = routeData
-								? `\n\n🗺️ ルート情報も保存されました:\n距離: ${routeData.routeInfo?.distanceKm || 0}km\n所要時間: ${routeData.routeInfo?.durationMin || 0}分\nデータサイズ: ${Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100}KB`
-								: "\n\n⚠️ ルート情報は保存されませんでした（出発地・目的地が未設定）";
+						const routeMessage = routeData
+							? `\n\n🗺️ ルート情報: ${routeData.routeInfo?.distanceKm || 0}km, ${routeData.routeInfo?.durationMin || 0}分`
+							: "\n\n⚠️ ルート情報なし";
 
 							alert(
 								`通話機能付きルーム「${String(roomName || "").trim()}」を作成しました！\nルームID: ${actualRoomId}${routeMessage}\n\n🎤 通話機能が有効になっています！\n📞 Daily.coルームURL: ${savedData?.dailyRoom?.url || '作成中...'}`,
@@ -462,10 +367,10 @@ const Confirmation = () => {
 
 							// ホーム画面に遷移
 							navigate("/dashboard");
-						} catch (error) {
-							console.error("❌ 通話機能付きルーム作成エラー:", error);
-							alert(`通話機能付きルーム作成に失敗しました: ${error.message}`);
-						}
+					} catch (error) {
+						console.error("❌ ルーム作成エラー:", error.message);
+						alert(`ルーム作成に失敗しました: ${error.message}`);
+					}
 					}}
 					icon="🚀"
 				>
