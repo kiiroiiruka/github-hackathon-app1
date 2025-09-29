@@ -216,17 +216,69 @@ const Confirmation = () => {
 
 							// ルート情報を構築
 							let routeData = null;
+							console.log("🗺️ ルート情報構築開始:", {
+								selectedLocation: !!selectedLocation,
+								selectedDeparture: !!selectedDeparture,
+								selectedLocationCoords: selectedLocation?.coordinates,
+								selectedDepartureCoords: selectedDeparture?.coordinates,
+							});
+							
+							// テスト用: 最小限のルートデータを作成
 							if (selectedLocation && selectedDeparture) {
+								// 最小限のルートデータ（テスト用）
+								routeData = {
+									departure: {
+										name: selectedDeparture.name || "出発地",
+										lat: selectedDeparture.coordinates[0], // 緯度を分離
+										lng: selectedDeparture.coordinates[1], // 経度を分離
+									},
+									destination: {
+										name: selectedLocation.name || "目的地",
+										lat: selectedLocation.coordinates[0], // 緯度を分離
+										lng: selectedLocation.coordinates[1], // 経度を分離
+									},
+									distance: 0,
+									duration: 0,
+									test: true,
+								};
+								
+								console.log("🗺️ 最小限ルートデータ作成完了:", {
+									hasRouteData: !!routeData,
+									routeDataSize: JSON.stringify(routeData).length,
+									routeDataStructure: Object.keys(routeData),
+								});
+							}
+							
+							// 詳細なルート計算を試行（オプション）
+							if (selectedLocation && selectedDeparture && false) { // 無効化
 								// ルート計算（OSRM API使用）
 								try {
-									const routeResponse = await fetch(
-										`https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`,
-									);
+									const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
+									console.log("🌐 OSRM API呼び出し:", apiUrl);
+									
+									const routeResponse = await fetch(apiUrl);
+									console.log("🌐 OSRM API レスポンス:", {
+										ok: routeResponse.ok,
+										status: routeResponse.status,
+										statusText: routeResponse.statusText,
+									});
 
 									if (routeResponse.ok) {
 										const routeResult = await routeResponse.json();
+										console.log("🌐 OSRM API 結果:", {
+											routesCount: routeResult.routes?.length || 0,
+											hasRoutes: !!routeResult.routes,
+										});
+										
 										if (routeResult.routes && routeResult.routes.length > 0) {
 											const route = routeResult.routes[0];
+											console.log("🌐 ルート詳細:", {
+												distance: route.distance,
+												duration: route.duration,
+												hasGeometry: !!route.geometry,
+												geometryCoordinatesCount: route.geometry?.coordinates?.length || 0,
+											});
+											
 											routeData = {
 												departure: {
 													name: selectedDeparture.name || "出発地",
@@ -356,7 +408,74 @@ const Confirmation = () => {
 								hasRoute: !!routeData, // ルート情報があるかどうかのフラグ
 							};
 
-							await set(roomRef, roomData);
+							console.log("🔍 保存前のroomData確認:", {
+								roomId,
+								hasRouteData: !!routeData,
+								routeDataSize: routeData ? JSON.stringify(routeData).length : 0,
+								routeDataSizeKB: routeData ? Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100 : 0,
+								routeDataSizeMB: routeData ? Math.round((JSON.stringify(routeData).length / (1024 * 1024)) * 100) / 100 : 0,
+								routeDataKeys: routeData ? Object.keys(routeData) : null,
+								fullRoomDataSize: JSON.stringify(roomData).length,
+								fullRoomDataSizeKB: Math.round((JSON.stringify(roomData).length / 1024) * 100) / 100,
+								fullRoomDataSizeMB: Math.round((JSON.stringify(roomData).length / (1024 * 1024)) * 100) / 100,
+							});
+
+							try {
+								// 段階的にデータを保存してテスト
+								console.log("🔍 段階的保存テスト開始");
+								
+								// 1. 基本的なルームデータのみ
+								const basicRoomData = {
+									name: roomName.trim(),
+									createdAt: serverTimestamp(),
+									ownerUid: currentUser.uid,
+									ownerName: currentUser.displayName || "",
+									ownerPhotoURL: currentUser.photoURL || "",
+									members,
+									testMode: true,
+								};
+								
+								await set(roomRef, basicRoomData);
+								console.log("✅ 基本ルームデータ保存成功");
+								
+								// 2. ルートデータを別途追加
+								if (routeData) {
+									const routeRef = ref(rtdb, `rooms/${roomId}/routeData`);
+									await set(routeRef, routeData);
+									console.log("✅ ルートデータ保存成功");
+									
+									// 3. hasRouteフラグを追加
+									const hasRouteRef = ref(rtdb, `rooms/${roomId}/hasRoute`);
+									await set(hasRouteRef, true);
+									console.log("✅ hasRouteフラグ保存成功");
+								}
+								
+								console.log("✅ Firebase段階的保存成功");
+							} catch (writeError) {
+								console.error("❌ Firebase書き込みエラー:", writeError);
+								console.error("❌ 書き込みエラー詳細:", {
+									code: writeError.code,
+									message: writeError.message,
+									stack: writeError.stack,
+									errorType: writeError.constructor.name,
+								});
+								throw writeError;
+							}
+
+							// 保存後にFirebaseから実際のデータを確認
+							const savedRoomRef = ref(rtdb, `rooms/${roomId}`);
+							const savedSnapshot = await get(savedRoomRef);
+							const savedData = savedSnapshot.val();
+							
+							console.log("🔍 保存後のFirebaseデータ確認:", {
+								roomId,
+								hasRouteData: !!savedData?.routeData,
+								routeDataKeys: savedData?.routeData ? Object.keys(savedData.routeData) : null,
+								routeDataSize: savedData?.routeData ? JSON.stringify(savedData.routeData).length : 0,
+								hasRoute: savedData?.hasRoute,
+								testMode: savedData?.testMode,
+								fullSavedData: savedData,
+							});
 
 							console.log("✅ Firebase側のみでルーム作成完了（ルート情報含む）:", {
 								roomId,
