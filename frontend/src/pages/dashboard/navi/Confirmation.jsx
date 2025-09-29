@@ -235,55 +235,11 @@ const Confirmation = () => {
 								selectedDepartureCoords: selectedDeparture?.coordinates,
 							});
 							
-							// テスト用: 最小限のルートデータを作成
+							// 実際のルートデータを取得
 							if (selectedLocation && selectedDeparture) {
-								// 最小限のルートデータ（テスト用）
-								routeData = {
-									departure: {
-										name: selectedDeparture.name || "出発地",
-										coordinates: selectedDeparture.coordinates,
-									},
-									destination: {
-										name: selectedLocation.name || "目的地",
-										coordinates: selectedLocation.coordinates,
-									},
-									routeInfo: {
-										distanceKm: 0,
-										durationMin: 0,
-										arrivalTime: new Date().toISOString(),
-									},
-									polyline: {
-										geometry: {
-											type: "LineString",
-											coordinates: [
-												selectedDeparture.coordinates,
-												selectedLocation.coordinates
-											],
-										},
-										steps: [],
-										waypoints: [],
-										summary: {
-											distance: 0,
-											duration: 0,
-											profile: "driving",
-										},
-									},
-									createdAt: new Date().toISOString(),
-									test: true,
-								};
-								
-								console.log("🗺️ 最小限ルートデータ作成完了:", {
-									hasRouteData: !!routeData,
-									routeDataSize: JSON.stringify(routeData).length,
-									routeDataStructure: Object.keys(routeData),
-								});
-							}
-							
-							// 詳細なルート計算を試行（オプション）
-							if (selectedLocation && selectedDeparture && false) { // 無効化
 								// ルート計算（OSRM API使用）
 								try {
-									const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
+									const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=true`;
 									console.log("🌐 OSRM API呼び出し:", apiUrl);
 									
 									const routeResponse = await fetch(apiUrl);
@@ -297,17 +253,16 @@ const Confirmation = () => {
 										const routeResult = await routeResponse.json();
 										console.log("🌐 OSRM API 結果:", {
 											routesCount: routeResult.routes?.length || 0,
-											hasRoutes: !!routeResult.routes,
+											hasRoutes: !!routeResult.routes?.[0],
+											routeDistance: routeResult.routes?.[0]?.distance,
+											routeDuration: routeResult.routes?.[0]?.duration,
+											coordinatesCount: routeResult.routes?.[0]?.geometry?.coordinates?.length || 0,
 										});
-										
+
 										if (routeResult.routes && routeResult.routes.length > 0) {
 											const route = routeResult.routes[0];
-											console.log("🌐 ルート詳細:", {
-												distance: route.distance,
-												duration: route.duration,
-												hasGeometry: !!route.geometry,
-												geometryCoordinatesCount: route.geometry?.coordinates?.length || 0,
-											});
+											const distanceKm = Math.round((route.distance / 1000) * 100) / 100;
+											const durationMin = Math.round(route.duration / 60);
 											
 											routeData = {
 												departure: {
@@ -319,110 +274,82 @@ const Confirmation = () => {
 													coordinates: selectedLocation.coordinates,
 												},
 												routeInfo: {
-													distanceKm: Math.round((route.distance / 1000) * 10) / 10,
-													durationMin: Math.round(route.duration / 60),
-													arrivalTime: new Date(
-														Date.now() + route.duration * 1000,
-													).toISOString(),
+													distanceKm,
+													durationMin,
+													arrivalTime: new Date(Date.now() + route.duration * 1000).toISOString(),
 												},
-												// ポリライン情報を含む詳細なルートデータ（実用上限版・高品質保持）
 												polyline: {
-													// 道の形状を保持しながら座標点を間引く（実用上限版）
-													geometry: route.geometry
-														? {
-																type: route.geometry.type,
-																coordinates: (() => {
-																	const coords = route.geometry.coordinates;
-																	if (coords.length <= 1000) return coords; // 1000点以下はそのまま
-
-																	const simplified = [];
-																	const maxPoints = 50000; // 実用上限：最大5万点に制限
-																	const step = Math.max(
-																		1,
-																		Math.floor(coords.length / maxPoints),
-																	);
-
-																	// 最初の点を必ず含める
-																	simplified.push(coords[0]);
-
-																	// 曲がり角を検出して重要な点を保持（高品質保持）
-																	for (
-																		let i = step;
-																		i < coords.length - step;
-																		i += step
-																	) {
-																		const prev = coords[i - step];
-																		const curr = coords[i];
-																		const next = coords[i + step];
-
-																		// 角度変化を計算
-																		const angle1 = Math.atan2(
-																			curr[1] - prev[1],
-																			curr[0] - prev[0],
-																		);
-																		const angle2 = Math.atan2(
-																			next[1] - curr[1],
-																			next[0] - curr[0],
-																		);
-																		const angleDiff = Math.abs(angle1 - angle2);
-
-																		// 角度変化が大きい場合（曲がり角）は保持（より細かく保持）
-																		if (angleDiff > 0.02 || i % (step * 1.2) === 0) {
-																			simplified.push(curr);
-																		}
-																	}
-
-																	// 最後の点を必ず含める
-																	simplified.push(coords[coords.length - 1]);
-
-																	return simplified;
-																})(),
-															}
-														: null,
-													// ステップ情報を簡略化（重要な情報のみ）
-													steps:
-														route.legs[0]?.steps?.map((step) => ({
-															distance: step.distance,
-															duration: step.duration,
-															maneuver: step.maneuver?.type,
-															name: step.name,
-														})) || [],
-													// ウェイポイント情報を簡略化
-													waypoints:
-														route.waypoints?.map((wp) => ({
-															location: wp.location,
-															name: wp.name,
-														})) || [],
+													geometry: route.geometry,
+													steps: route.legs?.[0]?.steps || [],
+													waypoints: routeResult.waypoints || [],
 													summary: {
-														distance: route.distance, // メートル
-														duration: route.duration, // 秒
+														distance: route.distance,
+														duration: route.duration,
 														profile: "driving",
 													},
 												},
 												createdAt: new Date().toISOString(),
+												test: false,
 											};
-											// データサイズの計算とログ出力（実用上限版）
-											const dataSize = JSON.stringify(routeData).length;
-											const dataSizeKB = Math.round((dataSize / 1024) * 100) / 100;
-											const dataSizeMB =
-												Math.round((dataSize / (1024 * 1024)) * 100) / 100;
-											console.log("🗺️ ルート情報を取得（実用上限版）:", {
-												dataSize: `${dataSizeKB}KB (${dataSizeMB}MB)`,
-												coordinatesCount: route.geometry?.coordinates?.length || 0,
-												simplifiedCount: routeData.polyline.geometry.coordinates.length,
-												compressionRatio: `${Math.round((routeData.polyline.geometry.coordinates.length / (route.geometry?.coordinates?.length || 1)) * 100)}%`,
-												stepsCount: route.legs[0]?.steps?.length || 0,
-												waypointsCount: route.waypoints?.length || 0,
-												maxPoints: 50000,
-												qualityLevel: "実用上限（高品質保持）",
+											
+											console.log("🗺️ 実際のルートデータ作成完了:", {
+												hasRouteData: !!routeData,
+												routeDataSize: JSON.stringify(routeData).length,
+												routeDataSizeKB: Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100,
+												coordinatesCount: routeData.polyline.geometry.coordinates.length,
+												distanceKm,
+												durationMin,
 											});
+										} else {
+											console.warn("⚠️ OSRM API: ルートが見つかりません");
 										}
+									} else {
+										console.warn("⚠️ OSRM API エラー:", routeResponse.status, routeResponse.statusText);
 									}
 								} catch (routeError) {
-									console.warn("⚠️ ルート計算に失敗しました:", routeError);
-									// ルート計算に失敗してもルーム作成は続行
+									console.warn("⚠️ ルート計算エラー:", routeError);
+									// エラー時は直線ルートを作成
+									routeData = {
+										departure: {
+											name: selectedDeparture.name || "出発地",
+											coordinates: selectedDeparture.coordinates,
+										},
+										destination: {
+											name: selectedLocation.name || "目的地",
+											coordinates: selectedLocation.coordinates,
+										},
+										routeInfo: {
+											distanceKm: 0,
+											durationMin: 0,
+											arrivalTime: new Date().toISOString(),
+										},
+										polyline: {
+											geometry: {
+												type: "LineString",
+												coordinates: [
+													selectedDeparture.coordinates,
+													selectedLocation.coordinates
+												],
+											},
+											steps: [],
+											waypoints: [],
+											summary: {
+												distance: 0,
+												duration: 0,
+												profile: "driving",
+											},
+										},
+										createdAt: new Date().toISOString(),
+										test: true,
+									};
+									console.log("🗺️ フォールバック直線ルートデータ作成:", {
+										hasRouteData: !!routeData,
+										coordinatesCount: routeData.polyline.geometry.coordinates.length,
+									});
 								}
 							}
+							
+							// ルートデータ構築完了
 
 							const roomData = {
 								name: String(roomName || "").trim(),
