@@ -1254,6 +1254,10 @@ const CarNavigation = () => {
 			roomRef,
 			(snapshot) => {
 				const room = snapshot.val();
+				console.log("📦 Room snapshot received", {
+					hasRoom: !!room,
+					keys: room ? Object.keys(room) : [],
+				});
 				if (room) {
 					setRoomData(room);
 					const membersValue = room.members || {};
@@ -1284,16 +1288,31 @@ const CarNavigation = () => {
 								: "N/A",
 						});
                         // ルートがあるがポリライン欠落時はフォールバック生成
-                        if (!room.routeData.polyline && !routeEnsured) {
+						if (!room.routeData.polyline && !routeEnsured) {
+							console.warn("⚠️ ポリライン欠落を検出。フォールバック生成を試行", {
+								hasPolyline: !!room.routeData.polyline,
+								routeEnsured,
+								dep: room.routeData?.departure,
+								dst: room.routeData?.destination,
+							});
                             (async () => {
                                 try {
                                     const dep = room.routeData.departure;
                                     const dst = room.routeData.destination;
-                                    if (!dep?.coordinates || !dst?.coordinates) return;
+									if (!dep?.coordinates || !dst?.coordinates) {
+										console.warn("⚠️ departure/destination が不足しているため中止", { dep, dst });
+										return;
+									}
 
-                                    const url = `https://router.project-osrm.org/route/v1/driving/${dep.coordinates[1]},${dep.coordinates[0]};${dst.coordinates[1]},${dst.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
-                                    const res = await fetch(url);
-                                    if (!res.ok) return;
+									const url = `https://router.project-osrm.org/route/v1/driving/${dep.coordinates[1]},${dep.coordinates[0]};${dst.coordinates[1]},${dst.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
+									console.log("🌐 OSRM URL(欠落フォールバック)", url);
+									const res = await fetch(url);
+									console.log("🌐 OSRM status(欠落フォールバック)", res.status, res.ok);
+									if (!res.ok) {
+										const text = await res.text().catch(() => "");
+										console.warn("⚠️ OSRMフェッチ失敗(欠落フォールバック)", { status: res.status, text });
+										return;
+									}
                                     const data = await res.json();
                                     const route = data?.routes?.[0];
                                     if (!route) return;
@@ -1348,20 +1367,32 @@ const CarNavigation = () => {
                                 }
                             })();
                         }
-                    } else if (!routeEnsured) {
+						} else if (!routeEnsured) {
 						// フォールバック: ルート情報が無い場合はローカル保存値から生成して保存
 						(async () => {
 							try {
-								const storedLoc = localStorage.getItem("roomCreat_selectedLocation");
-								const storedDep = localStorage.getItem("roomCreat_selectedDeparture");
-								if (!storedLoc || !storedDep) return;
+									const storedLoc = localStorage.getItem("roomCreat_selectedLocation");
+									const storedDep = localStorage.getItem("roomCreat_selectedDeparture");
+									if (!storedLoc || !storedDep) {
+										console.warn("⚠️ localStorage から選択地点が見つかりません", { hasLoc: !!storedLoc, hasDep: !!storedDep });
+										return;
+									}
 								const selectedLocation = JSON.parse(storedLoc);
 								const selectedDeparture = JSON.parse(storedDep);
-								if (!selectedLocation?.coordinates || !selectedDeparture?.coordinates) return;
+									if (!selectedLocation?.coordinates || !selectedDeparture?.coordinates) {
+										console.warn("⚠️ localStorage 値に座標がありません", { selectedLocation, selectedDeparture });
+										return;
+									}
 
-								const url = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
-								const res = await fetch(url);
-								if (!res.ok) return;
+									const url = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
+									console.log("🌐 OSRM URL(localStorageフォールバック)", url);
+									const res = await fetch(url);
+									console.log("🌐 OSRM status(localStorageフォールバック)", res.status, res.ok);
+									if (!res.ok) {
+										const text = await res.text().catch(() => "");
+										console.warn("⚠️ OSRMフェッチ失敗(localStorageフォールバック)", { status: res.status, text });
+										return;
+									}
 								const data = await res.json();
 								const route = data?.routes?.[0];
 								if (!route) return;
