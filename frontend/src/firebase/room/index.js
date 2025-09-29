@@ -517,6 +517,7 @@ export const createRoomWithInvitesAndRoute = async (
 		ownerPhotoURL: currentUser.photoURL || "",
 		dailyRoom: dailyResult.dailyRoom,
 		members,
+		testMode: true,
 		routeData,
 		hasRoute: !!routeData,
 	};
