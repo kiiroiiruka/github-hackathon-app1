@@ -182,19 +182,21 @@ const Confirmation = () => {
 							return;
 						}
 
-						if (!roomName.trim()) {
+						if (!String(roomName || "").trim()) {
 							alert("ルーム名を入力してください。");
 							return;
 						}
 
-						try {
-							console.log("🔥 通話機能付きルーム作成開始（ルート情報含む）:", {
-								roomName: roomName.trim(),
-								selectedFriends,
-								selectedLocation,
-								selectedDeparture,
-								ownerUid: currentUser.uid,
-							});
+							try {
+								console.log("🔥 通話機能付きルーム作成開始（ルート情報含む）:", {
+									roomName: roomName,
+									roomNameType: typeof roomName,
+									roomNameTrimmed: String(roomName || "").trim(),
+									selectedFriends,
+									selectedLocation,
+									selectedDeparture,
+									ownerUid: currentUser.uid,
+								});
 
 							// ルームID作成
 							const roomRef = push(ref(rtdb, "rooms"));
@@ -421,7 +423,7 @@ const Confirmation = () => {
 							}
 
 							const roomData = {
-								name: roomName.trim(),
+								name: String(roomName || "").trim(),
 								createdAt: serverTimestamp(),
 								ownerUid: currentUser.uid,
 								ownerName: currentUser.displayName || "",
@@ -451,7 +453,7 @@ const Confirmation = () => {
 
 								// Daily.coルーム作成
 								const dailyRoomResult = await createRoomWithInvitesAndRoute({
-									roomName: roomName.trim(),
+									roomName: String(roomName || "").trim(),
 									selectedFriends: selectedFriends || [],
 									selectedLocation,
 									selectedDeparture,
@@ -502,7 +504,7 @@ const Confirmation = () => {
 
 							console.log("✅ 通話機能付きルーム作成完了（ルート情報含む）:", {
 								roomId: actualRoomId,
-								roomName: roomName.trim(),
+								roomName: String(roomName || "").trim(),
 								membersCount: Object.keys(members).length,
 								hasRoute: !!routeData,
 								routeInfo: routeData
@@ -521,7 +523,7 @@ const Confirmation = () => {
 								: "\n\n⚠️ ルート情報は保存されませんでした（出発地・目的地が未設定）";
 
 							alert(
-								`通話機能付きルーム「${roomName.trim()}」を作成しました！\nルームID: ${actualRoomId}${routeMessage}\n\n🎤 通話機能が有効になっています！`,
+								`通話機能付きルーム「${String(roomName || "").trim()}」を作成しました！\nルームID: ${actualRoomId}${routeMessage}\n\n🎤 通話機能が有効になっています！`,
 							);
 
 							// ホーム画面に遷移
