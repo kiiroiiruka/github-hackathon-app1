@@ -109,6 +109,153 @@ export const createRoomWithInvites = async (roomName, selectedFriends = []) => {
 };
 
 /**
+ * Firebase側のみでルーム作成（Daily連携なし）し、必要に応じてルート情報も保存する
+ * rooms/{roomId}
+ *  - name, createdAt, owner*, members
+ *  - testMode: true
+ *  - routeData: { departure, destination, routeInfo, polyline, createdAt }
+ *  - hasRoute: boolean
+ * @param {string} roomName
+ * @param {Array<{uid:string,name?:string,displayName?:string,photoURL?:string}>} selectedFriends
+ * @param {{name?:string, coordinates:[number,number]}|null} selectedLocation
+ * @param {{name?:string, coordinates:[number,number]}|null} selectedDeparture
+ * @returns {Promise<string>} 新規roomId
+ */
+export const createFirebaseRoomWithRoute = async (
+	roomName,
+	selectedFriends = [],
+	selectedLocation = null,
+	selectedDeparture = null,
+) => {
+	const currentUser = auth.currentUser;
+	if (!currentUser || !currentUser.uid) {
+		throw new Error("ログインが必要です。ユーザー情報を取得できません。");
+	}
+
+	if (!roomName || !roomName.trim()) {
+		throw new Error("ルーム名を入力してください。");
+	}
+
+	// ルームID作成
+	const roomRef = push(ref(rtdb, "rooms"));
+	const roomId = roomRef.key;
+
+	// メンバー作成（作成者 + 招待したフレンド）
+	const members = {
+		[currentUser.uid]: {
+			uid: currentUser.uid,
+			name: currentUser.displayName || "",
+			photoURL: currentUser.photoURL || "",
+			invited: true,
+			accepted: true,
+		},
+	};
+	for (const friend of selectedFriends) {
+		members[friend.uid] = {
+			uid: friend.uid,
+			name: friend.name || friend.displayName || "",
+			photoURL: friend.photoURL || "",
+			invited: true,
+			accepted: false,
+		};
+	}
+
+	// ルート情報の作成（任意）
+	let routeData = null;
+	if (selectedLocation && selectedDeparture) {
+		try {
+			const routeResponse = await fetch(
+				`https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`,
+			);
+			if (routeResponse.ok) {
+				const routeResult = await routeResponse.json();
+				if (routeResult.routes && routeResult.routes.length > 0) {
+					const route = routeResult.routes[0];
+					routeData = {
+						departure: {
+							name: selectedDeparture.name || "出発地",
+							coordinates: selectedDeparture.coordinates,
+						},
+						destination: {
+							name: selectedLocation.name || "目的地",
+							coordinates: selectedLocation.coordinates,
+						},
+						routeInfo: {
+							distanceKm: Math.round((route.distance / 1000) * 10) / 10,
+							durationMin: Math.round(route.duration / 60),
+							arrivalTime: new Date(Date.now() + route.duration * 1000).toISOString(),
+						},
+						polyline: {
+							geometry: route.geometry
+								? {
+										type: route.geometry.type,
+										coordinates: (() => {
+											const coords = route.geometry.coordinates;
+											if (coords.length <= 1000) return coords;
+											const simplified = [];
+											const maxPoints = 50000;
+											const step = Math.max(1, Math.floor(coords.length / maxPoints));
+											simplified.push(coords[0]);
+											for (let i = step; i < coords.length - step; i += step) {
+												const prev = coords[i - step];
+												const curr = coords[i];
+												const next = coords[i + step];
+												const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
+												const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
+												const angleDiff = Math.abs(angle1 - angle2);
+												if (angleDiff > 0.02 || i % Math.floor(step * 1.2) === 0) {
+													simplified.push(curr);
+												}
+											}
+											simplified.push(coords[coords.length - 1]);
+											return simplified;
+										})(),
+								}
+							: null,
+							steps:
+								route.legs[0]?.steps?.map((step) => ({
+										distance: step.distance,
+										duration: step.duration,
+										maneuver: step.maneuver?.type,
+										name: step.name,
+									})) || [],
+							waypoints:
+								route.waypoints?.map((wp) => ({
+										location: wp.location,
+										name: wp.name,
+									})) || [],
+							summary: {
+								distance: route.distance,
+								duration: route.duration,
+								profile: "driving",
+							},
+						},
+						createdAt: new Date().toISOString(),
+					};
+				}
+			}
+		} catch (routeError) {
+			console.warn("⚠️ ルート計算に失敗しました:", routeError);
+		}
+	}
+
+	const roomData = {
+		name: roomName.trim(),
+		createdAt: serverTimestamp(),
+		ownerUid: currentUser.uid,
+		ownerName: currentUser.displayName || "",
+		ownerPhotoURL: currentUser.photoURL || "",
+		members,
+		testMode: true,
+		routeData: routeData,
+		hasRoute: !!routeData,
+	};
+
+	await set(roomRef, roomData);
+	return roomId;
+};
+
+/**
  * Daily.coの参加トークンを取得する
  * @param {string} roomId Firebase room ID
  * @param {string} userId User ID

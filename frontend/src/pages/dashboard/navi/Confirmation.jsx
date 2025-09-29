@@ -3,6 +3,7 @@ import PageLayout from "../../../components/layout/PageLayout";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
 import { createRoomWithInvites } from "../../../firebase/room";
+import { createFirebaseRoomWithRoute } from "../../../firebase/room";
 
 const Confirmation = () => {
 	const navigate = useNavigate();
@@ -161,7 +162,7 @@ const Confirmation = () => {
 					)}
 				</Button>
 
-				{/* ルーム作成決定ボタン */}
+                {/* ルーム作成決定ボタン */}
 				<Button
 					variant="primary"
 					size="lg"
@@ -176,10 +177,13 @@ const Confirmation = () => {
 								selectedDeparture,
 							});
 
-							const roomId = await createRoomWithInvites(
-								roomName,
-								selectedFriends || [],
-							);
+                            // デバッグボタンと同等のFirebaseのみ作成（ルート情報含む）を実行
+                            const roomId = await createFirebaseRoomWithRoute(
+                                roomName,
+                                selectedFriends || [],
+                                selectedLocation || null,
+                                selectedDeparture || null,
+                            );
 
 							console.log("ルーム作成成功:", roomId);
 
@@ -188,8 +192,8 @@ const Confirmation = () => {
 								`ルーム「${roomName}」が正常に作成されました！\nルームID: ${roomId}`,
 							);
 
-							// ホーム画面に遷移
-							navigate("/dashboard");
+                            // ホーム画面に遷移
+                            navigate("/dashboard");
 						} catch (error) {
 							console.error("ルーム作成失敗:", error);
 							alert(
