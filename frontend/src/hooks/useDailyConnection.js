@@ -233,7 +233,7 @@ export const useDailyConnection = (
 						return newMap;
 					});
 
-					// 音声トラックの確実な初期化
+					// 音声トラックの確実な初期化（エコーバック防止）
 					try {
 						// 音声を明示的に有効化
 						await callObject.setLocalAudio(true);
@@ -251,6 +251,28 @@ export const useDailyConnection = (
 						} catch (receiveError) {
 							console.warn("⚠️ 音声受信設定の初期化に失敗:", receiveError);
 						}
+
+						// エコーバック防止：ローカル音声の出力をミュート
+						setTimeout(() => {
+							try {
+								// ローカル参加者の音声要素を確実にミュート
+								const audioElements = document.querySelectorAll("audio");
+								audioElements.forEach((audio) => {
+									const participantId = audio.getAttribute("data-participant");
+									if (participantId) {
+										const participants = callObject.participants();
+										const participant = participants[participantId];
+										if (participant && participant.local) {
+											audio.muted = true;
+											audio.volume = 0.0;
+											console.log("🔇 ローカル参加者の音声要素をミュートしました（エコーバック防止）");
+										}
+									}
+								});
+							} catch (error) {
+								console.warn("⚠️ ローカル音声ミュート設定エラー:", error);
+							}
+						}, 1000); // 1秒後に確実にミュート設定
 
 						// 設定後の状態を確認して、実際の状態に合わせて内部状態を更新
 						setTimeout(() => {
@@ -1030,7 +1052,7 @@ export const useDailyConnection = (
 											console.log("🎵 既存の音声要素が見つかりました");
 											
 											// エコーバック防止：ローカル参加者の音声要素は必ずミュート
-											if (event.participant.local) {
+											if (event.participant.local === true) {
 												existingAudio.muted = true;
 												existingAudio.volume = 0.0;
 												console.log("🔇 既存のローカル音声要素をミュートしました（エコーバック防止）");
@@ -1046,10 +1068,11 @@ export const useDailyConnection = (
 											event.participant.session_id,
 										);
 										audioElement.setAttribute("data-track-id", event.track.id);
+										audioElement.setAttribute("data-is-local", event.participant.local ? "true" : "false");
 										audioElement.autoplay = true;
 										
 										// エコーバック防止：ローカル参加者の音声要素は必ずミュート
-										if (event.participant.local) {
+										if (event.participant.local === true) {
 											audioElement.muted = true;
 											audioElement.volume = 0.0;
 											console.log("🔇 ローカル参加者の音声要素をミュートで作成しました（エコーバック防止）");
@@ -1119,7 +1142,9 @@ export const useDailyConnection = (
 
 											audioElements.forEach((audio, index) => {
 												const participantId = audio.getAttribute("data-participant");
-												const isLocalParticipant = callObject.participants()[participantId]?.local;
+												const isLocalFromAttribute = audio.getAttribute("data-is-local") === "true";
+												const isLocalFromParticipants = callObject.participants()[participantId]?.local === true;
+												const isLocalParticipant = isLocalFromAttribute || isLocalFromParticipants;
 												
 												console.log(`🎵 音声要素 ${index + 1}:`, {
 													src: audio.src || "MediaStream",
@@ -1130,6 +1155,8 @@ export const useDailyConnection = (
 													duration: audio.duration || "N/A",
 													autoplay: audio.autoplay,
 													participant: participantId,
+													isLocalFromAttribute,
+													isLocalFromParticipants,
 													isLocal: isLocalParticipant,
 												});
 
@@ -1924,10 +1951,14 @@ export const useDailyConnection = (
 									"data-user-name",
 									participant.user_name,
 								);
+								audioElement.setAttribute(
+									"data-is-local",
+									participant.local ? "true" : "false"
+								);
 								audioElement.autoplay = true;
 								
 								// エコーバック防止：ローカル参加者の音声要素は必ずミュート
-								if (participant.local) {
+								if (participant.local === true) {
 									audioElement.muted = true;
 									audioElement.volume = 0.0;
 									console.log("🔇 ローカル参加者の音声要素をミュートで作成しました（エコーバック防止）");
