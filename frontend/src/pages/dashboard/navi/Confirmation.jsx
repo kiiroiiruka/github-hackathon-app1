@@ -491,16 +491,16 @@ const Confirmation = () => {
 								hasRoute: !!routeData,
 								routeInfo: routeData
 									? {
-											distance: routeData.routeInfo.distanceKm,
-											duration: routeData.routeInfo.durationMin,
-											polylinePoints: routeData.polyline.geometry.coordinates.length,
+											distance: routeData.distance || 0,
+											duration: routeData.duration || 0,
+											test: routeData.test || false,
 										}
 									: null,
 								testMode: true,
 							});
 
 							const routeMessage = routeData
-								? `\n\n🗺️ ルート情報も保存されました（実用上限版・高品質保持）:\n距離: ${routeData.routeInfo.distanceKm}km\n所要時間: ${routeData.routeInfo.durationMin}分\nポリラインポイント数: ${routeData.polyline.geometry.coordinates.length}個\nデータサイズ: ${Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100}KB (${Math.round((JSON.stringify(routeData).length / (1024 * 1024)) * 100) / 100}MB)\n品質レベル: 実用上限（最大5万点）`
+								? `\n\n🗺️ ルート情報も保存されました（最小限テスト版）:\n距離: ${routeData.distance || 0}km\n所要時間: ${routeData.duration || 0}分\nデータサイズ: ${Math.round((JSON.stringify(routeData).length / 1024) * 100) / 100}KB\nテストモード: ${routeData.test ? '有効' : '無効'}`
 								: "\n\n⚠️ ルート情報は保存されませんでした（出発地・目的地が未設定）";
 
 							alert(
