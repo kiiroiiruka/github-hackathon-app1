@@ -168,6 +168,19 @@ const Confirmation = () => {
 					className="w-full"
 					onClick={async () => {
 						try {
+                            // フォールバック用にローカルへ直前の選択を保存
+                            if (selectedLocation) {
+                                localStorage.setItem(
+                                    "roomCreat_selectedLocation",
+                                    JSON.stringify(selectedLocation),
+                                );
+                            }
+                            if (selectedDeparture) {
+                                localStorage.setItem(
+                                    "roomCreat_selectedDeparture",
+                                    JSON.stringify(selectedDeparture),
+                                );
+                            }
 							// ルーム作成処理を実行
 							console.log("ルーム作成を決定:", {
 								roomName,
