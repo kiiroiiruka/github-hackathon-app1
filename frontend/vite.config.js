@@ -43,22 +43,13 @@ export default defineConfig({
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
 				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB制限
 				runtimeCaching: [
-					// OSRM API のキャッシュ戦略
+					// OSRM API（ルート計算）- NetworkOnlyでキャッシュを使用しない
 					{
 						urlPattern: /^https:\/\/router\.project-osrm\.org\/.*/i,
-						handler: "StaleWhileRevalidate",
-						options: {
-							cacheName: "osrm-routes-cache",
-							expiration: {
-								maxEntries: 50,
-								maxAgeSeconds: 60 * 60 * 24, // 24時間
-							},
-							cacheableResponse: {
-								statuses: [0, 200],
-							},
-						},
+						handler: "NetworkOnly",
+						options: {},
 					},
-					// Nominatim API のキャッシュ戦略
+					// Nominatim API（住所検索）- StaleWhileRevalidateで軽量キャッシュ
 					{
 						urlPattern: /^https:\/\/nominatim\.openstreetmap\.org\/.*/i,
 						handler: "StaleWhileRevalidate",
@@ -73,21 +64,23 @@ export default defineConfig({
 							},
 						},
 					},
-					// Firebase API のキャッシュ戦略
+					// Firebase Realtime Database - NetworkOnlyでキャッシュを使用しない（リアルタイム通信に必須）
+					{
+						urlPattern: /^https:\/\/.*\.firebasedatabase\.app\/.*/i,
+						handler: "NetworkOnly",
+						options: {},
+					},
+					// Firebase Auth/Storage - NetworkOnlyでキャッシュを使用しない
 					{
 						urlPattern: /^https:\/\/.*\.firebaseapp\.com\/.*/i,
-						handler: "NetworkFirst",
-						options: {
-							cacheName: "firebase-cache",
-							expiration: {
-								maxEntries: 100,
-								maxAgeSeconds: 60 * 5, // 5分
-							},
-							cacheableResponse: {
-								statuses: [0, 200],
-							},
-							networkTimeoutSeconds: 3,
-						},
+						handler: "NetworkOnly",
+						options: {},
+					},
+					// Firebase APIs全般 - NetworkOnlyでキャッシュを使用しない
+					{
+						urlPattern: /^https:\/\/.*\.googleapis\.com\/.*/i,
+						handler: "NetworkOnly",
+						options: {},
 					},
 					// 画像リソースのキャッシュ戦略
 					{

@@ -45,49 +45,88 @@ const getDistanceMeters = (a, b) => {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 };
 
-// 地図コンテナ内でズームと中心を制御するコンポーネント（ボタンズームのみ有効版・フォーカス機能対応）
-const MapController = ({ zoomLevel, center, currentLocation, focusedMember }) => {
+// 地図コンテナ内でズームと中心を制御するコンポーネント（現在地固定機能対応版）
+const MapController = ({ zoomLevel, center, currentLocation, focusedMember, isLocationFixed, manualCenter, setManualCenter, forceResetToCurrentLocation, setForceResetToCurrentLocation }) => {
   const map = useMap();
 
   useEffect(() => {
     if (map) {
-      // すべてのズーム操作を無効化（ボタンズームのみ有効）
-      map.dragging.disable(); // ドラッグ移動を無効化
-      map.boxZoom.disable(); // ボックスズームを無効化
-      map.keyboard.disable(); // キーボード操作を無効化
-      map.touchZoom.disable(); // タッチズームを無効化
-      map.doubleClickZoom.disable(); // ダブルクリックズームを無効化
-      map.scrollWheelZoom.disable(); // マウスホイールズームを無効化
+      if (isLocationFixed) {
+        // 現在地固定ONの場合：すべてのズーム操作を無効化（ボタンズームのみ有効）
+        map.dragging.disable(); // ドラッグ移動を無効化
+        map.boxZoom.disable(); // ボックスズームを無効化
+        map.keyboard.disable(); // キーボード操作を無効化
+        map.touchZoom.disable(); // タッチズームを無効化
+        map.doubleClickZoom.disable(); // ダブルクリックズームを無効化
+        map.scrollWheelZoom.disable(); // マウスホイールズームを無効化
+      } else {
+        // 現在地固定OFFの場合：地図操作を有効化
+        map.dragging.enable(); // ドラッグ移動を有効化
+        map.boxZoom.enable(); // ボックスズームを有効化
+        map.keyboard.enable(); // キーボード操作を有効化
+        map.touchZoom.enable(); // タッチズームを有効化
+        map.doubleClickZoom.enable(); // ダブルクリックズームを有効化
+        map.scrollWheelZoom.enable(); // マウスホイールズームを有効化
+
+        // 現在地固定OFFの場合：地図移動イベントを監視して手動中心位置を更新
+        const handleMoveEnd = () => {
+          const center = map.getCenter();
+          setManualCenter({
+            lat: center.lat,
+            lng: center.lng,
+          });
+          console.log('📍 地図移動検知、手動中心位置を更新:', { lat: center.lat, lng: center.lng });
+        };
+
+        map.on('moveend', handleMoveEnd);
+
+        // クリーンアップ関数
+        return () => {
+          map.off('moveend', handleMoveEnd);
+        };
+      }
 
       // ズームレベルを設定
       if (zoomLevel !== undefined) {
         map.setZoom(zoomLevel);
       }
     }
-  }, [map, zoomLevel]);
+  }, [map, zoomLevel, isLocationFixed]);
 
   useEffect(() => {
     if (map && center) {
-      // フォーカス中のメンバーがいる場合はその位置を中心にする
-      if (focusedMember) {
-        map.setView(center, zoomLevel, {
-          animate: true,
-          duration: 0.8,
-        });
-      } else if (currentLocation) {
-        // 現在地がある場合は絶対に現在地を中心にする
+      if (isLocationFixed) {
+        // 現在地固定ONの場合：自動で中心位置を制御
+        if (focusedMember) {
+          map.setView(center, zoomLevel, {
+            animate: true,
+            duration: 0.8,
+          });
+        } else if (currentLocation) {
+          // 現在地がある場合は絶対に現在地を中心にする
+          map.setView([currentLocation.lat, currentLocation.lng], zoomLevel, {
+            animate: true,
+            duration: 0.5,
+          });
+        } else {
+          map.setView(center, zoomLevel, {
+            animate: true,
+            duration: 0.5,
+          });
+        }
+      } else if (forceResetToCurrentLocation && currentLocation) {
+        // 現在地固定OFFでも、強制リセットフラグがtrueの場合は現在地にフォーカス
         map.setView([currentLocation.lat, currentLocation.lng], zoomLevel, {
           animate: true,
           duration: 0.5,
         });
-      } else {
-        map.setView(center, zoomLevel, {
-          animate: true,
-          duration: 0.5,
-        });
+        setForceResetToCurrentLocation(false); // フラグをリセット
+        console.log('📍 現在地固定OFFのまま現在地にリセット');
       }
+      // 現在地固定OFFの場合：map.setViewを呼ばない（ユーザーの手動操作を優先）
+      // manualCenterは状態の記録のみに使用し、自動的な地図移動は行わない
     }
-  }, [map, center, zoomLevel, currentLocation, focusedMember]);
+  }, [map, center, zoomLevel, focusedMember, isLocationFixed, currentLocation, forceResetToCurrentLocation, setForceResetToCurrentLocation]);
 
   return null;
 };
@@ -216,6 +255,9 @@ const CarNavigation = () => {
   const [_etaSource, setEtaSource] = useState("route"); // 'route' | 'rejoin' | 'rest'
   const [restPoint, setRestPoint] = useState(null); // 休憩地点
   const [restRoute, setRestRoute] = useState(null); // 休憩地点への新ルート
+  const [isLocationFixed, setIsLocationFixed] = useState(true); // 現在地固定のON/OFF
+  const [mapCenter, setMapCenter] = useState(null); // 地図の中心位置（手動移動時用）
+  const [forceResetToCurrentLocation, setForceResetToCurrentLocation] = useState(false); // 現在地へ強制リセット
   const currentUserUid = useUserUid();
   const updateTimeoutRef = useRef(null);
   const gpsIntervalRef = useRef(null);
@@ -230,7 +272,7 @@ const CarNavigation = () => {
   }, [roomId]);
 
   // 初期状態で適当な座標をセット
-  const setInitialMockLocation = () => {
+  const setInitialMockLocation = useCallback(() => {
     // 東京駅周辺の適当な座標をセット
     const initialLocation = {
       lat: 35.6812 + (Math.random() - 0.5) * 0.01, // ±0.005度の範囲
@@ -240,7 +282,7 @@ const CarNavigation = () => {
     setIsUsingMockLocation(true);
     setMockLocationIndex(0);
     console.log("🎯 初期適当座標設定:", initialLocation);
-  };
+  }, []);
 
   // GPS位置情報の取得
   const getCurrentPosition = () => {
@@ -274,7 +316,7 @@ const CarNavigation = () => {
   };
 
   // Firebaseに位置情報を送信
-  const sendLocationToFirebase = async (location) => {
+  const sendLocationToFirebase = useCallback(async (location) => {
     if (!roomId || !currentUserUid || !location) return;
 
     try {
@@ -291,10 +333,10 @@ const CarNavigation = () => {
     } catch (error) {
       console.error("❌ 位置情報送信エラー:", error);
     }
-  };
+  }, [roomId, currentUserUid, isUsingMockLocation]);
 
   // 5秒間隔でGPS位置情報を送信
-  const startLocationSharing = () => {
+  const startLocationSharing = useCallback(() => {
     if (gpsIntervalRef.current) {
       clearInterval(gpsIntervalRef.current);
     }
@@ -312,16 +354,16 @@ const CarNavigation = () => {
     }, 5000);
 
     console.log("🔄 GPS位置情報共有開始（5秒間隔）");
-  };
+  }, [currentLocation]);
 
   // 位置情報共有を停止
-  const stopLocationSharing = () => {
+  const stopLocationSharing = useCallback(() => {
     if (gpsIntervalRef.current) {
       clearInterval(gpsIntervalRef.current);
       gpsIntervalRef.current = null;
     }
     console.log("⏹️ GPS位置情報共有停止");
-  };
+  }, []);
 
   // テスト用の仮座標をルート上に生成
   const generateMockLocations = () => {
@@ -411,6 +453,47 @@ const CarNavigation = () => {
     setMapZoom((prev) => Math.max(prev - 1, 1));
   };
 
+  // 現在地固定の切り替え
+  const toggleLocationFixed = () => {
+    setIsLocationFixed((prev) => {
+      const newValue = !prev;
+      console.log(`📍 現在地固定を${newValue ? 'ON' : 'OFF'}に切り替え`);
+      
+      if (newValue) {
+        // 現在地固定ONに切り替える場合、手動中心位置をクリアして現在地にフォーカス
+        setMapCenter(null);
+        console.log('📍 現在地固定ON切り替え時、手動中心位置をクリアして現在地にフォーカス');
+      } else if (currentLocation) {
+        // 現在地固定OFFに切り替える場合、現在の地図中心位置を手動中心位置に設定
+        setMapCenter({
+          lat: currentLocation.lat,
+          lng: currentLocation.lng,
+        });
+        console.log('📍 現在地固定OFF切り替え時、現在地を手動中心位置に設定:', currentLocation);
+      }
+      
+      return newValue;
+    });
+  };
+
+  // 現在地にリセット（固定状態は維持したまま）
+  const resetToCurrentLocation = () => {
+    if (currentLocation) {
+      if (isLocationFixed) {
+        // 現在地固定ONの場合：既に自動でフォーカスされているので何もしない
+        console.log('📍 現在地固定ON中、既に現在地にフォーカスされています');
+      } else {
+        // 現在地固定OFFの場合：強制リセットフラグを立てて一時的に現在地にフォーカス
+        setForceResetToCurrentLocation(true);
+        setMapCenter({
+          lat: currentLocation.lat,
+          lng: currentLocation.lng,
+        });
+        console.log('📍 現在地固定OFFのまま現在地にリセット:', currentLocation);
+      }
+    }
+  };
+
   // ズームレベルに応じた座標の最適化（実用上限対応）
   const getOptimizedCoordinates = (coordinates, zoomLevel) => {
     if (!coordinates || coordinates.length === 0) return [];
@@ -465,7 +548,7 @@ const CarNavigation = () => {
   };
 
   // ルート判定と合流ルート計算（OSRM API使用版）
-  const updateRouteStatus = async (_source = "timer") => {
+  const updateRouteStatus = useCallback(async (_source = "timer") => {
     if (!currentLocation || !routeData) return;
 
     // 高精度の最短距離で判定（20m閾値）
@@ -549,7 +632,7 @@ const CarNavigation = () => {
       setJoinPoint(null);
       console.log("✅ ルート上にいます");
     }
-  };
+  }, [currentLocation, routeData, activeTab]);
 
   // 現在地を中心とした地図の中心座標を計算（フォーカス機能対応）
   const getMapCenter = () => {
@@ -727,13 +810,7 @@ const CarNavigation = () => {
     return () => {
       stopLocationSharing();
     };
-  }, [
-    roomId,
-    currentUserUid,
-    currentLocation, // 位置情報共有を開始
-    startLocationSharing,
-    stopLocationSharing,
-  ]);
+  }, [roomId, currentUserUid, currentLocation, startLocationSharing, stopLocationSharing]);
 
   // 固定ポップアップのCSSスタイルを適用
   useEffect(() => {
@@ -746,9 +823,9 @@ const CarNavigation = () => {
     };
   }, []);
 
-  // 地図の移動とズーム操作を無効化するためのCSS（ボタンズームのみ有効）
+  // 地図の移動とズーム操作を制御するためのCSS（現在地固定状態に応じて動的変更）
   useEffect(() => {
-    const disableMapInteractionStyle = `
+    const mapInteractionStyle = isLocationFixed ? `
 			.leaflet-container {
 				cursor: default !important;
 			}
@@ -773,16 +850,41 @@ const CarNavigation = () => {
 			.leaflet-container.leaflet-touch {
 				touch-action: none !important;
 			}
+		` : `
+			.leaflet-container {
+				cursor: grab !important;
+			}
+			.leaflet-container .leaflet-control-container {
+				pointer-events: auto !important;
+			}
+			.leaflet-container .leaflet-popup {
+				pointer-events: auto !important;
+			}
+			.leaflet-container .leaflet-marker-icon {
+				pointer-events: auto !important;
+			}
+			/* カスタムズームボタンのみ有効 */
+			.leaflet-container .leaflet-control-zoom {
+				display: none !important;
+			}
+			/* 地図操作を有効化 */
+			.leaflet-container {
+				overflow: visible !important;
+			}
+			/* タッチズームを有効化 */
+			.leaflet-container.leaflet-touch {
+				touch-action: auto !important;
+			}
 		`;
 
     const styleElement = document.createElement("style");
-    styleElement.textContent = disableMapInteractionStyle;
+    styleElement.textContent = mapInteractionStyle;
     document.head.appendChild(styleElement);
 
     return () => {
       document.head.removeChild(styleElement);
     };
-  }, []);
+  }, [isLocationFixed]);
 
   // 丸型アイコン用のCSSを注入
   useEffect(() => {
@@ -1738,12 +1840,12 @@ const CarNavigation = () => {
                   width: "100%",
                 }}
                 zoomControl={false} // デフォルトのズームコントロールを無効化（カスタムボタンを使用）
-                dragging={false} // ドラッグによる移動を無効化
-                touchZoom={false} // タッチズームを無効化
-                doubleClickZoom={false} // ダブルクリックズームを無効化
-                scrollWheelZoom={false} // マウスホイールズームを無効化
-                boxZoom={false} // ボックスズームを無効化
-                keyboard={false} // キーボード操作を無効化
+                dragging={!isLocationFixed} // 現在地固定OFF時のみドラッグ移動を有効化
+                touchZoom={!isLocationFixed} // 現在地固定OFF時のみタッチズームを有効化
+                doubleClickZoom={!isLocationFixed} // 現在地固定OFF時のみダブルクリックズームを有効化
+                scrollWheelZoom={!isLocationFixed} // 現在地固定OFF時のみマウスホイールズームを有効化
+                boxZoom={!isLocationFixed} // 現在地固定OFF時のみボックスズームを有効化
+                keyboard={!isLocationFixed} // 現在地固定OFF時のみキーボード操作を有効化
                 attributionControl={false} // アトリビューション表示を無効化
               >
                 <TileLayer
@@ -1765,6 +1867,11 @@ const CarNavigation = () => {
                   center={getMapCenter()}
                   currentLocation={focusedMember ? null : currentLocation}
                   focusedMember={focusedMember}
+                  isLocationFixed={isLocationFixed}
+                  manualCenter={mapCenter}
+                  setManualCenter={setMapCenter}
+                  forceResetToCurrentLocation={forceResetToCurrentLocation}
+                  setForceResetToCurrentLocation={setForceResetToCurrentLocation}
                 />
 
                 {/* 赤い合流ルート表示（休憩タブ中は非表示） */}
@@ -2073,6 +2180,30 @@ const CarNavigation = () => {
               >
                 +
               </button>
+            </div>
+
+            {/* 中央：地図操作コントロール */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleLocationFixed}
+                className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors duration-200 ${
+                  isLocationFixed
+                    ? "bg-blue-100 border-blue-500 text-blue-700"
+                    : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                }`}
+                title={isLocationFixed ? "現在地固定ON（地図操作無効）" : "現在地固定OFF（地図操作有効）"}
+              >
+                {isLocationFixed ? "📍固定ON" : "📍固定OFF"}
+              </button>
+              {!isLocationFixed && (
+                <button
+                  onClick={resetToCurrentLocation}
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
+                  title="現在地にリセット"
+                >
+                  🔄現在地
+                </button>
+              )}
             </div>
 
             {/* 右側：通話終了ボタン */}

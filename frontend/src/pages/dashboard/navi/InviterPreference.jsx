@@ -30,10 +30,25 @@ const InviterPreference = () => {
         email: f.email,
       }))
     );
-    navigate("/dashboard/navi", { state: { selectedFriends } });
+    
+    // デバッグ: ナビゲーション前の状態確認
+    console.log("InviterPreference - ナビゲーション実行前:", {
+      selectedFriends: selectedFriends,
+      selectedFriendsLength: selectedFriends.length,
+      targetPath: "/dashboard/navi"
+    });
+    
+    navigate("/dashboard/navi", { 
+      state: { 
+        selectedFriends: [...selectedFriends] // 配列のコピーを作成
+      } 
+    });
   }, [selectedFriends, navigate]);
 
-  const handleBack = () => navigate("/dashboard/navi");
+  const handleBack = useCallback(() => {
+    console.log("InviterPreference - 戻るボタンが押されました");
+    navigate("/dashboard/navi");
+  }, [navigate]);
 
   if (loading) return <LoadingScreen />;
   if (error) return <ErrorScreen error={error} onRetry={retryFetch} onBack={handleBack} />;
