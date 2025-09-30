@@ -7,8 +7,8 @@ import { currentUserAtom, isLoggedInAtom } from "../atom/userAtom";
  * @returns {boolean} ログイン状態のboolean値
  */
 export const useIsLoggedIn = () => {
-	const [isLoggedIn] = useAtom(isLoggedInAtom);
-	return isLoggedIn;
+  const [isLoggedIn] = useAtom(isLoggedInAtom);
+  return isLoggedIn;
 };
 
 /**
@@ -16,8 +16,8 @@ export const useIsLoggedIn = () => {
  * @returns {Object|null} 現在のユーザー情報（uid, displayName, email, photoURL）
  */
 export const useCurrentUser = () => {
-	const [currentUser] = useAtom(currentUserAtom);
-	return currentUser;
+  const [currentUser] = useAtom(currentUserAtom);
+  return currentUser;
 };
 
 /**
@@ -26,13 +26,9 @@ export const useCurrentUser = () => {
  * @returns {string|null} Google認証のphotoURL（見つからない場合はnull）
  */
 export const getGooglePhotoURL = (userName) => {
-	const currentUser = auth.currentUser;
-	if (
-		currentUser &&
-		currentUser.displayName === userName &&
-		currentUser.photoURL
-	) {
-		return currentUser.photoURL;
-	}
-	return null;
+  const currentUser = auth.currentUser;
+  if (currentUser && currentUser.displayName === userName && currentUser.photoURL) {
+    return currentUser.photoURL;
+  }
+  return null;
 };

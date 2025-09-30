@@ -6,6 +6,6 @@ import { userUidAtom } from "../atom/userAtom";
  * @returns {string|null} ユーザーのUID、未ログインの場合はnull
  */
 export const useUserUid = () => {
-	const [userUid] = useAtom(userUidAtom);
-	return userUid;
+  const [userUid] = useAtom(userUidAtom);
+  return userUid;
 };

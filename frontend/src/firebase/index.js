@@ -14,10 +14,10 @@ export { loginWithGoogle, logout } from "./auth";
 // ================================
 
 export {
-	createOrUpdateUser,
-	getUser,
-	removeFriend,
-	updateUserMessage,
+  createOrUpdateUser,
+  getUser,
+  removeFriend,
+  updateUserMessage,
 } from "./users";
 
 // ================================
@@ -25,11 +25,11 @@ export {
 // ================================
 
 export {
-	acceptFriendRequest,
-	getFriendRequests,
-	getSentFriendRequests,
-	rejectFriendRequest,
-	sendFriendRequest,
+  acceptFriendRequest,
+  getFriendRequests,
+  getSentFriendRequests,
+  rejectFriendRequest,
+  sendFriendRequest,
 } from "./friendRequests";
 
 // ================================

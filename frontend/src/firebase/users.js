@@ -1,11 +1,4 @@
-import {
-	deleteDoc,
-	doc,
-	getDoc,
-	serverTimestamp,
-	setDoc,
-	writeBatch,
-} from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 
 /**
@@ -14,21 +7,21 @@ import { db } from "./firebaseConfig";
  * @returns {object|null} ユーザー情報またはnull
  */
 export const getUser = async (userId) => {
-	try {
-		const userDoc = await getDoc(doc(db, "users", userId));
+  try {
+    const userDoc = await getDoc(doc(db, "users", userId));
 
-		if (userDoc.exists()) {
-			return {
-				id: userDoc.id,
-				...userDoc.data(),
-			};
-		} else {
-			return null;
-		}
-	} catch (error) {
-		console.error("ユーザー情報取得エラー:", error);
-		throw error;
-	}
+    if (userDoc.exists()) {
+      return {
+        id: userDoc.id,
+        ...userDoc.data(),
+      };
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("ユーザー情報取得エラー:", error);
+    throw error;
+  }
 };
 
 /**
@@ -37,64 +30,58 @@ export const getUser = async (userId) => {
  * - users/{uid}/friends: 友達リスト（オプション）
  */
 export const createOrUpdateUser = async (user, friendsData = []) => {
-	// 分割代入でユーザー情報を取得（デフォルト値付き）
-	const {
-		uid,
-		displayName = "",
-		email = "",
-		photoURL = "",
-		userShortMessage = "",
-	} = user;
+  // 分割代入でユーザー情報を取得（デフォルト値付き）
+  const { uid, displayName = "", email = "", photoURL = "", userShortMessage = "" } = user;
 
-	// 既存ユーザーかどうかを確認
-	const existingUser = await getUser(uid);
+  // 既存ユーザーかどうかを確認
+  const existingUser = await getUser(uid);
 
-	// ユーザー情報全体
-	const userData = {
-		uid,
-		displayName,
-		photoURL,
-		userShortMessage,
-		email, // プライベート情報
-		updatedAt: serverTimestamp(),
-	};
+  // ユーザー情報全体
+  const userData = {
+    uid,
+    displayName,
+    photoURL,
+    userShortMessage,
+    email, // プライベート情報
+    updatedAt: serverTimestamp(),
+  };
 
-	// 新規ユーザーの場合のみcreatedAtを設定
-	if (!existingUser) {
-		userData.createdAt = serverTimestamp();
-	}
+  // 新規ユーザーの場合のみcreatedAtを設定
+  if (!existingUser) {
+    userData.createdAt = serverTimestamp();
+  }
 
-	// バッチ書き込みを作成
-	const batch = writeBatch(db);
+  // バッチ書き込みを作成
+  const batch = writeBatch(db);
 
-	// 1. ユーザー情報を保存
-	batch.set(doc(db, "users", uid), userData, { merge: true });
+  // 1. ユーザー情報を保存
+  batch.set(doc(db, "users", uid), userData, { merge: true });
 
-	// 2. 友達データがある場合、サブコレクションも更新
-	if (friendsData?.length > 0) {
-		friendsData.forEach((friend) => {
-			const {
-				uid: friendUid,
-				displayName: friendName = "",
-				photoURL: friendPhotoURL = "",
-			} = friend;
+  // 2. 友達データがある場合、サブコレクションも更新
+  if (friendsData?.length > 0) {
+    friendsData.forEach((friend) => {
+      const {
+        uid: friendUid,
+        displayName: friendName = "",
+        photoURL: friendPhotoURL = "",
+      } = friend;
 
-			const friendData = {
-				friendUid,
-				friendName,
-				friendPhotoURL,
-				addedAt: serverTimestamp(),
-				status: "accepted",
-			};
+      const friendData = {
+        friendUid,
+        friendName,
+        friendPhotoURL,
+        addedAt: serverTimestamp(),
+        status: "accepted",
+      };
 
-			batch.set(doc(db, "users", uid, "friends", friendUid), friendData, {
-				merge: true,
-			});
-		});
-	}
+      batch.set(doc(db, "users", uid, "friends", friendUid), friendData, {
+        merge: true,
+      });
+    });
+  }
 
-	// バッチを実行
-	await batch.commit();
+  // バッチを実行
+  await batch.commit();
 };
 
 /**
@@ -103,19 +90,19 @@ export const createOrUpdateUser = async (user, friendsData = []) => {
  * @param {string} message - 新しい一言メッセージ
  */
 export const updateUserMessage = async (userId, message) => {
-	try {
-		await setDoc(
-			doc(db, "users", userId),
-			{
-				userShortMessage: message,
-				updatedAt: serverTimestamp(),
-			},
-			{ merge: true },
-		);
-	} catch (error) {
-		console.error("一言メッセージ更新エラー:", error);
-		throw error;
-	}
+  try {
+    await setDoc(
+      doc(db, "users", userId),
+      {
+        userShortMessage: message,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    console.error("一言メッセージ更新エラー:", error);
+    throw error;
+  }
 };
 
 /**
@@ -125,14 +112,14 @@ export const updateUserMessage = async (userId, message) => {
  * @param {string} targetUserId - 相手のユーザーID
  */
 export const removeFriend = async (userId, targetUserId) => {
-	if (!userId || !targetUserId) throw new Error("ユーザーIDが不足しています");
-	try {
-		const batch = writeBatch(db);
-		batch.delete(doc(db, "users", userId, "friends", targetUserId));
-		batch.delete(doc(db, "users", targetUserId, "friends", userId));
-		await batch.commit();
-	} catch (error) {
-		console.error("フレンド解除エラー:", error);
-		throw error;
-	}
+  if (!userId || !targetUserId) throw new Error("ユーザーIDが不足しています");
+  try {
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "users", userId, "friends", targetUserId));
+    batch.delete(doc(db, "users", targetUserId, "friends", userId));
+    await batch.commit();
+  } catch (error) {
+    console.error("フレンド解除エラー:", error);
+    throw error;
+  }
 };

@@ -4,14 +4,14 @@ import { getDatabase } from "firebase/database";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-	apiKey: "AIzaSyAeAU8XmgdiBK-J6zDTIBYlOFSBSLAvSZQ",
-	authDomain: "github-hackathon-app1.firebaseapp.com",
-	databaseURL: "https://github-hackathon-app1-default-rtdb.firebaseio.com/",
-	projectId: "github-hackathon-app1",
-	storageBucket: "github-hackathon-app1.firebasestorage.app",
-	messagingSenderId: "385402311621",
-	appId: "1:385402311621:web:44a0828f4b4619d11071ac",
-	measurementId: "G-QN6SJ1D6T7",
+  apiKey: "AIzaSyAeAU8XmgdiBK-J6zDTIBYlOFSBSLAvSZQ",
+  authDomain: "github-hackathon-app1.firebaseapp.com",
+  databaseURL: "https://github-hackathon-app1-default-rtdb.firebaseio.com/",
+  projectId: "github-hackathon-app1",
+  storageBucket: "github-hackathon-app1.firebasestorage.app",
+  messagingSenderId: "385402311621",
+  appId: "1:385402311621:web:44a0828f4b4619d11071ac",
+  measurementId: "G-QN6SJ1D6T7",
 };
 
 const app = initializeApp(firebaseConfig);

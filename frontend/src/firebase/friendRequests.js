@@ -1,13 +1,13 @@
 import {
-	collection,
-	deleteDoc,
-	doc,
-	getDocs,
-	query,
-	serverTimestamp,
-	setDoc,
-	where,
-	writeBatch,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { getUser } from "./users";
@@ -19,21 +19,21 @@ import { getUser } from "./users";
  * @param {object} senderData - 送信者の情報
  */
 export const sendFriendRequest = async (fromUserId, toUserId, senderData) => {
-	const requestId = `${fromUserId}_${toUserId}`;
+  const requestId = `${fromUserId}_${toUserId}`;
 
-	const requestData = {
-		fromUserId,
-		toUserId,
-		senderName: senderData.displayName || "",
-		senderPhotoURL: senderData.photoURL || "",
-		senderUid: fromUserId,
-		senderMessage: senderData.userShortMessage || "", // 送信者の一言メッセージ
-		senderCreatedAt: senderData.createdAt || null, // 送信者のアカウント作成日
-		status: "pending",
-		createdAt: serverTimestamp(),
-	};
+  const requestData = {
+    fromUserId,
+    toUserId,
+    senderName: senderData.displayName || "",
+    senderPhotoURL: senderData.photoURL || "",
+    senderUid: fromUserId,
+    senderMessage: senderData.userShortMessage || "", // 送信者の一言メッセージ
+    senderCreatedAt: senderData.createdAt || null, // 送信者のアカウント作成日
+    status: "pending",
+    createdAt: serverTimestamp(),
+  };
 
-	await setDoc(doc(db, "friendRequests", requestId), requestData);
+  await setDoc(doc(db, "friendRequests", requestId), requestData);
 };
 
 /**
@@ -41,33 +41,33 @@ export const sendFriendRequest = async (fromUserId, toUserId, senderData) => {
  * @param {string} userId - ユーザーID
  */
 export const getFriendRequests = async (userId) => {
-	const q = query(
-		collection(db, "friendRequests"),
-		where("toUserId", "==", userId),
-		where("status", "==", "pending"),
-	);
+  const q = query(
+    collection(db, "friendRequests"),
+    where("toUserId", "==", userId),
+    where("status", "==", "pending")
+  );
 
-	const querySnapshot = await getDocs(q);
+  const querySnapshot = await getDocs(q);
 
-	// 各リクエストの送信者情報を取得
-	const requestsWithUserData = await Promise.all(
-		querySnapshot.docs.map(async (doc) => {
-			const requestData = doc.data();
-			const senderInfo = await getUser(requestData.fromUserId);
+  // 各リクエストの送信者情報を取得
+  const requestsWithUserData = await Promise.all(
+    querySnapshot.docs.map(async (doc) => {
+      const requestData = doc.data();
+      const senderInfo = await getUser(requestData.fromUserId);
 
-			return {
-				id: doc.id,
-				...requestData,
-				// 送信者の最新情報で上書き
-				senderName: senderInfo?.displayName || requestData.senderName,
-				senderPhotoURL: senderInfo?.photoURL || requestData.senderPhotoURL,
-				senderMessage: requestData.senderMessage || "", // 一言メッセージも含める
-				senderCreatedAt: requestData.senderCreatedAt || null, // アカウント作成日も含める
-			};
-		}),
-	);
+      return {
+        id: doc.id,
+        ...requestData,
+        // 送信者の最新情報で上書き
+        senderName: senderInfo?.displayName || requestData.senderName,
+        senderPhotoURL: senderInfo?.photoURL || requestData.senderPhotoURL,
+        senderMessage: requestData.senderMessage || "", // 一言メッセージも含める
+        senderCreatedAt: requestData.senderCreatedAt || null, // アカウント作成日も含める
+      };
+    })
+  );
 
-	return requestsWithUserData;
+  return requestsWithUserData;
 };
 
 /**
@@ -77,33 +77,33 @@ export const getFriendRequests = async (userId) => {
  * @param {string} toUserId - 受信者のユーザーID
  */
 export const acceptFriendRequest = async (requestId, fromUserId, toUserId) => {
-	// 友達リストに追加
-	const batch = writeBatch(db);
+  // 友達リストに追加
+  const batch = writeBatch(db);
 
-	batch.set(
-		doc(db, "users", fromUserId, "friends", toUserId),
-		{
-			friendUid: toUserId,
-			addedAt: serverTimestamp(),
-			status: "accepted",
-		},
-		{ merge: true },
-	);
+  batch.set(
+    doc(db, "users", fromUserId, "friends", toUserId),
+    {
+      friendUid: toUserId,
+      addedAt: serverTimestamp(),
+      status: "accepted",
+    },
+    { merge: true }
+  );
 
-	batch.set(
-		doc(db, "users", toUserId, "friends", fromUserId),
-		{
-			friendUid: fromUserId,
-			addedAt: serverTimestamp(),
-			status: "accepted",
-		},
-		{ merge: true },
-	);
+  batch.set(
+    doc(db, "users", toUserId, "friends", fromUserId),
+    {
+      friendUid: fromUserId,
+      addedAt: serverTimestamp(),
+      status: "accepted",
+    },
+    { merge: true }
+  );
 
-	await batch.commit();
+  await batch.commit();
 
-	// リクエストを削除（クリーンな状態を保つ）
-	await deleteDoc(doc(db, "friendRequests", requestId));
+  // リクエストを削除（クリーンな状態を保つ）
+  await deleteDoc(doc(db, "friendRequests", requestId));
 };
 
 /**
@@ -111,32 +111,32 @@ export const acceptFriendRequest = async (requestId, fromUserId, toUserId) => {
  * @param {string} userId - ユーザーID
  */
 export const getSentFriendRequests = async (userId) => {
-	const q = query(
-		collection(db, "friendRequests"),
-		where("fromUserId", "==", userId),
-		where("status", "==", "pending"),
-	);
+  const q = query(
+    collection(db, "friendRequests"),
+    where("fromUserId", "==", userId),
+    where("status", "==", "pending")
+  );
 
-	const querySnapshot = await getDocs(q);
+  const querySnapshot = await getDocs(q);
 
-	// 各リクエストの受信者情報を取得
-	const requestsWithUserData = await Promise.all(
-		querySnapshot.docs.map(async (doc) => {
-			const requestData = doc.data();
-			const recipientInfo = await getUser(requestData.toUserId);
+  // 各リクエストの受信者情報を取得
+  const requestsWithUserData = await Promise.all(
+    querySnapshot.docs.map(async (doc) => {
+      const requestData = doc.data();
+      const recipientInfo = await getUser(requestData.toUserId);
 
-			return {
-				id: doc.id,
-				...requestData,
-				// 受信者の最新情報で上書き
-				recipientName: recipientInfo?.displayName || "ユーザー",
-				recipientPhotoURL: recipientInfo?.photoURL || "",
-				recipientUid: requestData.toUserId,
-			};
-		}),
-	);
+      return {
+        id: doc.id,
+        ...requestData,
+        // 受信者の最新情報で上書き
+        recipientName: recipientInfo?.displayName || "ユーザー",
+        recipientPhotoURL: recipientInfo?.photoURL || "",
+        recipientUid: requestData.toUserId,
+      };
+    })
+  );
 
-	return requestsWithUserData;
+  return requestsWithUserData;
 };
 
 /**
@@ -144,12 +144,12 @@ export const getSentFriendRequests = async (userId) => {
  * @param {string} requestId - リクエストID
  */
 export const rejectFriendRequest = async (requestId) => {
-	await setDoc(
-		doc(db, "friendRequests", requestId),
-		{
-			status: "rejected",
-			rejectedAt: serverTimestamp(),
-		},
-		{ merge: true },
-	);
+  await setDoc(
+    doc(db, "friendRequests", requestId),
+    {
+      status: "rejected",
+      rejectedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 };
