@@ -1317,12 +1317,11 @@ export const useDailyConnection = (roomId, dailyRoomUrl, onParticipantUpdate, me
       stopDurationTimer,
       onParticipantUpdate,
       currentUserUid,
-      callDuration, // 既存のphotoURLを保持して参加者データを更新
+      callDuration,
       debouncedParticipantUpdate,
       getMemberPhotoURL,
       isMicrophoneEnabled,
-      roomId, // トラブルシューティングガイドを表示
-      showAudioTroubleshootingGuide,
+      roomId,
     ]
   );
 
