@@ -254,6 +254,7 @@ const CarNavigation = () => {
   const [focusedMember, setFocusedMember] = useState(null); // フォーカス中のメンバー
   const [etaTime, setEtaTime] = useState(null); // 動的到着時刻
   const [_etaSource, setEtaSource] = useState("route"); // 'route' | 'rejoin' | 'rest'
+  const [originalEtaTime, setOriginalEtaTime] = useState(null); // 元の目的地までの到着時刻（保持用）
   const [restPoint, setRestPoint] = useState(null); // 休憩地点
   const [restRoute, setRestRoute] = useState(null); // 休憩地点への新ルート
   const [isLocationFixed, setIsLocationFixed] = useState(true); // 現在地固定のON/OFF
@@ -595,17 +596,18 @@ const CarNavigation = () => {
             routeType: "OSRM API道路ルート",
           });
 
-          // 合流までのETAをOSRMから取得
-          try {
-            const etaUrl = `https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${osrmInfo.joinPoint.lng},${osrmInfo.joinPoint.lat}?overview=false&geometries=geojson`;
-            const etaRes = await fetch(etaUrl);
-            const etaData = await etaRes.json();
-            const durSec = etaData?.routes?.[0]?.duration;
-            if (typeof durSec === "number") {
-              setEtaTime(new Date(Date.now() + durSec * 1000));
-              setEtaSource("rejoin");
-            }
-          } catch (_) {}
+          // 合流までのETAは計算するが表示には使用しない（元の目的地までのETAを維持）
+          // 合流時刻を表示すると混乱するため、コメントアウト
+          // try {
+          //   const etaUrl = `https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${osrmInfo.joinPoint.lng},${osrmInfo.joinPoint.lat}?overview=false&geometries=geojson`;
+          //   const etaRes = await fetch(etaUrl);
+          //   const etaData = await etaRes.json();
+          //   const durSec = etaData?.routes?.[0]?.duration;
+          //   if (typeof durSec === "number") {
+          //     setEtaTime(new Date(Date.now() + durSec * 1000));
+          //     setEtaSource("rejoin");
+          //   }
+          // } catch (_) {}
         }
       } catch (error) {
         console.warn("⚠️ OSRM API合流ルート生成エラー:", error);
@@ -712,10 +714,63 @@ const CarNavigation = () => {
   // 初期ETAをルート情報から設定
   useEffect(() => {
     if (routeData?.routeInfo?.arrivalTime) {
-      setEtaTime(new Date(routeData.routeInfo.arrivalTime));
+      const initialEta = new Date(routeData.routeInfo.arrivalTime);
+      setEtaTime(initialEta);
+      setOriginalEtaTime(initialEta); // 元の到着時刻を保持
       setEtaSource("route");
     }
   }, [routeData?.routeInfo?.arrivalTime]);
+
+  // 到着時刻をリアルタイムで更新（1分ごと）
+  useEffect(() => {
+    // 休憩地点がセットされている場合は休憩地点への到着時刻を更新（別のuseEffectで処理）
+    if (restPoint && activeTab === "rest") {
+      return;
+    }
+
+    // 現在地と目的地が存在しない場合はスキップ
+    if (!currentLocation || !routeData?.destination?.coordinates) {
+      return;
+    }
+
+    const updateETA = async () => {
+      try {
+        const destination = routeData.destination.coordinates;
+        const url = `https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${destination[1]},${destination[0]}?overview=false`;
+        
+        console.log("🕐 目的地までのETA更新中...");
+        const res = await fetch(url);
+        
+        if (!res.ok) {
+          console.warn("⚠️ ETA更新APIエラー:", res.status);
+          return;
+        }
+
+        const data = await res.json();
+        const durationSec = data?.routes?.[0]?.duration;
+        
+        if (typeof durationSec === "number") {
+          const newEta = new Date(Date.now() + durationSec * 1000);
+          setOriginalEtaTime(newEta);
+          setEtaTime(newEta);
+          console.log("✅ ETA更新完了:", {
+            duration: `${Math.round(durationSec / 60)}分`,
+            arrival: newEta.toLocaleTimeString("ja-JP"),
+          });
+        }
+      } catch (error) {
+        console.error("❌ ETA更新エラー:", error);
+      }
+    };
+
+    // 初回は即座に実行
+    updateETA();
+
+    // 1分ごとに更新
+    const intervalId = setInterval(updateETA, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [currentLocation, routeData?.destination?.coordinates, restPoint, activeTab]);
 
   // 他のメンバーの位置情報をリアルタイム取得
   useEffect(() => {
@@ -1022,6 +1077,12 @@ const CarNavigation = () => {
   const clearRestPoint = () => {
     setRestPoint(null);
     setRestRoute(null);
+    // 休憩地点の到着時刻をクリアして、元の目的地の到着時刻に戻す
+    if (originalEtaTime) {
+      setEtaTime(originalEtaTime);
+      setEtaSource("route");
+    }
+    console.log("🔄 休憩地点を解除し、元の到着時刻に戻しました");
   };
 
   // 休憩タブ時は紫ルートの維持と再計算（4秒）
@@ -2151,12 +2212,19 @@ const CarNavigation = () => {
           )}
 
           {/* 到着時刻を地図右上に表示 */}
-          {(routeData || etaTime) && (
+          {(routeData || etaTime || originalEtaTime) && (
             <div className="absolute top-3 right-3 z-[1000] bg-red-500 text-white px-3 py-1.5 rounded-lg shadow-md">
-              <div className="text-[10px] font-medium mb-0.5">到着時刻</div>
+              <div className="text-[10px] font-medium mb-0.5">
+                到着時刻{restPoint && activeTab === "rest" ? " (休憩地点まで)" : ""}
+              </div>
               <div className="text-lg font-bold leading-tight">
-                {etaTime || routeData?.routeInfo?.arrivalTime
-                  ? new Date(etaTime || routeData.routeInfo.arrivalTime).toLocaleTimeString("ja-JP", {
+                {restPoint && activeTab === "rest" && etaTime
+                  ? new Date(etaTime).toLocaleTimeString("ja-JP", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : originalEtaTime || routeData?.routeInfo?.arrivalTime
+                  ? new Date(originalEtaTime || routeData.routeInfo.arrivalTime).toLocaleTimeString("ja-JP", {
                       hour: "2-digit",
                       minute: "2-digit",
                     })
