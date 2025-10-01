@@ -5,6 +5,22 @@ import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+	build: {
+		rollupOptions: {
+			output: {
+				// ビルド時の最適化を調整して循環参照を防ぐ
+				manualChunks: {
+					'firebase': ['firebase/app', 'firebase/auth', 'firebase/database'],
+					'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+					'leaflet': ['leaflet', 'react-leaflet'],
+				},
+				// 変数名の圧縮を緩和（デバッグしやすくする）
+				compact: false,
+			},
+		},
+		// ソースマップを生成（エラー追跡用）
+		sourcemap: true,
+	},
 	plugins: [
 		react(),
 		tailwindcss(),
