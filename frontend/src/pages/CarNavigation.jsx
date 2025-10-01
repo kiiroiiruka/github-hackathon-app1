@@ -946,32 +946,76 @@ const CarNavigation = () => {
   };
 
   // 休憩地点クリック時: 現在地→休憩地点の経路をOSRMで取得
-  const computeRestRoute = async (from, to) => {
+  const computeRestRoute = useCallback(async (from, to) => {
+    if (!from || !to) {
+      console.warn("⚠️ 休憩地点ルート計算: fromまたはtoが未定義");
+      return;
+    }
+
     try {
+      console.log("🟣 休憩地点ルート計算開始:", {
+        from: `${from.lat.toFixed(4)}, ${from.lng.toFixed(4)}`,
+        to: `${to.lat.toFixed(4)}, ${to.lng.toFixed(4)}`,
+      });
+
       const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
       const res = await fetch(url);
+      
+      if (!res.ok) {
+        console.warn("⚠️ OSRM APIエラー:", res.status);
+        return;
+      }
+
       const data = await res.json();
       const coords = data?.routes?.[0]?.geometry?.coordinates || [];
-      setRestRoute(coords.length > 0 ? coords : null);
-      console.log("🟣 休憩地点ルート生成", { points: coords.length });
-      const durationSec = data?.routes?.[0]?.duration;
-      if (typeof durationSec === "number") {
-        setEtaTime(new Date(Date.now() + durationSec * 1000));
-        setEtaSource("rest");
+      
+      if (coords.length > 0) {
+        setRestRoute(coords);
+        console.log("✅ 休憩地点ルート生成完了:", { 
+          points: coords.length,
+          distance: `${Math.round((data.routes[0].distance / 1000) * 10) / 10}km`,
+        });
+
+        // ETAを更新
+        const durationSec = data?.routes?.[0]?.duration;
+        if (typeof durationSec === "number") {
+          setEtaTime(new Date(Date.now() + durationSec * 1000));
+          setEtaSource("rest");
+          console.log("🕐 休憩地点ETA更新:", {
+            duration: `${Math.round(durationSec / 60)}分`,
+            arrival: new Date(Date.now() + durationSec * 1000).toLocaleTimeString("ja-JP"),
+          });
+        }
+      } else {
+        console.warn("⚠️ ルートが見つかりません");
+        setRestRoute(null);
       }
     } catch (e) {
-      console.warn("⚠️ 休憩地点ルート生成エラー", e);
+      console.error("❌ 休憩地点ルート生成エラー:", e);
+      setRestRoute(null);
     }
-  };
+  }, []);
 
   const handleRestPointSelected = async (latlng) => {
     if (!latlng) return;
-    setRestPoint({ lat: latlng.lat, lng: latlng.lng });
-    if (!currentLocation) return;
-    await computeRestRoute(currentLocation, {
-      lat: latlng.lat,
-      lng: latlng.lng,
-    });
+    if (!currentLocation) {
+      alert("現在地が取得できていません");
+      return;
+    }
+
+    const newRestPoint = { lat: latlng.lat, lng: latlng.lng };
+    console.log("📍 休憩地点をセット:", newRestPoint);
+    
+    // 休憩地点を設定
+    setRestPoint(newRestPoint);
+    
+    // 即座にルート計算を実行
+    try {
+      await computeRestRoute(currentLocation, newRestPoint);
+      console.log("✅ 休憩地点ルート計算完了");
+    } catch (error) {
+      console.error("❌ 休憩地点ルート計算エラー:", error);
+    }
   };
 
   // 休憩地点の解除
@@ -982,29 +1026,47 @@ const CarNavigation = () => {
 
   // 休憩タブ時は紫ルートの維持と再計算（4秒）
   useEffect(() => {
-    if (activeTab !== "rest") return;
+    if (activeTab !== "rest") {
+      // 休憩タブ以外では紫ルートをクリア
+      setRestRoute(null);
+      return;
+    }
+    
     if (!restPoint || !currentLocation) {
       setRestRoute(null);
       return;
     }
 
+    // 休憩地点が変更された直後は即座にルート計算（初回のみ）
+    let isInitialCalculation = !restRoute || restRoute.length === 0;
+
     const tick = async () => {
-      // 既存の紫ルートに対してオンルート判定（なければ再計算）
+      // ルートが未計算の場合は即座に計算
       if (!restRoute || restRoute.length === 0) {
+        console.log("🟣 休憩地点ルート初回計算");
         await computeRestRoute(currentLocation, restPoint);
         return;
       }
+
+      // ルートが既に存在する場合、現在地がルート外にいる場合のみ再計算
       const restRouteData = {
         polyline: { geometry: { coordinates: restRoute } },
       };
       const { distance } = calculateShortestDistanceToRoute(currentLocation, restRouteData);
       const onRestRoute = (distance || 0) <= ROUTE_THRESHOLD_METERS;
+      
       if (!onRestRoute) {
+        console.log("🟣 休憩地点ルート再計算（ルート外）");
         await computeRestRoute(currentLocation, restPoint);
       }
     };
 
-    tick();
+    // 初回は即座に実行
+    if (isInitialCalculation) {
+      tick();
+    }
+
+    // 4秒間隔で定期チェック
     const id = setInterval(tick, 4000);
     return () => clearInterval(id);
   }, [activeTab, restPoint, currentLocation, restRoute, computeRestRoute]);
@@ -1765,25 +1827,8 @@ const CarNavigation = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ヘッダー */}
-      <div className="bg-green-500 text-white p-4">
-        <div className="flex items-center justify-center">
-          {(routeData || etaTime) && (
-            <div className="bg-red-500 px-3 py-1 rounded text-sm">
-              到着時刻:{" "}
-              {etaTime || routeData?.routeInfo?.arrivalTime
-                ? new Date(etaTime || routeData.routeInfo.arrivalTime).toLocaleTimeString("ja-JP", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "○○:00"}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* メインコンテンツ */}
-      <div className="h-[calc(100vh-80px)] flex flex-col">
+      <div className="h-screen flex flex-col">
         {/* 地図エリア - 正方形 */}
         <div className="w-full aspect-square relative overflow-hidden">
           {routeData?.polyline?.geometry?.coordinates ? (
@@ -1801,7 +1846,7 @@ const CarNavigation = () => {
             >
               <MapContainer
                 center={getMapCenter()}
-                zoom={currentLocation ? Math.max(mapZoom, 12) : mapZoom}
+                zoom={mapZoom}
                 style={{
                   height: "100%",
                   width: "100%",
@@ -1824,13 +1869,7 @@ const CarNavigation = () => {
                 <MapClickHandler enabled={activeTab === "rest"} onClick={handleRestPointSelected} />
 
                 <MapController
-                  zoomLevel={
-                    focusedMember
-                      ? Math.max(mapZoom, 14)
-                      : currentLocation
-                        ? Math.max(mapZoom, 12)
-                        : mapZoom
-                  }
+                  zoomLevel={mapZoom}
                   center={getMapCenter()}
                   currentLocation={focusedMember ? null : currentLocation}
                   focusedMember={focusedMember}
@@ -2110,86 +2149,102 @@ const CarNavigation = () => {
               </div>
             </div>
           )}
+
+          {/* 到着時刻を地図右上に表示 */}
+          {(routeData || etaTime) && (
+            <div className="absolute top-3 right-3 z-[1000] bg-red-500 text-white px-3 py-1.5 rounded-lg shadow-md">
+              <div className="text-[10px] font-medium mb-0.5">到着時刻</div>
+              <div className="text-lg font-bold leading-tight">
+                {etaTime || routeData?.routeInfo?.arrivalTime
+                  ? new Date(etaTime || routeData.routeInfo.arrivalTime).toLocaleTimeString("ja-JP", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "○○:00"}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 地図下のコントロールパネル */}
-        <div className="bg-white border-t border-gray-200 p-4 flex-1">
-          {/* コントロールボタン（均等配置） */}
-          <div className="flex items-center justify-between mb-4">
-            {/* 左側：ズームコントロール */}
-            <div className="flex items-center gap-3">
-              <div className="bg-gray-100 px-3 py-2 rounded-lg text-sm font-medium">
-                Zoom: {mapZoom}
-                {focusedMember && (
-                  <div className="text-xs text-blue-600 mt-1">
-                    {focusedMember.name} をフォーカス中
+        <div className="bg-white border-t border-gray-200 p-3 sm:p-4 flex-1 overflow-y-auto">
+          {/* コントロールボタン（縦並びで余裕を持たせる） */}
+          <div className="space-y-3 mb-4">
+            {/* 上段：ズームコントロール（現在地固定ON時のみ表示） */}
+            {isLocationFixed && (
+              <div className="flex items-center justify-between gap-3">
+                <div className="bg-gray-100 px-3 py-2 rounded-lg text-sm font-medium flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">Zoom: {mapZoom}</span>
+                    <span className="text-xs text-gray-600">
+                      {routeData?.polyline?.geometry?.coordinates && 
+                        `${routeData.polyline.geometry.coordinates.length}点`}
+                    </span>
                   </div>
-                )}
-                {routeData?.polyline?.geometry?.coordinates && (
-                  <div className="text-xs text-gray-600 mt-1">
-                    {routeData.polyline.geometry.coordinates.length > 1000
-                      ? `最適化: ${getOptimizedCoordinates(routeData.polyline.geometry.coordinates, mapZoom).length}点`
-                      : `${routeData.polyline.geometry.coordinates.length}点`}
-                  </div>
+                  {focusedMember && (
+                    <div className="text-xs text-blue-600 mt-1">
+                      {focusedMember.name} フォーカス中
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleZoomOut}
+                    className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white w-12 h-12 rounded-lg shadow-lg flex items-center justify-center font-bold text-xl transition-colors duration-200 flex-shrink-0"
+                    title="ズームアウト"
+                  >
+                    −
+                  </button>
+                  <button
+                    onClick={handleZoomIn}
+                    className="bg-green-500 hover:bg-green-600 active:bg-green-700 text-white w-12 h-12 rounded-lg shadow-lg flex items-center justify-center font-bold text-xl transition-colors duration-200 flex-shrink-0"
+                    title="ズームイン"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 下段：地図操作と通話終了ボタン */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={toggleLocationFixed}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
+                    isLocationFixed
+                      ? "bg-blue-100 border-blue-500 text-blue-700"
+                      : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                  }`}
+                  title={isLocationFixed ? "現在地固定ON（地図操作無効）" : "現在地固定OFF（地図操作有効）"}
+                >
+                  {isLocationFixed ? "📍固定ON" : "📍固定OFF"}
+                </button>
+                {!isLocationFixed && (
+                  <button
+                    onClick={resetToCurrentLocation}
+                    className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0"
+                    title="現在地にリセット"
+                  >
+                    🔄現在地
+                  </button>
                 )}
               </div>
+
               <button
-                onClick={handleZoomOut}
-                className="bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white w-10 h-10 rounded-lg shadow-lg flex items-center justify-center font-bold text-lg transition-colors duration-200"
-                title="ズームアウト"
+                onClick={handleCallEnd}
+                className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm whitespace-nowrap flex-shrink-0"
               >
-                −
-              </button>
-              <button
-                onClick={handleZoomIn}
-                className="bg-green-500 hover:bg-green-600 active:bg-green-700 text-white w-10 h-10 rounded-lg shadow-lg flex items-center justify-center font-bold text-lg transition-colors duration-200"
-                title="ズームイン"
-              >
-                +
+                通話終了&到着
               </button>
             </div>
-
-            {/* 中央：地図操作コントロール */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleLocationFixed}
-                className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors duration-200 ${
-                  isLocationFixed
-                    ? "bg-blue-100 border-blue-500 text-blue-700"
-                    : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
-                }`}
-                title={isLocationFixed ? "現在地固定ON（地図操作無効）" : "現在地固定OFF（地図操作有効）"}
-              >
-                {isLocationFixed ? "📍固定ON" : "📍固定OFF"}
-              </button>
-              {!isLocationFixed && (
-                <button
-                  onClick={resetToCurrentLocation}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
-                  title="現在地にリセット"
-                >
-                  🔄現在地
-                </button>
-              )}
-            </div>
-
-            {/* 右側：通話終了ボタン */}
-            <button
-              onClick={handleCallEnd}
-              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded text-sm"
-            >
-              通話終了&到着
-            </button>
           </div>
-
-          {/* タブコンテンツ */}
-          <div className="mb-4">{renderTabContent()}</div>
-
           {/* タブボタン */}
           <div className="flex gap-2">
             <button
               onClick={() => handleTabChange("main")}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border-2 ${
                 activeTab === "main"
                   ? "bg-blue-100 border-blue-500 text-blue-700"
                   : "bg-gray-100 border-gray-300 text-gray-700"
@@ -2199,7 +2254,7 @@ const CarNavigation = () => {
             </button>
             <button
               onClick={() => handleTabChange("locations")}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border-2 ${
                 activeTab === "locations"
                   ? "bg-blue-100 border-blue-500 text-blue-700"
                   : "bg-gray-100 border-gray-300 text-gray-700"
@@ -2209,7 +2264,7 @@ const CarNavigation = () => {
             </button>
             <button
               onClick={() => handleTabChange("rest")}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border-2 ${
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border-2 ${
                 activeTab === "rest"
                   ? "bg-blue-100 border-blue-500 text-blue-700"
                   : "bg-gray-100 border-gray-300 text-gray-700"
@@ -2218,6 +2273,10 @@ const CarNavigation = () => {
               休憩地点のセット
             </button>
           </div>
+          {/* タブコンテンツ */}
+          <div className="mb-4">{renderTabContent()}</div>
+
+       
         </div>
       </div>
 
