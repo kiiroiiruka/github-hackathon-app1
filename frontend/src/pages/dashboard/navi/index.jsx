@@ -9,6 +9,7 @@ import Input from "../../../components/ui/Input";
 import Section from "../../../components/ui/Section";
 import { auth, rtdb } from "../../../firebase/firebaseConfig";
 import { calculateDistance } from "../../../firebase/map";
+import { isDebugModeEnabled } from "@/utils/env";
 
 const NaviCreateScreen = () => {
   const navigate = useNavigate();
@@ -742,6 +743,7 @@ const NaviCreateScreen = () => {
       </div>
 
       {/* テスト用ボタン - 固定位置で常に表示 */}
+      {isDebugModeEnabled() && (
       <div className="fixed bottom-16 left-0 right-0 bg-white border-t-2 border-orange-300 shadow-lg z-[60]">
         <div className="px-4 py-4 bg-orange-50">
           <div className="max-w-2xl mx-auto">
@@ -788,6 +790,7 @@ const NaviCreateScreen = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

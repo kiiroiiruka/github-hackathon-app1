@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 // Leaflet関連
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
+import { isDebugModeEnabled } from "@/utils/env";
 import HeaderComponent2 from "../../../components/Header/Header2";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
@@ -397,7 +398,7 @@ const ParkingInfoDisplay = () => {
             </Card>
 
             {/* デバッグ用の現在地調整ボタン */}
-            {nowPosition && (
+            {nowPosition && isDebugModeEnabled() && (
               <Card className="mb-6">
                 <div className="text-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">🔧 デバッグモード</h3>

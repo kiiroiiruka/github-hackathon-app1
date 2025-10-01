@@ -14,6 +14,7 @@ import {
   generateOSRMRejoinRoute,
   generateUltraDenseRejoinRoute,
 } from "@/utils/routeUtils";
+import { isDebugModeEnabled } from "@/utils/env";
 
 // 固定ポップアップのCSSスタイル
 const fixedPopupStyle = `
@@ -1015,6 +1016,7 @@ const CarNavigation = () => {
         return (
           <div className="space-y-4">
             {/* GPS座標操作UI */}
+            {isDebugModeEnabled() && (
             <div className="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-md">
               <h3 className="font-semibold mb-2 text-yellow-800 text-sm">
                 🔧 GPS座標操作（開発用）
@@ -1149,6 +1151,7 @@ const CarNavigation = () => {
                 </button>
               </div>
             </div>
+            )}
 
             {/* 運転メモ */}
             <div className="bg-blue-50 p-4 rounded-lg">

@@ -6,6 +6,7 @@ import ProfileImage from "@/components/ui/ProfileImage";
 import { getFriendRequests, getSentFriendRequests } from "@/firebase";
 import { useFriends } from "@/hooks/useFriends";
 import { useUserUid } from "@/hooks/useUserUid";
+import { showDevButtons } from "@/utils/env";
 
 const FriendPage = () => {
   const navigate = useNavigate();
@@ -178,6 +179,7 @@ const FriendPage = () => {
         </div>
 
         {/* 開発ページボタンのみ残す */}
+        {showDevButtons() && (
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <button
@@ -189,6 +191,7 @@ const FriendPage = () => {
             </button>
           </div>
         </div>
+        )}
 
         {/* --- HomeScreen の中身ここまで --- */}
       </div>

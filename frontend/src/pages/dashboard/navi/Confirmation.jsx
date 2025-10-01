@@ -136,7 +136,7 @@ const Confirmation = () => {
 					)}
 				</Button>
 
-                {/* ルーム作成決定ボタン */}
+				{/* ルーム作成決定ボタン（通話機能あり） */}
 				<Button
 					variant="primary"
 					size="lg"
@@ -352,8 +352,148 @@ const Confirmation = () => {
 					}}
 					icon="🚀"
 				>
-					ルーム作成を決定
+					音声付きでルーム作成を決定
 				</Button>
+
+				{/* 音声なしでルーム作成ボタン（テスト用） */}
+
+				<Button
+					variant="warning"
+					size="lg"
+					className="w-full shadow-lg"
+					onClick={async () => {
+						console.log("🔥 音声なしルーム作成開始");
+						const currentUser = auth.currentUser;
+						if (!currentUser || !currentUser.uid) {
+							alert("ログインが必要です。");
+							return;
+						}
+
+						if (!String(roomName || "").trim()) {
+							alert("ルーム名を入力してください。");
+							return;
+						}
+
+						try {
+							console.log("🔥 Firebase側のみでルーム作成:", roomName);
+
+							// ルームID作成
+							const roomRef = push(ref(rtdb, "rooms"));
+							const roomId = roomRef.key;
+
+							// メンバー一覧: 作成者も含める
+							const members = {
+								[currentUser.uid]: {
+									uid: currentUser.uid,
+									name: currentUser.displayName || "",
+									photoURL: currentUser.photoURL || "",
+									invited: true,
+									accepted: true,
+								},
+							};
+
+							// 選択されたフレンドを追加
+							for (const friend of selectedFriends || []) {
+								members[friend.uid] = {
+									uid: friend.uid,
+									name: friend.name || friend.displayName || "",
+									photoURL: friend.photoURL || "",
+									invited: true,
+									accepted: false,
+								};
+							}
+
+							// ルート情報を構築
+							let routeData = null;
+
+							if (selectedLocation && selectedDeparture) {
+								try {
+									const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=true`;
+
+									const routeResponse = await fetch(apiUrl);
+
+									if (routeResponse.ok) {
+										const routeResult = await routeResponse.json();
+
+										if (routeResult.routes && routeResult.routes.length > 0) {
+											const route = routeResult.routes[0];
+											const distanceKm = Math.round((route.distance / 1000) * 100) / 100;
+											const durationMin = Math.round(route.duration / 60);
+
+											routeData = {
+												departure: {
+													name: selectedDeparture.name || "出発地",
+													coordinates: selectedDeparture.coordinates,
+												},
+												destination: {
+													name: selectedLocation.name || "目的地",
+													coordinates: selectedLocation.coordinates,
+												},
+												routeInfo: {
+													distanceKm,
+													durationMin,
+													arrivalTime: new Date(Date.now() + route.duration * 1000).toISOString(),
+												},
+												polyline: {
+													geometry: route.geometry,
+													steps: route.legs?.[0]?.steps || [],
+													waypoints: routeResult.waypoints || [],
+													summary: {
+														distance: route.distance,
+														duration: route.duration,
+														profile: "driving",
+													},
+												},
+												createdAt: new Date().toISOString(),
+												test: false,
+											};
+
+											console.log("🗺️ ルート情報取得完了:", `${distanceKm}km, ${durationMin}分`);
+										}
+									}
+								} catch (routeError) {
+									console.warn("⚠️ ルート計算に失敗:", routeError);
+								}
+							}
+
+							// Firebaseにルームデータを保存（音声機能なし）
+							const roomData = {
+								name: String(roomName || "").trim(),
+								createdAt: serverTimestamp(),
+								ownerUid: currentUser.uid,
+								ownerName: currentUser.displayName || "",
+								ownerPhotoURL: currentUser.photoURL || "",
+								members,
+								testMode: true, // 音声機能を無効にする
+								routeData: routeData,
+								hasRoute: !!routeData,
+								dailyRoom: null, // Daily.coルームなし
+							};
+
+							await set(roomRef, roomData);
+
+							console.log("✅ 音声なしルーム作成完了:", roomId);
+
+							const routeMessage = routeData
+								? `\n\n🗺️ ルート情報: ${routeData.routeInfo?.distanceKm || 0}km, ${routeData.routeInfo?.durationMin || 0}分`
+								: "\n\n⚠️ ルート情報なし";
+
+							alert(
+								`音声なしルーム「${String(roomName || "").trim()}」を作成しました！\nルームID: ${roomId}${routeMessage}\n\n🔇 音声機能は無効です（テスト用）`
+							);
+
+							// ホーム画面に遷移
+							navigate("/dashboard");
+						} catch (error) {
+							console.error("❌ ルーム作成エラー:", error);
+							alert(`ルーム作成に失敗しました: ${error.message}`);
+						}
+					}}
+					icon="🔥"
+				>
+					音声なしでルーム作成
+				</Button>
+				
 
 				{/* ルーム編集ボタン */}
 				<Button
