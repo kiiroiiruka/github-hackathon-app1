@@ -1651,19 +1651,15 @@ const CarNavigation = () => {
                         sessionId,
                       });
                     } else {
-                      // Google認証からphotoURLを取得を試行
-                      try {
-                        const googlePhotoURL = getGooglePhotoURL(userName);
-                        if (googlePhotoURL) {
-                          photoURL = googlePhotoURL;
-                          console.log("🖼️ Google認証からphotoURLを取得:", {
-                            userName,
-                            photoURL,
-                            sessionId,
-                          });
-                        }
-                      } catch (googleError) {
-                        console.warn("⚠️ Google photoURL取得エラー:", googleError.message);
+                      // 既存のphotoURLMapから取得を試行
+                      const existingPhotoURL = prevPhotoURLs.get(userName) || prevPhotoURLs.get(sessionId);
+                      if (existingPhotoURL && !existingPhotoURL.includes("ui-avatars.com")) {
+                        photoURL = existingPhotoURL;
+                        console.log("🖼️ 既存のphotoURLMapから取得:", {
+                          userName,
+                          photoURL,
+                          sessionId,
+                        });
                       }
                     }
                   }
