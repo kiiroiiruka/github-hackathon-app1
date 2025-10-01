@@ -848,12 +848,38 @@ const CarNavigation = () => {
     };
   }, [currentLocation, routeData, updateRouteStatus]);
 
-  // 初期状態で適当な座標をセット
+  // 初期状態で座標を取得（デバッグモードOFFならGPS、ONならモック）
   useEffect(() => {
     if (!currentLocation) {
-      setInitialMockLocation();
+      if (isDebugModeEnabled()) {
+        // デバッグモードON: モック座標を使用
+        setInitialMockLocation();
+      } else {
+        // デバッグモードOFF: 実際のGPSを取得
+        getCurrentPosition();
+      }
     }
   }, [currentLocation, setInitialMockLocation]);
+
+  // GPS位置情報のリアルタイム取得（デバッグモードOFFの場合）
+  useEffect(() => {
+    if (isDebugModeEnabled()) {
+      // デバッグモードONの場合はGPS自動取得をスキップ
+      return;
+    }
+
+    // 5秒ごとにGPS位置情報を取得
+    const gpsUpdateInterval = setInterval(() => {
+      getCurrentPosition();
+    }, 5000);
+
+    console.log("📍 GPS自動取得開始（5秒間隔）");
+
+    return () => {
+      clearInterval(gpsUpdateInterval);
+      console.log("📍 GPS自動取得停止");
+    };
+  }, []);
 
   // 位置情報共有の開始・停止制御
   useEffect(() => {
