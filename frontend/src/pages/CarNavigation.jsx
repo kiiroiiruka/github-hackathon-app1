@@ -1628,75 +1628,92 @@ const CarNavigation = () => {
         });
 
         // 参加者のphotoURL情報を更新
-        setParticipantPhotoURLs((prevPhotoURLs) => {
-          const newPhotoURLs = new Map(prevPhotoURLs);
-          let hasChanges = false;
+        try {
+          setParticipantPhotoURLs((prevPhotoURLs) => {
+            try {
+              const newPhotoURLs = new Map(prevPhotoURLs);
+              let hasChanges = false;
 
-          uniqueParticipants.forEach((participant) => {
-            const sessionId = participant.session_id;
-            const userName = participant.user_name;
-            let photoURL = participant.photoURL;
+              uniqueParticipants.forEach((participant) => {
+                try {
+                  const sessionId = participant.session_id;
+                  const userName = participant.user_name;
+                  let photoURL = participant.photoURL;
 
-            // photoURLが取得できない場合は、既存のmembers配列から同じ名前のユーザーのphotoURLを取得
-            if ((!photoURL || photoURL === "" || photoURL === null) && userName) {
-              const existingMember = members.find((member) => member.name === userName);
-              if (existingMember?.photoURL && existingMember.photoURL !== "") {
-                photoURL = existingMember.photoURL;
-                console.log("🖼️ 既存のmembers配列からphotoURLを取得:", {
-                  userName,
-                  photoURL,
-                  sessionId,
-                });
-              } else {
-                // Google認証からphotoURLを取得を試行
-                const googlePhotoURL = getGooglePhotoURL(userName);
-                if (googlePhotoURL) {
-                  photoURL = googlePhotoURL;
-                  console.log("🖼️ Google認証からphotoURLを取得:", {
-                    userName,
-                    photoURL,
-                    sessionId,
-                  });
+                  // photoURLが取得できない場合は、既存のmembers配列から同じ名前のユーザーのphotoURLを取得
+                  if ((!photoURL || photoURL === "" || photoURL === null) && userName) {
+                    const existingMember = members.find((member) => member.name === userName);
+                    if (existingMember?.photoURL && existingMember.photoURL !== "") {
+                      photoURL = existingMember.photoURL;
+                      console.log("🖼️ 既存のmembers配列からphotoURLを取得:", {
+                        userName,
+                        photoURL,
+                        sessionId,
+                      });
+                    } else {
+                      // Google認証からphotoURLを取得を試行
+                      try {
+                        const googlePhotoURL = getGooglePhotoURL(userName);
+                        if (googlePhotoURL) {
+                          photoURL = googlePhotoURL;
+                          console.log("🖼️ Google認証からphotoURLを取得:", {
+                            userName,
+                            photoURL,
+                            sessionId,
+                          });
+                        }
+                      } catch (googleError) {
+                        console.warn("⚠️ Google photoURL取得エラー:", googleError.message);
+                      }
+                    }
+                  }
+
+                  // 新しいphotoURLが取得できた場合は更新（生成されたアイコンは除外）
+                  if (
+                    photoURL !== undefined &&
+                    photoURL !== null &&
+                    !photoURL.includes("ui-avatars.com")
+                  ) {
+                    if (newPhotoURLs.get(sessionId) !== photoURL) {
+                      newPhotoURLs.set(sessionId, photoURL);
+                      newPhotoURLs.set(userName, photoURL);
+                      hasChanges = true;
+                      console.log("🖼️ 参加者のphotoURLを更新:", {
+                        sessionId,
+                        userName,
+                        photoURL,
+                        photoURLType: typeof photoURL,
+                      });
+                    }
+                  } else if (photoURL?.includes("ui-avatars.com")) {
+                    console.log("🖼️ 生成されたアイコンは除外:", {
+                      sessionId,
+                      userName,
+                      photoURL,
+                    });
+                  }
+                } catch (participantError) {
+                  console.warn("⚠️ 参加者photoURL処理エラー:", participantError.message);
                 }
-              }
-            }
-
-            // 新しいphotoURLが取得できた場合は更新（生成されたアイコンは除外）
-            if (
-              photoURL !== undefined &&
-              photoURL !== null &&
-              !photoURL.includes("ui-avatars.com")
-            ) {
-              if (newPhotoURLs.get(sessionId) !== photoURL) {
-                newPhotoURLs.set(sessionId, photoURL);
-                newPhotoURLs.set(userName, photoURL);
-                hasChanges = true;
-                console.log("🖼️ 参加者のphotoURLを更新:", {
-                  sessionId,
-                  userName,
-                  photoURL,
-                  photoURLType: typeof photoURL,
-                });
-              }
-            } else if (photoURL?.includes("ui-avatars.com")) {
-              console.log("🖼️ 生成されたアイコンは除外:", {
-                sessionId,
-                userName,
-                photoURL,
               });
+
+              if (hasChanges) {
+                console.log("🖼️ 参加者のphotoURL情報を更新:", {
+                  totalPhotoURLs: newPhotoURLs.size,
+                  updatedPhotoURLs: Array.from(newPhotoURLs.entries()),
+                });
+                return newPhotoURLs;
+              }
+
+              return prevPhotoURLs;
+            } catch (mapError) {
+              console.error("⚠️ photoURLマップ更新エラー:", mapError);
+              return prevPhotoURLs; // エラー時は前の状態を返す
             }
           });
-
-          if (hasChanges) {
-            console.log("🖼️ 参加者のphotoURL情報を更新:", {
-              totalPhotoURLs: newPhotoURLs.size,
-              updatedPhotoURLs: Array.from(newPhotoURLs.entries()),
-            });
-            return newPhotoURLs;
-          }
-
-          return prevPhotoURLs;
-        });
+        } catch (photoURLError) {
+          console.error("⚠️ participantPhotoURLs更新エラー:", photoURLError);
+        }
 
         // 参加者データの安定性を向上させるため、既存のデータと比較して変更がある場合のみ更新
         setCallParticipants((prevParticipants) => {
