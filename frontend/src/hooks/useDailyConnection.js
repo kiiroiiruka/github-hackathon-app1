@@ -34,11 +34,6 @@ export const useDailyConnection = (roomId, dailyRoomUrl, onParticipantUpdate, me
     console.log("🖼️ photoURLマップを更新:", {
       membersCount: members.length,
       mapSize: map.size,
-      members: members.map((m) => ({
-        name: m.name,
-        uid: m.uid,
-        photoURL: m.photoURL,
-      })),
     });
 
     return map;
