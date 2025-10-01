@@ -18,49 +18,25 @@ export const useDailyConnection = (roomId, dailyRoomUrl, onParticipantUpdate, me
   const currentUserUid = useUserUid();
   const participantUpdateTimeoutRef = useRef(null);
 
-  // メンバーデータからphotoURLを取得する関数（useMemoで安定化）
-  const photoURLMap = useMemo(() => {
-    const map = new Map();
-
-    // members配列からphotoURLマップを作成
-    members.forEach((member) => {
-      if (member.name && member.uid) {
-        // 名前とUIDの両方でマッピング
-        map.set(member.name, member.photoURL);
-        map.set(member.uid, member.photoURL);
-      }
-    });
-
-    console.log("🖼️ photoURLマップを更新:", {
-      membersCount: members.length,
-      mapSize: map.size,
-    });
-
-    return map;
-  }, [members]);
-
+  // メンバーデータからphotoURLを取得する関数（useMemoを削除して循環参照を回避）
   const getMemberPhotoURL = useCallback(
     (userName, uid) => {
-      console.log("🔍 getMemberPhotoURL呼び出し:", {
-        userName,
-        uid,
-        mapSize: photoURLMap.size,
-      });
+      // members配列から直接検索（useMemoによる循環参照を回避）
+      let photoURL = null;
 
       // まず名前で検索
-      let photoURL = photoURLMap.get(userName);
+      const memberByName = members.find((m) => m.name === userName);
+      if (memberByName?.photoURL) {
+        photoURL = memberByName.photoURL;
+      }
 
       // 名前で見つからない場合はUIDで検索
       if (!photoURL && uid) {
-        photoURL = photoURLMap.get(uid);
+        const memberByUid = members.find((m) => m.uid === uid);
+        if (memberByUid?.photoURL) {
+          photoURL = memberByUid.photoURL;
+        }
       }
-
-      console.log("🔍 getMemberPhotoURL結果:", {
-        userName,
-        uid,
-        foundPhotoURL: !!photoURL,
-        photoURL: photoURL,
-      });
 
       // メンバーが見つからない場合は、デフォルトのアバターURLを返す
       if (!photoURL && userName) {
@@ -69,22 +45,14 @@ export const useDailyConnection = (roomId, dailyRoomUrl, onParticipantUpdate, me
         if (userName.length > 20 || /^[a-zA-Z0-9_-]{20,}$/.test(userName)) {
           // 長いIDのような文字列の場合は、最初の文字を使用
           displayName = userName.charAt(0).toUpperCase();
-          console.log("🖼️ 長いID文字列を検出、短縮表示名を使用:", {
-            userName,
-            displayName,
-          });
         }
 
-        console.log("🖼️ メンバーが見つからないため、デフォルトアバターを使用:", {
-          userName,
-          displayName,
-        });
         return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random&color=fff&size=96`;
       }
 
       return photoURL;
     },
-    [photoURLMap]
+    [members]
   );
 
   // 通話時間の更新
