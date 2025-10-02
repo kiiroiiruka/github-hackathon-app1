@@ -456,7 +456,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-6">
       {/* 音声制御ボタンのみ表示（通話時間表示付き） */}
-      {true && (
+      {isJoined && (
         <div className="flex flex-col items-center gap-4">
           {/* 通話時間表示 */}
           <div className="p-3 bg-blue-50 rounded-lg">
