@@ -455,31 +455,11 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center p-6">
-      {/* 音声通話のメイン表示 */}
-      <div className="text-center mb-8">
-        <div className="w-32 h-32 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center animate-pulse">
-          <svg
-            className="w-16 h-16 text-blue-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-            />
-          </svg>
-        </div>
-
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">🎤 音声通話中</h2>
-        <p className="text-gray-600 mb-4">{roomName}</p>
-        <p className="text-sm text-gray-500 mb-4">同じルームのメンバーと音声で会話できます</p>
-
-        {/* 通話時間表示 */}
-        {isJoined && (
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+      {/* 音声制御ボタンのみ表示（通話時間表示付き） */}
+      {true && (
+        <div className="flex flex-col items-center gap-4">
+          {/* 通話時間表示 */}
+          <div className="p-3 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-600">
               通話時間: <span className="font-mono font-semibold text-lg">{formattedDuration}</span>
             </p>
@@ -488,32 +468,30 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
               <span className="text-sm text-red-600">通話中</span>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* 音声制御ボタン */}
-      {isJoined && (
-        <div className="flex gap-4 mb-6">
-          {/* マイク切り替えボタン */}
-          <button
-            type="button"
-            onClick={handleToggleMicrophone}
-            className={`px-6 py-3 rounded-full shadow-lg transition-colors ${
-              dailyMicrophoneEnabled
-                ? "bg-green-500 hover:bg-green-600 text-white"
-                : "bg-red-500 hover:bg-red-600 text-white"
-            }`}
-            title={dailyMicrophoneEnabled ? "マイクをミュート" : "マイクを有効化"}
-          >
-            {dailyMicrophoneEnabled ? "🎤 マイクON" : "🔇 マイクOFF"}
-          </button>
-          <button
-            type="button"
-            onClick={handleLeaveCall}
-            className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
-          >
-            通話を終了
-          </button>
+          {/* 音声制御ボタン */}
+          <div className="flex gap-4">
+            {/* マイク切り替えボタン */}
+            <button
+              type="button"
+              onClick={handleToggleMicrophone}
+              className={`px-6 py-3 rounded-full shadow-lg transition-colors ${
+                dailyMicrophoneEnabled
+                  ? "bg-green-500 hover:bg-green-600 text-white"
+                  : "bg-red-500 hover:bg-red-600 text-white"
+              }`}
+              title={dailyMicrophoneEnabled ? "マイクをミュート" : "マイクを有効化"}
+            >
+              {dailyMicrophoneEnabled ? "🎤 マイクON" : "🔇 マイクOFF"}
+            </button>
+            <button
+              type="button"
+              onClick={handleLeaveCall}
+              className="px-6 py-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+            >
+              通話を終了
+            </button>
+          </div>
         </div>
       )}
 
