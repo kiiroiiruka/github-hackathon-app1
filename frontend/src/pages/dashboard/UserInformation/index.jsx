@@ -61,7 +61,7 @@ function UserInformation() {
 
 	// 一言メッセージ編集開始
 	const handleStartEditMessage = () => {
-		setMessageInput(user?.message || "");
+		setMessageInput(user?.userShortMessage || "");
 		setIsEditingMessage(true);
 	};
 
@@ -203,7 +203,7 @@ function UserInformation() {
 								</div>
 							) : (
 								<p className="text-sm text-gray-700 whitespace-pre-line">
-									{user?.message || "よろしくお願いします!"}
+									{user?.userShortMessage || "よろしくお願いします!"}
 								</p>
 							)}
 						</div>
