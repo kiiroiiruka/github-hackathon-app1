@@ -199,9 +199,16 @@ const Confirmation = () => {
               if (selectedLocation && selectedDeparture) {
                 // ルート計算（OSRM API使用）
                 try {
+                  console.log("🗺️ ルート計算開始:", {
+                    departure: selectedDeparture,
+                    destination: selectedLocation,
+                  });
+                  
                   const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=true`;
+                  console.log("🗺️ OSRM API URL:", apiUrl);
 
                   const routeResponse = await fetch(apiUrl);
+                  console.log("🗺️ OSRM API response status:", routeResponse.status);
 
                   if (routeResponse.ok) {
                     const routeResult = await routeResponse.json();
@@ -408,9 +415,16 @@ const Confirmation = () => {
 
 							if (selectedLocation && selectedDeparture) {
 								try {
+									console.log("🗺️ ルート計算開始（音声なし）:", {
+										departure: selectedDeparture,
+										destination: selectedLocation,
+									});
+									
 									const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=true`;
+									console.log("🗺️ OSRM API URL（音声なし）:", apiUrl);
 
 									const routeResponse = await fetch(apiUrl);
+									console.log("🗺️ OSRM API response status（音声なし）:", routeResponse.status);
 
 									if (routeResponse.ok) {
 										const routeResult = await routeResponse.json();

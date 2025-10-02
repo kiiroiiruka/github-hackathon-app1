@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	build: {
 		rollupOptions: {
 			output: {
@@ -26,6 +26,12 @@ export default defineConfig({
 		tailwindcss(),
 		VitePWA({
 			registerType: "autoUpdate",
+			// 開発環境ではService Workerを完全に無効化（本番環境でのみ有効）
+			disable: mode === 'development',
+			devOptions: {
+				enabled: false,
+				type: 'module',
+			},
 			includeAssets: ["carIcon.png", "vite.svg"],
 			manifest: {
 				name: "DriveLink",
@@ -58,12 +64,17 @@ export default defineConfig({
 			workbox: {
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
 				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB制限
+				// navigateFallbackを無効化して、外部APIリクエストを確実にネットワーク経由にする
+				navigateFallback: null,
+				navigateFallbackDenylist: [/^\/api/, /router\.project-osrm\.org/, /nominatim\.openstreetmap\.org/],
 				runtimeCaching: [
 					// OSRM API（ルート計算）- NetworkOnlyでキャッシュを使用しない
 					{
 						urlPattern: /^https:\/\/router\.project-osrm\.org\/.*/i,
 						handler: "NetworkOnly",
-						options: {},
+						options: {
+							networkTimeoutSeconds: 30,
+						},
 					},
 					// Nominatim API（住所検索）- StaleWhileRevalidateで軽量キャッシュ
 					{
@@ -121,4 +132,4 @@ export default defineConfig({
 			"@": fileURLToPath(new URL("./src", import.meta.url)),
 		},
 	},
-});
+}));

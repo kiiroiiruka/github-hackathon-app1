@@ -1111,14 +1111,9 @@ const CarNavigation = () => {
     console.log("🔄 休憩地点を解除し、元の到着時刻に戻しました");
   };
 
-  // 休憩タブ時は紫ルートの維持と再計算（4秒）
+  // 休憩地点ルートの維持と再計算（4秒）
   useEffect(() => {
-    if (activeTab !== "rest") {
-      // 休憩タブ以外では紫ルートをクリア
-      setRestRoute(null);
-      return;
-    }
-    
+    // 休憩地点が設定されていない場合はルートをクリア
     if (!restPoint || !currentLocation) {
       setRestRoute(null);
       return;
@@ -1156,7 +1151,7 @@ const CarNavigation = () => {
     // 4秒間隔で定期チェック
     const id = setInterval(tick, 4000);
     return () => clearInterval(id);
-  }, [activeTab, restPoint, currentLocation, restRoute, computeRestRoute]);
+  }, [restPoint, currentLocation, restRoute, computeRestRoute]);
 
   // タブコンテンツのレンダリング
   const renderTabContent = () => {
