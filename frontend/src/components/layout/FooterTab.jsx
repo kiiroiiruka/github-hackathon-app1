@@ -23,7 +23,7 @@ function FooterTab({ value, onChange, tabs }) {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 h-16 border-t border-gray-200 bg-white shadow-sm"
+      className="fixed bottom-0 inset-x-0 h-16 border-t border-gray-200 bg-white shadow-sm z-[1000]"
       style={{
         paddingBottom: "env(safe-area-inset-bottom)",
         height: "calc(4rem + env(safe-area-inset-bottom))",

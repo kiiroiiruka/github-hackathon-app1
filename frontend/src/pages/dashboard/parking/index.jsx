@@ -466,11 +466,11 @@ const ParkingInfoDisplay = () => {
                   <p className="text-gray-600 text-sm">現在地から駐車場へのルート</p>
                 </div>
 
-                <div className="h-64 rounded-lg overflow-hidden shadow-md">
+                <div className="h-64 rounded-lg overflow-hidden shadow-md relative z-0">
                   <MapContainer
                     center={nowPosition}
                     zoom={14}
-                    style={{ height: "100%", width: "100%" }}
+                    style={{ height: "100%", width: "100%", position: "relative", zIndex: 0 }}
                     attributionControl={true} // ライセンス表記を表示（法的に必要）
                   >
                     <TileLayer
