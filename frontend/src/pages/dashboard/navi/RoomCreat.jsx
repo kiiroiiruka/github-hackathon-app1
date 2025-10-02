@@ -245,6 +245,7 @@ const RoomCreat = () => {
                 navigate("/dashboard/navi/route", {
                   state: {
                     selectedLocation,
+                    selectedDeparture,
                     returnTo: "/dashboard/navi/room",
                   },
                 })

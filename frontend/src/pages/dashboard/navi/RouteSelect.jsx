@@ -37,6 +37,10 @@ const RouteSelect = () => {
       setSelectedDestination(location.state.selectedLocation);
       console.log("RouteSelect - 初期選択された目的地:", location.state.selectedLocation);
     }
+    if (location.state?.selectedDeparture) {
+      setSelectedDeparture(location.state.selectedDeparture);
+      console.log("RouteSelect - 初期選択された出発地:", location.state.selectedDeparture);
+    }
   }, [location.state]);
 
   // 場所タイプに応じた選択処理
@@ -288,7 +292,9 @@ const RouteSelect = () => {
                       );
                     }
 
-                    navigate("/dashboard/navi", {
+                    // returnToが指定されていればそちらに、なければ/dashboard/naviに遷移
+                    const targetPath = location.state?.returnTo || "/dashboard/navi";
+                    navigate(targetPath, {
                       state: {
                         selectedLocation: selectedDestination,
                         selectedDeparture: selectedDeparture,

@@ -635,6 +635,7 @@ const NaviCreateScreen = () => {
                     navigate("/dashboard/navi/route", {
                       state: {
                         selectedLocation,
+                        selectedDeparture,
                         returnTo: "/dashboard/navi",
                       },
                     })
