@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ProfileImage from "../ui/ProfileImage";
 
 const FriendList = ({
   friends,

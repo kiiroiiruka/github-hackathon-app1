@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getUser, sendFriendRequest } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
 import HeaderComponent2 from "../../../components/Header/Header2";
+import ProfileImage from "../../../components/ui/ProfileImage";
 
 const FriendsAddScreen = () => {
   const [friendIdInput, setFriendIdInput] = useState("");
@@ -110,68 +111,69 @@ const FriendsAddScreen = () => {
     }
   };
 
-  return (
-    <div>
-      <HeaderComponent2 title="友達追加" />
-      <div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
-        {/* 自分のユーザー情報表示セクション */}
-        {currentUser && (
-          <div className="bg-blue-50 rounded-lg shadow-md p-4 mb-6">
-            <h2 className="text-lg font-semibold mb-3 text-blue-800">あなたのユーザー情報</h2>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                  {currentUser.photoURL ? (
-                    <img
-                      src={currentUser.photoURL}
-                      alt={currentUser.displayName}
-                      className="w-12 h-12 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-gray-600 text-lg">
-                      {currentUser.displayName?.charAt(0) || "?"}
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate">
-                    {currentUser.displayName || "ユーザー"}
-                  </p>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <p className="text-sm text-gray-600 flex-shrink-0">あなたのユーザーID:</p>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-mono bg-gray-100 px-2 py-1 rounded text-blue-600 text-sm truncate max-w-[200px] sm:max-w-none">
-                        {currentUserId}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(currentUserId);
-                          alert("ユーザーIDをコピーしました！");
-                        }}
-                        className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded transition-colors flex-shrink-0"
-                        title="ユーザーIDをコピー"
-                      >
-                        コピー
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {currentUser.userShortMessage && (
-                <p className="text-sm text-blue-700 italic truncate">
-                  一言メッセージ: "{currentUser.userShortMessage}"
-                </p>
-              )}
-              {currentUser.createdAt && (
-                <p className="text-xs text-gray-500">
-                  アカウント作成日:{" "}
-                  {new Date(currentUser.createdAt.toDate()).toLocaleDateString("ja-JP")}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
+	return (
+		<div>
+			<HeaderComponent2 title="友達追加" />
+			<div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
+				{/* 自分のユーザー情報表示セクション */}
+				{currentUser && (
+					<div className="bg-blue-50 rounded-lg shadow-md p-4 mb-6">
+						<h2 className="text-lg font-semibold mb-3 text-blue-800">
+							あなたのユーザー情報
+						</h2>
+						<div className="space-y-2">
+							<div className="flex items-center gap-3">
+								<div className="w-12 h-12 rounded-full overflow-hidden">
+									<ProfileImage
+										src={currentUser.photoURL}
+										alt={currentUser.displayName}
+										className="w-12 h-12 rounded-full text-lg"
+										fallbackText={currentUser.displayName?.charAt(0) || "?"}
+									/>
+								</div>
+								<div className="flex-1 min-w-0">
+									<p className="font-medium text-gray-900 truncate">
+										{currentUser.displayName || "ユーザー"}
+									</p>
+									<div className="flex flex-col sm:flex-row sm:items-center gap-2">
+										<p className="text-sm text-gray-600 flex-shrink-0">
+											あなたのユーザーID:
+										</p>
+										<div className="flex items-center gap-2 min-w-0">
+											<span className="font-mono bg-gray-100 px-2 py-1 rounded text-blue-600 text-sm truncate max-w-[200px] sm:max-w-none">
+												{currentUserId}
+											</span>
+											<button
+												type="button"
+												onClick={() => {
+													navigator.clipboard.writeText(currentUserId);
+													alert("ユーザーIDをコピーしました！");
+												}}
+												className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded transition-colors flex-shrink-0"
+												title="ユーザーIDをコピー"
+											>
+												コピー
+											</button>
+										</div>
+									</div>
+								</div>
+							</div>
+							{currentUser.userShortMessage && (
+								<p className="text-sm text-blue-700 italic truncate">
+									一言メッセージ: "{currentUser.userShortMessage}"
+								</p>
+							)}
+							{currentUser.createdAt && (
+								<p className="text-xs text-gray-500">
+									アカウント作成日:{" "}
+									{new Date(currentUser.createdAt.toDate()).toLocaleDateString(
+										"ja-JP",
+									)}
+								</p>
+							)}
+						</div>
+					</div>
+				)}
 
         {/* 友達リクエスト送信セクション */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
@@ -189,23 +191,18 @@ const FriendsAddScreen = () => {
             />
           </div>
 
-          {/* 🔹 相手が見つかったら表示 */}
-          {targetUser && (
-            <div className="mt-3 p-3 bg-blue-50 rounded-md flex items-center gap-3">
-              {/* アイコン */}
-              <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                {targetUser.photoURL ? (
-                  <img
-                    src={targetUser.photoURL}
-                    alt={targetUser.displayName}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="text-gray-600 text-lg">
-                    {targetUser.displayName?.charAt(0) || "?"}
-                  </span>
-                )}
-              </div>
+					{/* 🔹 相手が見つかったら表示 */}
+					{targetUser && (
+						<div className="mt-3 p-3 bg-blue-50 rounded-md flex items-center gap-3">
+							{/* アイコン */}
+							<div className="w-12 h-12 rounded-full overflow-hidden">
+								<ProfileImage
+									src={targetUser.photoURL}
+									alt={targetUser.displayName}
+									className="w-12 h-12 rounded-full text-lg"
+									fallbackText={targetUser.displayName?.charAt(0) || "?"}
+								/>
+							</div>
 
               {/* ユーザー情報 */}
               <div className="flex-1 min-w-0">
