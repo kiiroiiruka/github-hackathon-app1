@@ -72,9 +72,6 @@ export default defineConfig(({ mode }) => ({
 					{
 						urlPattern: /^https:\/\/router\.project-osrm\.org\/.*/i,
 						handler: "NetworkOnly",
-						options: {
-							networkTimeoutSeconds: 30,
-						},
 					},
 					// Nominatim API（住所検索）- StaleWhileRevalidateで軽量キャッシュ
 					{
