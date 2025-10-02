@@ -44,10 +44,12 @@ const Confirmation = () => {
 								{selectedDeparture && (
 									<div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
 										<div className="flex items-center gap-2 mb-1">
-											<span className="text-lg">�</span>
+											<span className="text-lg">🚀</span>
 											<span className="font-medium text-green-800">出発地</span>
 										</div>
-                    <p className="text-green-700 font-medium">{selectedDeparture.name}</p>
+										<p className="text-green-700 font-medium">
+											{selectedDeparture.name || selectedDeparture.display_name || "住所情報なし"}
+										</p>
 										<p className="text-sm text-green-600">
 											緯度: {selectedDeparture.coordinates[0].toFixed(4)}, 経度:{" "}
 											{selectedDeparture.coordinates[1].toFixed(4)}
@@ -61,7 +63,9 @@ const Confirmation = () => {
 											<span className="text-lg">🎯</span>
 											<span className="font-medium text-blue-800">目的地</span>
 										</div>
-                    <p className="text-blue-700 font-medium">{selectedLocation.name}</p>
+										<p className="text-blue-700 font-medium">
+											{selectedLocation.name || selectedLocation.display_name || "住所情報なし"}
+										</p>
 										<p className="text-sm text-blue-600">
 											緯度: {selectedLocation.coordinates[0].toFixed(4)}, 経度:{" "}
 											{selectedLocation.coordinates[1].toFixed(4)}
