@@ -974,7 +974,7 @@ const CarNavigationAdvanced = () => {
                 scrollWheelZoom={false} // マウスホイールズームを無効化
                 boxZoom={false} // ボックスズームを無効化
                 keyboard={false} // キーボード操作を無効化
-                attributionControl={false} // アトリビューション表示を無効化
+                attributionControl={true} // ライセンス表記を表示（法的に必要）
               >
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

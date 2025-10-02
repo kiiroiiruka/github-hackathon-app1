@@ -471,10 +471,11 @@ const ParkingInfoDisplay = () => {
                     center={nowPosition}
                     zoom={14}
                     style={{ height: "100%", width: "100%" }}
+                    attributionControl={true} // ライセンス表記を表示（法的に必要）
                   >
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     {/* 現在地と駐車場の位置を比較して適切に表示 */}
                     {(() => {

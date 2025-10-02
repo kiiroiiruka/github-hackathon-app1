@@ -347,8 +347,12 @@ const RouteScreen = () => {
                   [46.0, 146.0],
                 ]} // 日本の境界（沖縄から北海道まで）
                 maxBoundsViscosity={1.0} // 境界を超えないようにする
+                attributionControl={true} // ライセンス表記を表示（法的に必要）
               >
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
 
                 {/* 出発地マーカー */}
                 {departure && (

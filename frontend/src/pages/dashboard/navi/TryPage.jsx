@@ -76,8 +76,16 @@ const TryPage = () => {
             }}
           />
 
-          <MapContainer center={position} zoom={14} style={{ height: "100%", width: "100%" }}>
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapContainer
+            center={position}
+            zoom={14}
+            style={{ height: "100%", width: "100%" }}
+            attributionControl={true} // ライセンス表記を表示（法的に必要）
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
 
             {/* 現在地マーカー */}
             <Marker position={position} icon={currentLocationIcon}>

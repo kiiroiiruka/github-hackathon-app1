@@ -1940,7 +1940,7 @@ const CarNavigation = () => {
                 scrollWheelZoom={!isLocationFixed} // 現在地固定OFF時のみマウスホイールズームを有効化
                 boxZoom={!isLocationFixed} // 現在地固定OFF時のみボックスズームを有効化
                 keyboard={!isLocationFixed} // 現在地固定OFF時のみキーボード操作を有効化
-                attributionControl={false} // アトリビューション表示を無効化
+                attributionControl={true} // ライセンス表記を表示（法的に必要）
               >
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
