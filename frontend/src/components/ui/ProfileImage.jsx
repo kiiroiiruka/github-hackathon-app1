@@ -33,14 +33,14 @@ const ProfileImage = ({
 	return (
 		<div className={`relative ${className}`}>
 			{isLoading && (
-				<div className="absolute inset-0 flex items-center justify-center bg-gray-200 animate-pulse">
+				<div className="absolute inset-0 flex items-center justify-center bg-gray-200 animate-pulse rounded-full">
 					<div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
 				</div>
 			)}
 			<img
 				src={src}
 				alt={alt}
-				className={`w-full h-full object-cover ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-200`}
+				className={`w-full h-full object-cover rounded-full ${isLoading ? "opacity-0" : "opacity-100"} transition-opacity duration-200`}
 				onError={handleError}
 				onLoad={handleLoad}
 				loading="lazy"

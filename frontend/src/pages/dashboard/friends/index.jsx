@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getUser, sendFriendRequest } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
 import HeaderComponent2 from "../../../components/Header/Header2";
+import ProfileImage from "../../../components/ui/ProfileImage";
 
 const FriendsAddScreen = () => {
 	const [friendIdInput, setFriendIdInput] = useState("");
@@ -125,18 +126,13 @@ const FriendsAddScreen = () => {
 						</h2>
 						<div className="space-y-2">
 							<div className="flex items-center gap-3">
-								<div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-									{currentUser.photoURL ? (
-										<img
-											src={currentUser.photoURL}
-											alt={currentUser.displayName}
-											className="w-12 h-12 rounded-full object-cover"
-										/>
-									) : (
-										<span className="text-gray-600 text-lg">
-											{currentUser.displayName?.charAt(0) || "?"}
-										</span>
-									)}
+								<div className="w-12 h-12 rounded-full overflow-hidden">
+									<ProfileImage
+										src={currentUser.photoURL}
+										alt={currentUser.displayName}
+										className="w-12 h-12 rounded-full text-lg"
+										fallbackText={currentUser.displayName?.charAt(0) || "?"}
+									/>
 								</div>
 								<div className="flex-1 min-w-0">
 									<p className="font-medium text-gray-900 truncate">
@@ -202,18 +198,13 @@ const FriendsAddScreen = () => {
 					{targetUser && (
 						<div className="mt-3 p-3 bg-blue-50 rounded-md flex items-center gap-3">
 							{/* アイコン */}
-							<div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-								{targetUser.photoURL ? (
-									<img
-										src={targetUser.photoURL}
-										alt={targetUser.displayName}
-										className="w-12 h-12 rounded-full object-cover"
-									/>
-								) : (
-									<span className="text-gray-600 text-lg">
-										{targetUser.displayName?.charAt(0) || "?"}
-									</span>
-								)}
+							<div className="w-12 h-12 rounded-full overflow-hidden">
+								<ProfileImage
+									src={targetUser.photoURL}
+									alt={targetUser.displayName}
+									className="w-12 h-12 rounded-full text-lg"
+									fallbackText={targetUser.displayName?.charAt(0) || "?"}
+								/>
 							</div>
 
 							{/* ユーザー情報 */}
