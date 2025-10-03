@@ -286,7 +286,7 @@ const CarNavigation = () => {
     console.log("🎯 初期適当座標設定:", initialLocation);
   }, []);
 
-  // GPS位置情報の取得
+  // GPS位置情報の取得（初回用）
   const getCurrentPosition = () => {
     if (!navigator.geolocation) {
       console.log("GPS not supported");
@@ -299,7 +299,7 @@ const CarNavigation = () => {
         const newLocation = { lat: latitude, lng: longitude };
         setCurrentLocation(newLocation);
         setIsUsingMockLocation(false);
-        console.log("📍 GPS位置取得:", { latitude, longitude });
+        console.log("📍 GPS位置取得（初回）:", { latitude, longitude });
 
         // Firebaseに位置情報を送信
         sendLocationToFirebase(newLocation);
@@ -312,7 +312,7 @@ const CarNavigation = () => {
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 60000,
+        maximumAge: 0, // キャッシュを使わずに常に最新の位置を取得
       }
     );
   };
@@ -337,10 +337,23 @@ const CarNavigation = () => {
     }
   }, [roomId, currentUserUid, isUsingMockLocation]);
 
-  // 5秒間隔でGPS位置情報を送信
+  // リアルタイムGPS位置情報監視を開始（1秒間隔でFirebaseに送信）
   const startLocationSharing = useCallback(() => {
+    // デバッグモードの場合はGPS監視をスキップ
+    if (isDebugModeEnabled()) {
+      console.log("📍 デバッグモード: GPS監視をスキップ");
+      return;
+    }
+
+    // 既存のGPS監視を停止
     if (gpsIntervalRef.current) {
-      clearInterval(gpsIntervalRef.current);
+      navigator.geolocation.clearWatch(gpsIntervalRef.current);
+      gpsIntervalRef.current = null;
+    }
+
+    if (!navigator.geolocation) {
+      console.log("GPS not supported");
+      return;
     }
 
     // 初回送信
@@ -348,20 +361,50 @@ const CarNavigation = () => {
       sendLocationToFirebase(currentLocation);
     }
 
-    // 5秒間隔で送信
-    gpsIntervalRef.current = setInterval(() => {
-      if (currentLocation) {
-        sendLocationToFirebase(currentLocation);
-      }
-    }, 5000);
+    // リアルタイムGPS監視を開始（watchPositionを使用）
+    let lastSendTime = 0;
+    const SEND_INTERVAL = 1000; // 1秒間隔で送信（デバウンス）
 
-    console.log("🔄 GPS位置情報共有開始（5秒間隔）");
-  }, [currentLocation]);
+    gpsIntervalRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        const newLocation = { lat: latitude, lng: longitude };
+        
+        // 位置情報を即座に反映
+        setCurrentLocation(newLocation);
+        setIsUsingMockLocation(false);
+        
+        // デバウンス処理：前回送信から1秒以上経過している場合のみFirebaseに送信
+        const now = Date.now();
+        if (now - lastSendTime >= SEND_INTERVAL) {
+          sendLocationToFirebase(newLocation);
+          lastSendTime = now;
+          console.log("📍 GPS位置リアルタイム更新:", { 
+            latitude, 
+            longitude, 
+            accuracy: `${accuracy.toFixed(1)}m`
+          });
+        }
+      },
+      (error) => {
+        console.error("❌ GPS監視エラー:", error.message);
+        // GPSエラーの場合はモック位置を使用
+        setIsUsingMockLocation(true);
+      },
+      {
+        enableHighAccuracy: true, // 高精度モード
+        timeout: 5000, // タイムアウト5秒
+        maximumAge: 0, // キャッシュを使わずに常に最新の位置を取得
+      }
+    );
+
+    console.log("🔄 リアルタイムGPS監視開始（1秒間隔でFirebase送信）");
+  }, [currentLocation, sendLocationToFirebase]);
 
   // 位置情報共有を停止
   const stopLocationSharing = useCallback(() => {
     if (gpsIntervalRef.current) {
-      clearInterval(gpsIntervalRef.current);
+      navigator.geolocation.clearWatch(gpsIntervalRef.current);
       gpsIntervalRef.current = null;
     }
     console.log("⏹️ GPS位置情報共有停止");
@@ -861,38 +904,24 @@ const CarNavigation = () => {
     }
   }, [currentLocation, setInitialMockLocation]);
 
-  // GPS位置情報のリアルタイム取得（デバッグモードOFFの場合）
-  useEffect(() => {
-    if (isDebugModeEnabled()) {
-      // デバッグモードONの場合はGPS自動取得をスキップ
-      return;
-    }
-
-    // 5秒ごとにGPS位置情報を取得
-    const gpsUpdateInterval = setInterval(() => {
-      getCurrentPosition();
-    }, 5000);
-
-    console.log("📍 GPS自動取得開始（5秒間隔）");
-
-    return () => {
-      clearInterval(gpsUpdateInterval);
-      console.log("📍 GPS自動取得停止");
-    };
-  }, []);
+  // 削除: GPS自動取得は不要（watchPositionがリアルタイムで更新するため）
+  // 以前は5秒間隔でgetCurrentPositionを呼び出していたが、
+  // startLocationSharingのwatchPositionに統合されました
 
   // 位置情報共有の開始・停止制御
   useEffect(() => {
-    if (roomId && currentUserUid && currentLocation) {
-      // 位置情報共有を開始
-      startLocationSharing();
+    if (roomId && currentUserUid) {
+      // リアルタイムGPS監視を開始（デバッグモードOFFの場合のみ）
+      if (!isDebugModeEnabled()) {
+        startLocationSharing();
+      }
     }
 
     // クリーンアップ
     return () => {
       stopLocationSharing();
     };
-  }, [roomId, currentUserUid, currentLocation, startLocationSharing, stopLocationSharing]);
+  }, [roomId, currentUserUid, startLocationSharing, stopLocationSharing]);
 
   // 固定ポップアップのCSSスタイルを適用
   useEffect(() => {
@@ -2111,7 +2140,7 @@ const CarNavigation = () => {
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-gray-400 mt-1">5秒間隔で更新中</div>
+                        <div className="text-xs text-gray-400 mt-1">リアルタイムGPS更新中</div>
                       </div>
                     </Popup>
                   </Marker>
