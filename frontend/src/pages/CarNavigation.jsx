@@ -1594,7 +1594,7 @@ const CarNavigation = () => {
                     return;
                   }
 
-                  const url = `https://router.project-osrm.org/route/v1/driving/${dep.coordinates[1]},${dep.coordinates[0]};${dst.coordinates[1]},${dst.coordinates[0]}?overview=full&geometries=geojson&steps=false`;
+                  const url = `https://router.project-osrm.org/route/v1/driving/${dep.coordinates[1]},${dep.coordinates[0]};${dst.coordinates[1]},${dst.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
                   console.log("🌐 OSRM URL(欠落フォールバック)", url);
                   const res = await fetch(url);
                   console.log("🌐 OSRM status(欠落フォールバック)", res.status, res.ok);
@@ -1691,7 +1691,7 @@ const CarNavigation = () => {
                   return;
                 }
 
-                const url = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=false`;
+                const url = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
                 console.log("🌐 OSRM URL(localStorageフォールバック)", url);
                 const res = await fetch(url);
                 console.log("🌐 OSRM status(localStorageフォールバック)", res.status, res.ok);
