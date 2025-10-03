@@ -147,8 +147,15 @@ const RouteScreen = () => {
       localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(location.state.selectedLocation));
     }
 
-    // 出発地点の設定
-    if (location.state?.departure) {
+    // 出発地点の設定（selectedDepartureを優先）
+    if (location.state?.selectedDeparture) {
+      setDeparture(location.state.selectedDeparture.coordinates);
+      setDepartureName(location.state.selectedDeparture.name || "");
+      
+      // 🆕 localStorageにも保存（selectedDepartureオブジェクトをそのまま保存）
+      localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(location.state.selectedDeparture));
+      console.log("✅ RouteScreen - 出発地をlocalStorageに保存:", location.state.selectedDeparture);
+    } else if (location.state?.departure) {
       setDeparture(location.state.departure);
       setDepartureName(location.state.departureName || "");
       
@@ -158,12 +165,7 @@ const RouteScreen = () => {
         coordinates: location.state.departure,
       };
       localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(departureData));
-    } else if (location.state?.selectedDeparture) {
-      setDeparture(location.state.selectedDeparture.coordinates);
-      setDepartureName(location.state.selectedDeparture.name || "");
-      
-      // 🆕 localStorageにも保存
-      localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(location.state.selectedDeparture));
+      console.log("✅ RouteScreen - 出発地をlocalStorageに保存:", departureData);
     }
     // デフォルト出発地は設定しない（GPS自動取得に任せる）
   }, [location.state]);

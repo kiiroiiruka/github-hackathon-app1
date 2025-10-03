@@ -87,7 +87,7 @@ const LocationSearch = ({
               <span className="text-sm font-medium text-gray-700">出発地点</span>
             </div>
             <p className="text-sm truncate">
-              {selectedDeparture ? selectedDeparture.name : "未設定"}
+              {selectedDeparture ? selectedDeparture.name : "未設定(現在地から)"}
             </p>
             {selectedDeparture && (
               <button

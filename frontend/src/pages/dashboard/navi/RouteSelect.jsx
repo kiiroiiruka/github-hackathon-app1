@@ -35,15 +35,40 @@ const RouteSelect = () => {
     fetchSearchHistory();
   }, []);
 
-  // 既に選択された場所がある場合（RoomCreatから）
+  // 🆕 Local Storage の値のみを初期値として使用（location.state を無視）
   useEffect(() => {
-    if (location.state?.selectedLocation) {
-      setSelectedDestination(location.state.selectedLocation);
-      console.log("RouteSelect - 初期選択された目的地:", location.state.selectedLocation);
+    console.log("🔍 RouteSelect - location.state の内容確認:", location.state);
+    console.log("🔍 RouteSelect - location.state の詳細:", {
+      hasState: !!location.state,
+      selectedLocation: location.state?.selectedLocation,
+      selectedDeparture: location.state?.selectedDeparture,
+      allKeys: location.state ? Object.keys(location.state) : [],
+      // バグ調査用: 全ての値をログ出力
+      fullState: location.state
+    });
+
+    console.log("🔄 RouteSelect - Local Storage のみから初期値を設定");
+    
+    // selectedDeparture を Local Storage から読み込み
+    const savedDeparture = localStorage.getItem("roomCreat_selectedDeparture");
+    if (savedDeparture) {
+      const parsedDeparture = JSON.parse(savedDeparture);
+      console.log("🔄 RouteSelect - selectedDeparture を Local Storage から読み込み:", parsedDeparture);
+      setSelectedDeparture(parsedDeparture);
+    } else {
+      console.log("🔄 RouteSelect - selectedDeparture は Local Storage に保存されていません");
+      setSelectedDeparture(null);
     }
-    if (location.state?.selectedDeparture) {
-      setSelectedDeparture(location.state.selectedDeparture);
-      console.log("RouteSelect - 初期選択された出発地:", location.state.selectedDeparture);
+    
+    // selectedLocation を Local Storage から読み込み
+    const savedLocation = localStorage.getItem("roomCreat_selectedLocation");
+    if (savedLocation) {
+      const parsedLocation = JSON.parse(savedLocation);
+      console.log("🔄 RouteSelect - selectedLocation を Local Storage から読み込み:", parsedLocation);
+      setSelectedDestination(parsedLocation);
+    } else {
+      console.log("🔄 RouteSelect - selectedLocation は Local Storage に保存されていません");
+      setSelectedDestination(null);
     }
   }, [location.state]);
 
@@ -346,16 +371,23 @@ const RouteSelect = () => {
               {selectedDeparture && selectedDestination && (
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    console.log("🧭 RouteSelect - ルート確認画面に遷移:", {
+                      selectedDeparture,
+                      selectedDestination,
+                    });
                     navigate("/dashboard/navi/route-screen", {
                       state: {
                         destination: selectedDestination.coordinates,
                         destinationName: selectedDestination.name,
                         departure: selectedDeparture.coordinates,
                         departureName: selectedDeparture.name,
+                        // 🆕 オブジェクトそのものも渡す（RouteScreen.jsx で優先使用）
+                        selectedDeparture: selectedDeparture,
+                        selectedDestination: selectedDestination,
                       },
-                    })
-                  }
+                    });
+                  }}
                   className="flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                 >
                   <span className="text-2xl">🧭</span>

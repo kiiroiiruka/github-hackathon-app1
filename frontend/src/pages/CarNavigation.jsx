@@ -149,50 +149,25 @@ const MapClickHandler = ({ enabled, onClick }) => {
   return null;
 };
 
-// メモの自動スクロールコンポーネント
+// メモの自動スクロールコンポーネント（電光掲示板風・無限ループ）
 const MemoScroller = ({ memos }) => {
-  const [currentMemoIndex, setCurrentMemoIndex] = useState(0);
-  const [scrollPosition, setScrollPosition] = useState(0);
   const containerRef = useRef(null);
-  const intervalRef = useRef(null);
+  const textRef = useRef(null);
+  const [animationDuration, setAnimationDuration] = useState(20);
 
   useEffect(() => {
-    if (memos.length === 0) return;
-
-    // 3秒間隔でメモを切り替え
-    intervalRef.current = setInterval(() => {
-      setCurrentMemoIndex((prev) => (prev + 1) % memos.length);
-      setScrollPosition(0); // スクロール位置をリセット
-    }, 5000);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [memos.length]);
-
-  useEffect(() => {
-    if (!containerRef.current || memos.length === 0) return;
-
-    const container = containerRef.current;
-    const textWidth = container.scrollWidth;
-    const containerWidth = container.clientWidth;
-
-    if (textWidth <= containerWidth) return;
-
-    // 2秒間隔でスクロール
-    const scrollInterval = setInterval(() => {
-      setScrollPosition((prev) => {
-        const maxScroll = textWidth - containerWidth;
-        if (prev >= maxScroll) {
-          return 0; // 最初に戻る
-        }
-        return prev + 1;
-      });
-    }, 50);
-
-    return () => clearInterval(scrollInterval);
+    if (!containerRef.current || !textRef.current || memos.length === 0) return;
+    
+    // テキストの実際の幅を測定
+    const textWidth = textRef.current.offsetWidth;
+    
+    // スクロール速度を計算（ピクセル/秒）
+    // 速すぎず遅すぎない速度：約60px/秒（読みやすい速度）
+    const pixelsPerSecond = 60;
+    const duration = textWidth / pixelsPerSecond;
+    
+    // 最小10秒、最大120秒に制限
+    setAnimationDuration(Math.max(10, Math.min(120, duration)));
   }, [memos]);
 
   if (memos.length === 0) {
@@ -203,21 +178,37 @@ const MemoScroller = ({ memos }) => {
     );
   }
 
-  const currentMemo = memos[currentMemoIndex];
+  // すべてのメモを「 🚗 」で区切ってつなぎ合わせる
+  const allMemosText = memos.map(memo => memo.content).join(' 🚗 ');
+  
+  // スムーズな無限ループのために、同じテキストを2回繰り返す
+  const doubledText = `${allMemosText}　　　　　${allMemosText}`;
 
   return (
     <div
       ref={containerRef}
-      className="bg-pink-200 border-2 border-pink-300 rounded-lg p-3 h-16 overflow-hidden relative"
+      className="bg-pink-200 border-2 border-pink-300 rounded-lg p-3 h-16 overflow-hidden relative flex items-center"
     >
-      <div
-        className="whitespace-nowrap text-gray-800 font-medium"
-        style={{
-          transform: `translateX(-${scrollPosition}px)`,
-          transition: "transform 0.1s ease-out",
-        }}
+      <style>
+        {`
+          @keyframes scroll-left-infinite {
+            0% {
+              transform: translateX(0);
+            }
+            100% {
+              transform: translateX(-50%);
+            }
+          }
+          .memo-scroll-infinite {
+            animation: scroll-left-infinite ${animationDuration}s linear infinite;
+          }
+        `}
+      </style>
+      <div 
+        ref={textRef}
+        className="whitespace-nowrap text-gray-800 font-medium memo-scroll-infinite inline-block"
       >
-        {currentMemo.content}
+        {doubledText}
       </div>
     </div>
   );

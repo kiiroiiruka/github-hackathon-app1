@@ -31,7 +31,9 @@ const NaviCreateScreen = () => {
   const [selectedDeparture, setSelectedDeparture] = useState(() => {
     // ローカルストレージから初期値を取得
     const saved = localStorage.getItem("roomCreat_selectedDeparture");
-    return saved ? JSON.parse(saved) : null;
+    const parsed = saved ? JSON.parse(saved) : null;
+    console.log("🚀 初期化: selectedDeparture from localStorage:", parsed);
+    return parsed;
   });
 
 
@@ -45,6 +47,37 @@ const NaviCreateScreen = () => {
       selectedDeparture: location.state?.selectedDeparture,
       allKeys: location.state ? Object.keys(location.state) : []
     });
+
+    // 🆕 RouteScreen から戻ってきた時（location.state が null）に Local Storage から再読み込み
+    if (!location.state) {
+      console.log("🔄 RouteScreen から戻ってきた - Local Storage から再読み込み");
+      
+      // selectedDeparture を再読み込み
+      const savedDeparture = localStorage.getItem("roomCreat_selectedDeparture");
+      if (savedDeparture) {
+        const parsedDeparture = JSON.parse(savedDeparture);
+        console.log("🔄 selectedDeparture を再読み込み:", parsedDeparture);
+        setSelectedDeparture(parsedDeparture);
+      }
+      
+      // selectedLocation を再読み込み
+      const savedLocation = localStorage.getItem("roomCreat_selectedLocation");
+      if (savedLocation) {
+        const parsedLocation = JSON.parse(savedLocation);
+        console.log("🔄 selectedLocation を再読み込み:", parsedLocation);
+        setSelectedLocation(parsedLocation);
+      }
+      
+      // selectedFriends を再読み込み
+      const savedFriends = localStorage.getItem("roomCreat_selectedFriends");
+      if (savedFriends) {
+        const parsedFriends = JSON.parse(savedFriends);
+        console.log("🔄 selectedFriends を再読み込み:", parsedFriends);
+        setSelectedFriends(parsedFriends);
+      }
+      
+      return; // 早期リターンで以降の処理をスキップ
+    }
     
     if (location.state?.selectedFriends) {
       console.log("NaviCreateScreen - selectedFriends受信:", location.state.selectedFriends);
@@ -640,11 +673,13 @@ const NaviCreateScreen = () => {
               icon="🗺️"
               subtitle={
                 <div className="flex gap-2 justify-center">
-                  {selectedDeparture && (
-                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                      出発地設定済み
-                    </span>
-                  )}
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    selectedDeparture 
+                      ? "bg-green-100 text-green-800" 
+                      : "bg-orange-100 text-orange-800"
+                  }`}>
+                    {selectedDeparture ? "出発地設定済み" : "出発地未設定"}
+                  </span>
                   {selectedLocation && (
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                       目的地設定済み
@@ -655,30 +690,37 @@ const NaviCreateScreen = () => {
             >
               {/* 選択された場所の表示 */}
               <div className="space-y-3 mb-4">
-                {selectedDeparture && (
-                  <Card variant="success" className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">🚀</span>
-                      <h3 className="font-semibold text-green-800">設定済み出発地</h3>
-                    </div>
-                    <p className="text-green-700 font-medium">{selectedDeparture.name}</p>
-                    <p className="text-sm text-green-600 mt-1">
-                      緯度: {selectedDeparture.coordinates[0].toFixed(4)}, 経度:{" "}
-                      {selectedDeparture.coordinates[1].toFixed(4)}
-                    </p>
-                    <Button
-                      variant="error"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedDeparture(null);
-                        localStorage.removeItem("roomCreat_selectedDeparture");
-                      }}
-                      className="mt-2"
-                    >
-                      出発地をクリア
-                    </Button>
-                  </Card>
-                )}
+                {/* 出発地の表示 */}
+                <Card variant={selectedDeparture ? "success" : "warning"} className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">🚀</span>
+                    <h3 className="font-semibold text-green-800">
+                      {selectedDeparture ? "設定済み出発地" : "出発地"}
+                    </h3>
+                  </div>
+                  {selectedDeparture ? (
+                    <>
+                      <p className="text-green-700 font-medium">{selectedDeparture.name}</p>
+                      <p className="text-sm text-green-600 mt-1">
+                        緯度: {selectedDeparture.coordinates[0].toFixed(4)}, 経度:{" "}
+                        {selectedDeparture.coordinates[1].toFixed(4)}
+                      </p>
+                      <Button
+                        variant="error"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedDeparture(null);
+                          localStorage.removeItem("roomCreat_selectedDeparture");
+                        }}
+                        className="mt-2"
+                      >
+                        出発地をクリア
+                      </Button>
+                    </>
+                  ) : (
+                    <p className="text-orange-700 font-medium">未設定(現在地から)</p>
+                  )}
+                </Card>
 
                 {selectedLocation && (
                   <Card variant="primary" className="p-4">
@@ -780,6 +822,13 @@ const NaviCreateScreen = () => {
                         return;
                       }
                     }
+                    
+                    console.log("🧭 ルート確認画面に遷移:", {
+                      selectedDeparture: finalDeparture,
+                      selectedLocation: selectedLocation,
+                      departure: finalDeparture?.coordinates,
+                      destination: selectedLocation?.coordinates,
+                    });
                     
                     navigate("/dashboard/navi/route-screen", {
                       state: {
