@@ -45,17 +45,6 @@ function UserPolicy() {
               <p className="text-sm text-gray-700 whitespace-pre-line">{s.body}</p>
             </section>
           ))}
-
-          <div className="pt-2 text-right">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold py-2 px-4 rounded"
-              aria-label="前の画面へ戻る"
-            >
-              戻る
-            </button>
-          </div>
         </div>
       </div>
     </div>

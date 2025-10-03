@@ -22,45 +22,64 @@ function LoginScreen() {
     <div
       className={clsx(
         "min-h-dvh w-dvw flex items-center justify-center", // layout
-        "bg-white" // surface
+        "bg-white" // clean white background
       )}
     >
       <div
         className={clsx(
           "flex flex-col items-center", // layout
-          "gap-12" // spacing
+          "gap-10 px-6" // spacing
         )}
       >
-        {/* App icon placeholder */}
-        <div
-          className={clsx(
-            "w-[140px] h-[140px]", // size
-            "rounded-xl", // shape
-            "border border-black/40", // border
-            "shadow-[0_0_0_2px_#fff_inset]", // effects
-            "flex items-center justify-center" // layout
-          )}
-        >
-          <img src={carIcon} alt="DriveLink" className="w-16 h-16 opacity-90" />
+        {/* App Title - elegant style */}
+        <div className="text-center mb-2">
+          <h1 className="text-gray-900 text-5xl font-bold tracking-tight mb-3 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            DriveLink
+          </h1>
+          <p className="text-gray-600 text-sm font-medium tracking-wide">
+            みんなでつながる、ドライブアプリ
+          </p>
         </div>
 
-        {/* Google login button */}
+        {/* App icon - elegant card style */}
+        <div
+          className={clsx(
+            "w-[160px] h-[160px]", // larger size
+            "rounded-3xl", // large rounded corners
+            "bg-gradient-to-br from-blue-50 to-indigo-50", // subtle gradient background
+            "shadow-xl shadow-blue-500/10", // colored shadow
+            "overflow-hidden", // clip corners
+            "transform transition-all duration-300", // smooth animation
+            "hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20", // hover effects
+            "ring-1 ring-gray-200", // subtle border
+            "border-4 border-white" // white border for depth
+          )}
+        >
+          <img src={carIcon} alt="DriveLink" className="w-full h-full object-cover" />
+        </div>
+
+        {/* Google login button - elegant modern style */}
         <button
           onClick={handleLogin}
           type="button"
           disabled={isLoading}
           className={clsx(
-            "relative", // position
-            "flex items-center", // layout
+            "relative w-full max-w-[280px]", // position & width
+            "flex items-center justify-center", // layout
             "gap-3 px-8 py-4", // spacing
-            "text-[28px] leading-none font-medium tracking-wide", // typography
-            "border-2 border-black/60 rounded-2xl", // border/shape
-            "shadow-sm transition active:scale-[0.99]", // effect
-            isLoading ? "bg-gray-200 text-gray-500" : "bg-white hover:bg-gray-50" // surface/state
+            "text-[26px] leading-none font-semibold", // typography
+            "bg-gradient-to-r from-blue-600 to-indigo-600", // gradient background
+            "text-white", // white text
+            "rounded-2xl", // rounded corners
+            "shadow-lg shadow-blue-500/30", // colored shadow
+            "transform transition-all duration-200", // animation
+            "hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02]", // hover effect
+            "active:scale-[0.98]", // active effect
+            isLoading && "opacity-70 cursor-not-allowed" // disabled state
           )}
           aria-busy={isLoading}
         >
-          <span className="pl-1">{isLoading ? "処理中..." : "ログインする"}</span>
+          <span>{isLoading ? "処理中..." : "ログインする"}</span>
           <span className={clsx("inline-flex items-center justify-center", "w-8 h-8")}>
             {/* Google G logo as SVG */}
             <svg
@@ -91,13 +110,14 @@ function LoginScreen() {
           </span>
         </button>
 
-        {/* Policy button */}
+        {/* Policy button - subtle style for white background */}
         <button
           onClick={() => navigate("/policy")}
           type="button"
           className={clsx(
-            "mt-2",
-            "text-sm text-gray-600 underline underline-offset-2 hover:text-gray-800"
+            "text-sm text-gray-500 underline underline-offset-4",
+            "hover:text-gray-800 transition-colors duration-200",
+            "font-medium"
           )}
           aria-label="利用規約を開く"
         >
