@@ -270,6 +270,7 @@ const CarNavigation = () => {
   const isUpdatingRejoinRef = useRef(false);
   const lastRestRouteCalcTimeRef = useRef(0); // 直近の休憩地点ルート再計算時刻
   const lastRestRouteInfoRef = useRef(null); // { start: {lat,lng}, restPoint: {lat,lng} }
+  const lastRestRouteErrorTimeRef = useRef(0); // 直近の休憩地点APIエラー発生時刻
 
   // デバッグ: コンポーネントマウント時の状態
   useEffect(() => {
@@ -339,7 +340,7 @@ const CarNavigation = () => {
       };
 
       await update(ref(rtdb, `rooms/${roomId}/memberLocations/${currentUserUid}`), locationData);
-      console.log("📍 位置情報をFirebaseに送信:", locationData);
+      // console.log("📍 位置情報をFirebaseに送信:", locationData); // 頻繁すぎるのでコメントアウト
     } catch (error) {
       console.error("❌ 位置情報送信エラー:", error);
     }
@@ -388,11 +389,11 @@ const CarNavigation = () => {
         if (now - lastSendTime >= SEND_INTERVAL) {
           sendLocationToFirebase(newLocation);
           lastSendTime = now;
-          console.log("📍 GPS位置リアルタイム更新:", { 
-            latitude, 
-            longitude, 
-            accuracy: `${accuracy.toFixed(1)}m`
-          });
+          // console.log("📍 GPS位置リアルタイム更新:", { 
+          //   latitude, 
+          //   longitude, 
+          //   accuracy: `${accuracy.toFixed(1)}m`
+          // }); // 頻繁すぎるのでコメントアウト
         }
       },
       (error) => {
@@ -407,7 +408,7 @@ const CarNavigation = () => {
       }
     );
 
-    console.log("🔄 リアルタイムGPS監視開始（1秒間隔でFirebase送信）");
+    // console.log("🔄 リアルタイムGPS監視開始（1秒間隔でFirebase送信）"); // 頻繁すぎるのでコメントアウト
   }, [currentLocation, sendLocationToFirebase]);
 
   // 位置情報共有を停止
@@ -416,7 +417,7 @@ const CarNavigation = () => {
       navigator.geolocation.clearWatch(gpsIntervalRef.current);
       gpsIntervalRef.current = null;
     }
-    console.log("⏹️ GPS位置情報共有停止");
+    // console.log("⏹️ GPS位置情報共有停止"); // 頻繁すぎるのでコメントアウト
   }, []);
 
   // テスト用の仮座標をルート上に生成
@@ -704,10 +705,10 @@ const CarNavigation = () => {
     } else {
       // ルート上にいる場合、合流ルートをクリア（API呼び出し不要）
       if (rejoinRoute) {
-        setRejoinRoute(null);
-        setJoinPoint(null);
+      setRejoinRoute(null);
+      setJoinPoint(null);
         console.log("✅ ルート上に復帰しました（合流ルートをクリア）");
-      }
+    }
     }
   }, [currentLocation, routeData, activeTab, rejoinRoute]);
 
@@ -812,7 +813,7 @@ const CarNavigation = () => {
         const destination = routeData.destination.coordinates;
         const url = `https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${destination[1]},${destination[0]}?overview=false`;
         
-        console.log("🕐 目的地までのETA更新中...");
+        // console.log("🕐 目的地までのETA更新中..."); // コメントアウト
         const res = await fetch(url);
         
         if (!res.ok) {
@@ -876,10 +877,10 @@ const CarNavigation = () => {
           });
 
           setMemberLocations(locationMap);
-          console.log("📍 メンバー位置情報を更新:", {
-            count: locationMap.size,
-            locations: Array.from(locationMap.entries()),
-          });
+          // console.log("📍 メンバー位置情報を更新:", {
+          //   count: locationMap.size,
+          //   locations: Array.from(locationMap.entries()),
+          // }); // 頻繁すぎるのでコメントアウト
         } else {
           setMemberLocations(new Map());
         }
@@ -913,7 +914,7 @@ const CarNavigation = () => {
     if (!currentLocation || !routeData) return;
 
     const routeCheckInterval = setInterval(async () => {
-      console.log("🔄 1秒間隔ルート判定実行（ローカルチェック）");
+      // console.log("🔄 1秒間隔ルート判定実行（ローカルチェック）"); // 頻繁すぎるのでコメントアウト
       await updateRouteStatus();
     }, 1000);
 
@@ -1133,6 +1134,7 @@ const CarNavigation = () => {
       }
     } catch (e) {
       console.error("❌ 休憩地点ルート生成エラー:", e);
+      lastRestRouteErrorTimeRef.current = Date.now(); // エラー時刻を記録
       setRestRoute(null);
     }
   }, []);
@@ -1146,6 +1148,11 @@ const CarNavigation = () => {
 
     const newRestPoint = { lat: latlng.lat, lng: latlng.lng };
     console.log("📍 休憩地点をセット:", newRestPoint);
+    
+    // 休憩地点が変更されたので、ヒステリシス情報をクリア
+    lastRestRouteCalcTimeRef.current = 0;
+    lastRestRouteInfoRef.current = null;
+    lastRestRouteErrorTimeRef.current = 0;
     
     // 休憩地点を設定
     setRestPoint(newRestPoint);
@@ -1163,6 +1170,12 @@ const CarNavigation = () => {
   const clearRestPoint = () => {
     setRestPoint(null);
     setRestRoute(null);
+    
+    // ヒステリシス情報をクリア
+    lastRestRouteCalcTimeRef.current = 0;
+    lastRestRouteInfoRef.current = null;
+    lastRestRouteErrorTimeRef.current = 0;
+    
     // 休憩地点の到着時刻をクリアして、元の目的地の到着時刻に戻す
     if (originalEtaTime) {
       setEtaTime(originalEtaTime);
@@ -1179,10 +1192,37 @@ const CarNavigation = () => {
       return;
     }
 
+    // 休憩地点が変更された場合、ルートをクリアして再計算フラグを立てる
+    // （前の休憩地点のルートが残っていると判定されてしまうため）
+    const last = lastRestRouteInfoRef.current;
+    if (last && last.restPoint) {
+      const restPointChanged = 
+        Math.abs(restPoint.lat - last.restPoint.lat) > 0.0001 ||
+        Math.abs(restPoint.lng - last.restPoint.lng) > 0.0001;
+      
+      if (restPointChanged) {
+        console.log("📍 休憩地点が変更されました、ルートをクリアして再計算します");
+        setRestRoute(null);
+        lastRestRouteCalcTimeRef.current = 0;
+        lastRestRouteInfoRef.current = null;
+        lastRestRouteErrorTimeRef.current = 0;
+      }
+    }
+
     // 休憩地点が変更された直後は即座にルート計算（初回のみ）
     let isInitialCalculation = !restRoute || restRoute.length === 0;
 
     const tick = async () => {
+      // エラー発生後30秒以内は再試行しない（無限ループ防止）
+      const now = Date.now();
+      const timeSinceError = now - lastRestRouteErrorTimeRef.current;
+      if (lastRestRouteErrorTimeRef.current > 0 && timeSinceError < 30000) {
+        console.log("⏸️ 休憩地点API呼び出しスキップ（エラー発生後30秒待機中）:", {
+          elapsed: `${(timeSinceError / 1000).toFixed(1)}秒`,
+        });
+        return;
+      }
+      
       // ルートが未計算の場合は即座に計算（API呼び出し）
       if (!restRoute || restRoute.length === 0) {
         console.log("🟣 休憩地点ルート初回計算（API呼び出し）");
@@ -1244,7 +1284,7 @@ const CarNavigation = () => {
     // 1秒間隔でローカルチェック（必要な時だけAPI呼び出し）
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [restPoint, currentLocation, restRoute, computeRestRoute]);
+  }, [restPoint]); // currentLocationとrestRouteを依存配列から削除（無限ループ防止）
 
   // タブコンテンツのレンダリング
   const renderTabContent = () => {
@@ -1538,10 +1578,10 @@ const CarNavigation = () => {
       roomRef,
       (snapshot) => {
         const room = snapshot.val();
-        console.log("📦 Room snapshot received", {
-          hasRoom: !!room,
-          keys: room ? Object.keys(room) : [],
-        });
+        // console.log("📦 Room snapshot received", {
+        //   hasRoom: !!room,
+        //   keys: room ? Object.keys(room) : [],
+        // }); // 頻繁すぎるのでコメントアウト
         if (room) {
           setRoomData(room);
           const membersValue = room.members || {};
@@ -1551,28 +1591,28 @@ const CarNavigation = () => {
           // ルート情報を設定
           if (room.routeData) {
             setRouteData(room.routeData);
-            console.log("🗺️ ルート情報を取得:", {
-              hasRoute: !!room.routeData,
-              hasPolyline: !!room.routeData?.polyline,
-              distance: room.routeData?.routeInfo?.distanceKm,
-              duration: room.routeData?.routeInfo?.durationMin,
-              coordinatesCount: room.routeData?.polyline?.geometry?.coordinates?.length || 0,
-              departureCoords: room.routeData?.departure?.coordinates,
-              destinationCoords: room.routeData?.destination?.coordinates,
-              firstPolylineCoord: room.routeData?.polyline?.geometry?.coordinates?.[0],
-              lastPolylineCoord:
-                room.routeData?.polyline?.geometry?.coordinates?.[
-                  room.routeData?.polyline?.geometry?.coordinates?.length - 1
-                ],
-              polylineCoordsFormat: room.routeData?.polyline?.geometry?.coordinates?.[0]
-                ? `[${room.routeData.polyline.geometry.coordinates[0][0]}, ${room.routeData.polyline.geometry.coordinates[0][1]}]`
-                : "N/A",
-            });
+            // console.log("🗺️ ルート情報を取得:", {
+            //   hasRoute: !!room.routeData,
+            //   hasPolyline: !!room.routeData?.polyline,
+            //   distance: room.routeData?.routeInfo?.distanceKm,
+            //   duration: room.routeData?.routeInfo?.durationMin,
+            //   coordinatesCount: room.routeData?.polyline?.geometry?.coordinates?.length || 0,
+            //   departureCoords: room.routeData?.departure?.coordinates,
+            //   destinationCoords: room.routeData?.destination?.coordinates,
+            //   firstPolylineCoord: room.routeData?.polyline?.geometry?.coordinates?.[0],
+            //   lastPolylineCoord:
+            //     room.routeData?.polyline?.geometry?.coordinates?.[
+            //       room.routeData?.polyline?.geometry?.coordinates?.length - 1
+            //     ],
+            //   polylineCoordsFormat: room.routeData?.polyline?.geometry?.coordinates?.[0]
+            //     ? `[${room.routeData.polyline.geometry.coordinates[0][0]}, ${room.routeData.polyline.geometry.coordinates[0][1]}]`
+            //     : "N/A",
+            // }); // 頻繁すぎるのでコメントアウト
             
             // ルートデータが既に完全な形で存在する場合はフォールバック処理をスキップ
             if (room.routeData.polyline?.geometry?.coordinates && room.routeData.polyline.geometry.coordinates.length > 0) {
               setRouteEnsured(true);
-              console.log("✅ ルートデータは完全です。フォールバック処理をスキップします。");
+              // console.log("✅ ルートデータは完全です。フォールバック処理をスキップします。"); // 頻繁すぎるのでコメントアウト
             }
             // ルートがあるがポリライン欠落時はフォールバック生成
             if (!room.routeData.polyline?.geometry?.coordinates && !routeEnsured) {
@@ -1804,17 +1844,17 @@ const CarNavigation = () => {
           });
           setParticipantPhotoURLs(photoURLMap);
 
-          console.log("🖼️ 参加者のphotoURL情報を初期化:", {
-            membersCount: list.length,
-            photoURLMapSize: photoURLMap.size,
-            photoURLs: Array.from(photoURLMap.entries()),
-            rawMembers: Object.values(membersValue).map((m) => ({
-              uid: m?.uid,
-              name: m?.name,
-              photoURL: m?.photoURL,
-              photoURLType: typeof m?.photoURL,
-            })),
-          });
+          // console.log("🖼️ 参加者のphotoURL情報を初期化:", {
+          //   membersCount: list.length,
+          //   photoURLMapSize: photoURLMap.size,
+          //   photoURLs: Array.from(photoURLMap.entries()),
+          //   rawMembers: Object.values(membersValue).map((m) => ({
+          //     uid: m?.uid,
+          //     name: m?.name,
+          //     photoURL: m?.photoURL,
+          //     photoURLType: typeof m?.photoURL,
+          //   })),
+          // }); // 頻繁すぎるのでコメントアウト
         }
         setLoading(false);
       },
