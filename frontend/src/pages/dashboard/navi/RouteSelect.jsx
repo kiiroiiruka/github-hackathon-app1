@@ -81,9 +81,9 @@ const RouteSelect = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full mb-4 shadow-lg">
               <span className="text-2xl text-white">🗺️</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">ルート選択</h1>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">カーナビ作成</h1>
             <p className="text-gray-600 max-w-md mx-auto">
-              目的地を設定して最適なルートを見つけましょう
+              目的地までのナビを作成しましょう
             </p>
           </div>
 
@@ -305,7 +305,7 @@ const RouteSelect = () => {
                 >
                   <span className="text-2xl">🏠</span>
                   <div className="text-center">
-                    <div className="font-semibold">設定した場所でルーム作成</div>
+                    <div className="font-semibold">上記の内容でルーム作成</div>
                     <div className="text-sm opacity-90">
                       {selectedDeparture && selectedDestination
                         ? "出発地と目的地を設定してルーム作成"

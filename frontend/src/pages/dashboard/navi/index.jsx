@@ -171,6 +171,47 @@ const NaviCreateScreen = () => {
       return;
     }
     
+    // 出発地が未設定の場合、現在地のGPSを取得
+    let finalDeparture = selectedDeparture;
+    if (!selectedDeparture) {
+      console.log("📍 出発地が未設定のため、現在地GPSを取得中...");
+      
+      try {
+        const position = await new Promise((resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new Error("GPS機能が利用できません"));
+            return;
+          }
+          
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(pos),
+            (err) => reject(err),
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0,
+            }
+          );
+        });
+        
+        const { latitude, longitude } = position.coords;
+        finalDeparture = {
+          name: "現在地（GPS）",
+          coordinates: [latitude, longitude],
+        };
+        
+        // 状態とローカルストレージに保存
+        setSelectedDeparture(finalDeparture);
+        localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(finalDeparture));
+        
+        console.log("✅ 現在地GPSを出発地に設定:", finalDeparture);
+      } catch (gpsError) {
+        console.error("❌ GPS取得エラー:", gpsError);
+        alert("現在地の取得に失敗しました。\n\n出発地を手動で設定してください。");
+        return;
+      }
+    }
+    
     console.log("🔥 バリデーション完了、ルーム作成処理を開始");
     
     // Firebase接続確認
@@ -187,12 +228,12 @@ const NaviCreateScreen = () => {
         selectedFriends,
         selectedFriendsLength: selectedFriends.length,
         selectedLocation,
-        selectedDeparture,
+        selectedDeparture: finalDeparture,
         ownerUid: currentUser.uid,
         hasRoomName: !!roomName.trim(),
         hasSelectedFriends: selectedFriends.length > 0,
         hasSelectedLocation: !!selectedLocation,
-        hasSelectedDeparture: !!selectedDeparture,
+        hasSelectedDeparture: !!finalDeparture,
       });
 
       // ルームID作成
@@ -227,16 +268,16 @@ const NaviCreateScreen = () => {
 
       // ルート情報を構築
       let routeData = null;
-      console.log("🔥 ルート情報構築開始:", { selectedLocation, selectedDeparture });
+      console.log("🔥 ルート情報構築開始:", { selectedLocation, selectedDeparture: finalDeparture });
       
       // ルート計算をスキップする場合は、この行をコメントアウト
       const skipRouteCalculation = false; // falseにするとルート計算を実行（NetworkOnly戦略で解決済み）
       
-      if (selectedLocation && selectedDeparture && !skipRouteCalculation) {
+      if (selectedLocation && finalDeparture && !skipRouteCalculation) {
         console.log("🔥 ルート計算開始");
         // ルート計算（OSRM API使用）
         try {
-          const routeUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
+          const routeUrl = `https://router.project-osrm.org/route/v1/driving/${finalDeparture.coordinates[1]},${finalDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
           console.log("🔥 ルートAPI URL:", routeUrl);
           
           let routeResponse = null;
@@ -330,8 +371,8 @@ const NaviCreateScreen = () => {
               const route = routeResult.routes[0];
               routeData = {
                 departure: {
-                  name: selectedDeparture.name || "出発地",
-                  coordinates: selectedDeparture.coordinates,
+                  name: finalDeparture.name || "出発地",
+                  coordinates: finalDeparture.coordinates,
                 },
                 destination: {
                   name: selectedLocation.name || "目的地",
@@ -506,11 +547,53 @@ const NaviCreateScreen = () => {
   // ルーム作成処理（確認画面に遷移）
   const handleCreateRoom = async () => {
     try {
+      let finalDeparture = selectedDeparture;
+      
+      // 出発地が未設定の場合、現在地のGPSを取得
+      if (!selectedDeparture) {
+        console.log("📍 出発地が未設定のため、現在地GPSを取得中...");
+        
+        try {
+          const position = await new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+              reject(new Error("GPS機能が利用できません"));
+              return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+              (pos) => resolve(pos),
+              (err) => reject(err),
+              {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0,
+              }
+            );
+          });
+          
+          const { latitude, longitude } = position.coords;
+          finalDeparture = {
+            name: "現在地（GPS）",
+            coordinates: [latitude, longitude],
+          };
+          
+          // 状態とローカルストレージに保存
+          setSelectedDeparture(finalDeparture);
+          localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(finalDeparture));
+          
+          console.log("✅ 現在地GPSを出発地に設定:", finalDeparture);
+        } catch (gpsError) {
+          console.error("❌ GPS取得エラー:", gpsError);
+          alert("現在地の取得に失敗しました。\n\n出発地を手動で設定してください。");
+          return;
+        }
+      }
+      
       console.log("ルーム作成確認画面に遷移:", {
         roomName: roomName.trim(),
         selectedFriends,
         selectedLocation,
-        selectedDeparture,
+        selectedDeparture: finalDeparture,
       });
 
       navigate("/dashboard/navi/confirmation", {
@@ -518,7 +601,7 @@ const NaviCreateScreen = () => {
           roomName: roomName.trim(),
           selectedFriends,
           selectedLocation,
-          selectedDeparture,
+          selectedDeparture: finalDeparture,
         },
       });
     } catch (e) {
@@ -553,9 +636,9 @@ const NaviCreateScreen = () => {
               />
             </Section>
 
-            {/* ルート選択セクション */}
+            {/* カーナビ作成セクション */}
             <Section
-              title="ルート選択"
+              title="カーナビ作成"
               icon="🗺️"
               subtitle={
                 <div className="flex gap-2 justify-center">
@@ -655,39 +738,70 @@ const NaviCreateScreen = () => {
                   variant="outline"
                   size="lg"
                   className="w-full justify-start"
-                  icon="⭐"
-                  onClick={() => navigate("/dashboard/navi/purlieu-location")}
-                >
-                  <div className="text-left">
-                    <div className="font-semibold">お気に入りから選択</div>
-                    <div className="text-sm text-gray-600">保存済みの場所から選択</div>
-                  </div>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="w-full justify-start"
                   icon="🧭"
                   disabled={!selectedLocation}
-                  onClick={() =>
+                  onClick={async () => {
+                    let finalDeparture = selectedDeparture;
+                    
+                    // 出発地が未設定の場合、現在地のGPSを取得
+                    if (!selectedDeparture) {
+                      console.log("📍 ルート確認: 出発地が未設定のため、現在地GPSを取得中...");
+                      
+                      try {
+                        const position = await new Promise((resolve, reject) => {
+                          if (!navigator.geolocation) {
+                            reject(new Error("GPS機能が利用できません"));
+                            return;
+                          }
+                          
+                          navigator.geolocation.getCurrentPosition(
+                            (pos) => resolve(pos),
+                            (err) => reject(err),
+                            {
+                              enableHighAccuracy: true,
+                              timeout: 10000,
+                              maximumAge: 0,
+                            }
+                          );
+                        });
+                        
+                        const { latitude, longitude } = position.coords;
+                        finalDeparture = {
+                          name: "現在地（GPS）",
+                          coordinates: [latitude, longitude],
+                        };
+                        
+                        // 状態とローカルストレージに保存
+                        setSelectedDeparture(finalDeparture);
+                        localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(finalDeparture));
+                        
+                        console.log("✅ 現在地GPSを出発地に設定:", finalDeparture);
+                      } catch (gpsError) {
+                        console.error("❌ GPS取得エラー:", gpsError);
+                        alert("現在地の取得に失敗しました。\n\n出発地を手動で設定してください。");
+                        return;
+                      }
+                    }
+                    
                     navigate("/dashboard/navi/route-screen", {
                       state: {
                         destination: selectedLocation?.coordinates,
                         destinationName: selectedLocation?.name,
-                        departure: selectedDeparture?.coordinates,
-                        departureName: selectedDeparture?.name,
-                        selectedDeparture: selectedDeparture,
+                        departure: finalDeparture?.coordinates,
+                        departureName: finalDeparture?.name,
+                        selectedDeparture: finalDeparture,
                         selectedLocation: selectedLocation,
                         selectedFriends,
                         roomName: roomName.trim(),
                       },
-                    })
-                  }
+                    });
+                  }}
                 >
                   <div className="text-left">
                     <div className="font-semibold">ルート確認</div>
-                    <div className="text-sm text-gray-600">地図でルートを確認</div>
+                    <div className="text-sm text-gray-600">
+                      {!selectedDeparture ? "現在地から地図で確認" : "地図でルートを確認"}
+                    </div>
                   </div>
                 </Button>
               </div>
@@ -732,12 +846,24 @@ const NaviCreateScreen = () => {
                 variant="primary"
                 size="lg"
                 className="w-full"
-                disabled={!roomName.trim()}
+                disabled={!roomName.trim() || !selectedLocation}
                 onClick={handleCreateRoom}
                 icon="🚀"
               >
-                {roomName.trim() ? `「${roomName}」を作成` : "ルーム名を入力してください"}
+                {!roomName.trim() 
+                  ? "ルーム名を入力してください" 
+                  : !selectedLocation 
+                  ? "目的地を設定してください" 
+                  : !selectedDeparture
+                  ? `「${roomName}」を作成（現在地から出発）`
+                  : `「${roomName}」を作成`}
               </Button>
+              
+              {!selectedDeparture && selectedLocation && roomName.trim() && (
+                <p className="text-xs text-blue-600 text-center mt-2 bg-blue-50 px-3 py-2 rounded-lg">
+                  💡 出発地が未設定のため、ルーム作成時に現在地のGPSを自動取得します
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -757,17 +883,23 @@ const NaviCreateScreen = () => {
               variant="warning"
               size="lg"
               className="w-full shadow-lg"
-              disabled={!roomName.trim()}
+              disabled={!roomName.trim() || !selectedLocation}
               onClick={() => {
                 console.log("🔥 ボタンクリックイベント発生");
                 console.log("🔥 roomName:", roomName);
                 console.log("🔥 roomName.trim():", roomName.trim());
-                console.log("🔥 disabled状態:", !roomName.trim());
+                console.log("🔥 disabled状態:", !roomName.trim() || !selectedLocation);
                 handleCreateRoomFirebaseOnly();
               }}
               icon="🔥"
             >
-              Firebase側のみでルーム作成（ルート情報含む・テスト用）
+              {!roomName.trim() 
+                ? "ルーム名を入力してください" 
+                : !selectedLocation 
+                ? "目的地を設定してください" 
+                : !selectedDeparture
+                ? "Firebase側のみでルーム作成（現在地から・テスト用）"
+                : "Firebase側のみでルーム作成（テスト用）"}
             </Button>
             <p className="text-xs text-gray-600 text-center mt-2">
               ※Daily側ではルーム作成されません。Firebase Realtime

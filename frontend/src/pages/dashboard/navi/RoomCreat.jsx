@@ -165,7 +165,7 @@ const RoomCreat = () => {
 
         {/* ルート選択セクション */}
         <Section
-          title="ルート選択"
+          title="カーナビ作成"
           icon="🗺️"
           subtitle={
             <div className="flex gap-2 justify-center">

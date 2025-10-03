@@ -6,7 +6,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { isLoggedInAtom, userUidAtom } from "../../../atom/userAtom";
 import HeaderComponent from "../../../components/Header/Header";
 import Card from "../../../components/ui/Card";
-import MapSearch from "../../../components/ui/MapSearch";
 import RoutingControl from "../../../components/ui/RoutingControl";
 import { formatRouteData, saveUserRoute } from "../../../firebase/route";
 import { useAuthState } from "../../../hooks/useAuthState";
@@ -44,23 +43,77 @@ const RouteScreen = () => {
   const routeCalculatedRef = useRef(false); // ルート計算完了フラグ
   const routeKeyRef = useRef(null); // ルート用の安定したkey
 
-  // カスタムアイコンの設定
-  const departureIcon = new Icon({
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
+  // 出発地アイコン（車マーク + START）
+  const departureIcon = L.divIcon({
+    html: `
+      <div style="
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.4));
+      ">
+        <div style="font-size: 40px; margin-bottom: 2px;">🚗</div>
+        <div style="
+          font-size: 9px;
+          font-weight: 900;
+          color: #fff;
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          padding: 2px 8px;
+          border-radius: 10px;
+          letter-spacing: 0.5px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        ">START</div>
+      </div>
+    `,
+    className: 'custom-departure-icon',
+    iconSize: [60, 65],
+    iconAnchor: [30, 60],
+    popupAnchor: [0, -60],
   });
 
-  const destinationIcon = new Icon({
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
+  // 旗アイコン（拡大縮小 + GOAL!点滅）
+  const destinationIcon = L.divIcon({
+    html: `
+      <div style="
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        filter: drop-shadow(3px 3px 6px rgba(0,0,0,0.4));
+      ">
+        <div style="
+          font-size: 48px;
+          animation: flagPulse 1.5s ease-in-out infinite;
+          margin-bottom: 2px;
+        ">🚩</div>
+        <div style="
+          font-size: 10px;
+          font-weight: 900;
+          color: #fff;
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          padding: 3px 10px;
+          border-radius: 10px;
+          letter-spacing: 0.5px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          animation: textBlink 1s ease-in-out infinite;
+        ">GOAL!</div>
+      </div>
+      <style>
+        @keyframes flagPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.3); }
+        }
+        @keyframes textBlink {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.05); }
+        }
+      </style>
+    `,
+    className: 'custom-flag-icon',
+    iconSize: [70, 75],
+    iconAnchor: [35, 70],
+    popupAnchor: [0, -70],
   });
 
   // Firebase認証状態を監視
@@ -88,11 +141,8 @@ const RouteScreen = () => {
     } else if (location.state?.selectedDeparture) {
       setDeparture(location.state.selectedDeparture.coordinates);
       setDepartureName(location.state.selectedDeparture.name || "");
-    } else {
-      // デフォルト出発地点（日本の中央）を設定
-      setDeparture([36.2048, 138.2529]);
-      setDepartureName("日本中央部");
     }
+    // デフォルト出発地は設定しない（GPS自動取得に任せる）
   }, [location.state]);
 
   // 出発地や目的地が変更されたときにルート計算状態をリセット
@@ -271,40 +321,6 @@ const RouteScreen = () => {
                       </div>
                     </div>
                   </div>
-
-                  {/* ルート保存ボタン */}
-                  <div className="flex justify-center items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={handleSaveRoute}
-                      disabled={isSaving}
-                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isSaving ? (
-                        <>
-                          <span className="animate-spin">⏳</span>
-                          保存中...
-                        </>
-                      ) : (
-                        <>
-                          <span>💾</span>
-                          ルートを保存
-                        </>
-                      )}
-                    </button>
-
-                    {saveMessage && (
-                      <span
-                        className={`text-sm px-4 py-2 rounded-full font-medium ${
-                          saveMessage.includes("失敗") || saveMessage.includes("既に")
-                            ? "bg-red-100 text-red-700 border border-red-200"
-                            : "bg-green-100 text-green-700 border border-green-200"
-                        }`}
-                      >
-                        {saveMessage}
-                      </span>
-                    )}
-                  </div>
                 </div>
               ) : (
                 destination && (
@@ -325,22 +341,22 @@ const RouteScreen = () => {
           {/* 地図セクション */}
           <Card className="mb-6" variant="default">
             <div className="h-96 md:h-[500px] relative rounded-lg overflow-hidden">
-              {/* 目的地検索 */}
-              <div className="absolute top-4 left-4 right-4 z-[1000]">
-                <MapSearch
-                  onSelectDestination={(dest, name) => {
-                    setDestination(dest);
-                    setDestinationName(name);
-                    routeCalculatedRef.current = false; // ルート計算状態をリセット
-                    setRouteInfo(null); // ルート情報をリセット
-                    console.log("選択された目的地:", name, dest);
-                  }}
-                />
-              </div>
+              {/* leaflet-routing-machineのUIを完全に非表示にするCSS */}
+              <style>{`
+                .leaflet-routing-container {
+                  display: none !important;
+                }
+                .leaflet-routing-alternatives-container {
+                  display: none !important;
+                }
+                .leaflet-control-container .leaflet-routing-container {
+                  display: none !important;
+                }
+              `}</style>
 
               <MapContainer
-                center={departure || [36.2048, 138.2529]} // 日本の中央（長野県付近）
-                zoom={departure && destination ? 10 : 6} // 両方設定されている場合は詳細表示、そうでなければ日本全体表示
+                center={departure || destination || [35.6812, 139.7671]} // 出発地、または目的地、またはデフォルト（東京駅）
+                zoom={departure && destination ? 10 : destination ? 12 : 6} // 両方設定: 詳細表示、目的地のみ: やや詳細、どちらもなし: 日本全体
                 style={{ height: "100%", width: "100%" }}
                 maxBounds={[
                   [24.0, 123.0],

@@ -75,10 +75,21 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
           draggableWaypoints: false,
           routeWhileDragging: false,
           createMarker: () => null,
-          show: false,
+          show: false, // ルート選択パネルを非表示
           fitSelectedRoutes: false,
           // エラーを防ぐため、サービスURLを明示的に指定
           serviceUrl: "https://router.project-osrm.org/route/v1",
+          // カーナビ作成UIを完全に非表示にする
+          showAlternatives: false,
+          altLineOptions: {
+            styles: []
+          }
+        }).on('routesfound', function(e) {
+          // カーナビ作成コンテナを完全に削除
+          const container = document.querySelector('.leaflet-routing-container');
+          if (container) {
+            container.style.display = 'none';
+          }
         });
 
         routingControlRef.current = routingControl;

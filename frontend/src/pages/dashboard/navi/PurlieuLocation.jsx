@@ -339,7 +339,7 @@ const PurlieuLocation = () => {
                     key={favorite.id}
                     className={`w-full text-left group relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
                       selectedFavorite?.id === favorite.id
-                        ? "bg-blue-50 border-blue-300 shadow-md"
+                        ? "bg-blue-50 border-blue-400 shadow-md"
                         : "bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
                     }`}
                     onClick={() => {
@@ -350,22 +350,25 @@ const PurlieuLocation = () => {
                       }
                     }}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-lg">📍</span>
-                          <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                    {/* 選択中バッジ（右上に配置） */}
+                    {selectedFavorite?.id === favorite.id && (
+                      <div className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1 z-10">
+                        <span>✓</span>
+                        <span>選択中</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="text-lg flex-shrink-0">📍</span>
+                          <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors break-words flex-1">
                             {favorite.name}
                           </h3>
-                          {selectedFavorite?.id === favorite.id && (
-                            <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                              選択中
-                            </span>
-                          )}
                         </div>
                         <div className="text-sm text-gray-600 space-y-1">
-                          <p>📐 緯度: {favorite.coordinates[0].toFixed(6)}</p>
-                          <p>📐 経度: {favorite.coordinates[1].toFixed(6)}</p>
+                          <p className="break-all">📐 緯度: {favorite.coordinates[0].toFixed(6)}</p>
+                          <p className="break-all">📐 経度: {favorite.coordinates[1].toFixed(6)}</p>
                           <p className="text-xs text-gray-500">
                             登録日: {new Date(favorite.addedAt).toLocaleDateString()}
                           </p>
@@ -381,7 +384,7 @@ const PurlieuLocation = () => {
                           }
                         }}
                         disabled={loading}
-                        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all duration-200 p-2 hover:bg-red-50 rounded-lg disabled:opacity-50"
+                        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all duration-200 p-2 hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0"
                         title="削除"
                       >
                         🗑️
