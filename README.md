@@ -34,38 +34,52 @@
 
 ## 🛠️ 技術スタック
 
-### フロントエンド
-| 技術 | 用途 |
+### プログラミング言語
+| 言語 | 用途 |
 |------|------|
-| **React 18** | UIフレームワーク |
-| **Vite 7** | 高速ビルドツール |
-| **React Router v6** | ルーティング |
-| **Tailwind CSS** | スタイリング |
-| **Jotai** | 状態管理 |
+| **JavaScript (ES2024+)** | メイン開発言語（JSX含む） |
+
+### フロントエンド
+| 技術 | バージョン | 用途 |
+|------|-----------|------|
+| **React** | 19.1.1 | UIフレームワーク |
+| **Vite** | 7.1.7 | 高速ビルドツール・開発サーバー |
+| **React Router** | 7.9.1 | クライアントサイドルーティング |
+| **Tailwind CSS** | 4.1.13 | ユーティリティファーストCSSフレームワーク |
+| **Jotai** | 2.14.0 | 軽量な状態管理ライブラリ |
+| **clsx** | 2.1.1 | 条件付きクラス名の結合 |
 
 ### 地図・ナビゲーション
-| 技術 | 用途 |
-|------|------|
-| **Leaflet** | 地図表示ライブラリ |
-| **React Leaflet** | LeafletのReactラッパー |
-| **OSRM API** | ルート計算・ナビゲーション |
-| **OpenStreetMap** | 地図タイル |
-| **Nominatim API** | 住所検索・ジオコーディング |
+| 技術 | バージョン | 用途 |
+|------|-----------|------|
+| **Leaflet** | 1.9.4 | 地図表示ライブラリ |
+| **React Leaflet** | 5.0.0 | LeafletのReactラッパー |
+| **OSRM API** | - | ルート計算・ナビゲーション（OpenStreetMap） |
+| **OpenStreetMap** | - | 地図タイル提供 |
+| **Nominatim API** | - | 住所検索・ジオコーディング |
 
 ### バックエンド・データベース
-| 技術 | 用途 |
-|------|------|
-| **Firebase Authentication** | Google認証 |
-| **Firebase Realtime Database** | リアルタイムデータ同期 |
-| **Firebase Firestore** | ドキュメントデータベース |
-| **Daily.co API** | リアルタイム音声通話 |
+| 技術 | バージョン | 用途 |
+|------|-----------|------|
+| **Firebase** | 12.3.0 | BaaS（Backend as a Service） |
+| **Firebase Authentication** | - | Google認証・ユーザー管理 |
+| **Firebase Realtime Database** | - | リアルタイムデータ同期 |
+| **Firebase Firestore** | - | ドキュメントデータベース |
+| **Daily.co API** | 0.84.0 | リアルタイム音声通話 |
+
+### 開発ツール
+| 技術 | バージョン | 用途 |
+|------|-----------|------|
+| **Biome** | 2.2.4 | 高速なリンター・フォーマッター |
+| **SWC** | - | 高速なJavaScript/TypeScriptコンパイラ |
+| **concurrently** | 8.2.2 | 複数プロセスの並列実行 |
 
 ### PWA・デプロイ
-| 技術 | 用途 |
-|------|------|
-| **Vite PWA Plugin** | PWA機能実装 |
-| **Workbox** | Service Worker管理 |
-| **Cloudflare Pages** | ホスティング |
+| 技術 | バージョン | 用途 |
+|------|-----------|------|
+| **Vite PWA Plugin** | 1.0.3 | PWA機能実装 |
+| **Workbox** | - | Service Worker管理・キャッシュ戦略 |
+| **Cloudflare Pages** | - | ホスティング・CDN |
 
 ---
 
