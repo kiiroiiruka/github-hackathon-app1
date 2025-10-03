@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import FooterTab from "../components/layout/FooterTab";
+import HeaderComponent2 from "../components/Header/Header2";
 import { useIsLoggedIn } from "../hooks/useUser";
 import { useUserUid } from "../hooks/useUserUid";
 import AppInformation from "./AppInformation/AppInformation";
@@ -145,13 +146,53 @@ const Dashboard = () => {
     return "home";
   }, []);
 
-  const [tab, setTab] = useState(() => getCurrentTab(location.pathname));
+  // Header2を表示するかどうかを判定する関数
+  const shouldShowHeader2 = useCallback((pathname) => {
+    const path = pathname.replace("/dashboard", "") || "/";
+    const segments = path.split("/").filter(Boolean);
+    const firstSegment = segments[0];
 
-  // URLが変わったらタブ状態を更新
+    // Header2を表示するページ
+    if (!firstSegment || firstSegment === "home") return true; // ホーム
+    if (firstSegment === "navi" && segments.length === 1) return true; // カーナビ作成（メインページ）
+    if (firstSegment === "friends") return true; // 友達追加
+    if (firstSegment === "memo" && segments.length === 1) return true; // メモ（メインページ）
+    if (firstSegment === "parking" && segments.length === 1) return true; // 駐車場（メインページ）
+
+    // それ以外のページではHeader2を表示しない
+    return false;
+  }, []);
+
+  // URLから現在のページタイトルを取得する関数（Header2用）
+  const getPageTitle = useCallback((pathname) => {
+    const path = pathname.replace("/dashboard", "") || "/";
+    const segments = path.split("/").filter(Boolean);
+    const firstSegment = segments[0];
+
+    // パスに応じてタイトルを返す
+    if (!firstSegment || firstSegment === "home") return "ホーム";
+    if (firstSegment === "navi") return "カーナビ作成";
+    if (firstSegment === "friends") return "友達追加";
+    if (firstSegment === "memo") return "メモ";
+    if (firstSegment === "parking") return "駐車場";
+
+    return "ホーム";
+  }, []);
+
+  const [tab, setTab] = useState(() => getCurrentTab(location.pathname));
+  const [showHeader2, setShowHeader2] = useState(() => shouldShowHeader2(location.pathname));
+  const [pageTitle, setPageTitle] = useState(() => getPageTitle(location.pathname));
+
+  // URLが変わったらタブ状態、ヘッダー表示、タイトルを更新
   useEffect(() => {
     const currentTab = getCurrentTab(location.pathname);
+    const showHeader = shouldShowHeader2(location.pathname);
+    const title = getPageTitle(location.pathname);
+    
     setTab(currentTab);
-  }, [location.pathname, getCurrentTab]);
+    setShowHeader2(showHeader);
+    setPageTitle(title);
+  }, [location.pathname, getCurrentTab, shouldShowHeader2, getPageTitle]);
 
   // タブクリック時の処理
   const handleTabChange = (tabKey) => {
@@ -160,8 +201,24 @@ const Dashboard = () => {
     navigate(path);
   };
 
+  // ユーザーアイコンクリック時の処理
+  const handleUserIconClick = () => {
+    navigate("/dashboard/UserInformation");
+  };
+
   return (
     <div className="min-h-dvh pb-16">
+      {/* 🆕 Header2を条件付きで表示 */}
+      {showHeader2 && (
+        <HeaderComponent2 
+          title={pageTitle} 
+          onUserIconClick={handleUserIconClick}
+        />
+      )}
+      
+      {/* Header2が表示されている場合はスペースを追加 */}
+      {showHeader2 && <div style={{ height: "88px" }}></div>}
+      
       <main className="p-4">
         <Routes>
           <Route index element={<HomeScreen />} />

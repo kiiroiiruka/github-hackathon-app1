@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getUser, sendFriendRequest } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
-import HeaderComponent2 from "../../../components/Header/Header2";
 import ProfileImage from "../../../components/ui/ProfileImage";
 
 const FriendsAddScreen = () => {
@@ -113,8 +112,7 @@ const FriendsAddScreen = () => {
 
 	return (
 		<div>
-			<HeaderComponent2 title="友達追加" />
-			<div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
+			<div className="p-4 max-w-2xl mx-auto">
 				{/* 自分のユーザー情報表示セクション */}
 				{currentUser && (
 					<div className="bg-blue-50 rounded-lg shadow-md p-4 mb-6">

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
 import { isDebugModeEnabled } from "@/utils/env";
-import HeaderComponent2 from "../../../components/Header/Header2";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
 import EmptyState from "../../../components/ui/EmptyState";
@@ -333,10 +332,8 @@ const ParkingInfoDisplay = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <HeaderComponent2 title="駐車場" />
-
       {/* メインコンテンツ */}
-      <div className="container mx-auto px-4 py-6" style={{ paddingTop: "100px" }}>
+      <div className="container mx-auto px-4 py-6">
         {/* タイトルセクション */}
 
         {loading ? (

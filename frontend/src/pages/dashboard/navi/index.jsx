@@ -1,7 +1,6 @@
 import { push, ref, serverTimestamp, set } from "firebase/database";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import HeaderComponent2 from "../../../components/Header/Header2";
 import SelectedFriendsDisplay from "../../../components/RoomCreation/SelectedFriendsDisplay";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
@@ -613,9 +612,7 @@ const NaviCreateScreen = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <HeaderComponent2 title="カーナビ作成" />
-
-      <div className="px-4 py-6 pt-20 pb-40 min-h-screen">
+      <div className="px-4 py-6 pb-40 min-h-screen">
         <div className="max-w-2xl mx-auto">
           {/* タイトルセクション */}
           <div className="text-center mb-8">

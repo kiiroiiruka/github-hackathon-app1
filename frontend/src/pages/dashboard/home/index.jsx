@@ -1,7 +1,6 @@
 import { onValue, ref, update } from "firebase/database";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import HeaderComponent2 from "@/components/Header/Header2";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
@@ -123,8 +122,7 @@ const HomeScreen = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <HeaderComponent2 title="ホーム" onUserIconClick={handleUserIconClick} />
-      <div className="px-4 py-6" style={{ paddingTop: "100px" }}>
+      <div className="px-4 py-6">
         <div className="max-w-2xl mx-auto">
           {/* フレンドボタン */}
           <div className="mb-6">

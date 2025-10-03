@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deleteMemo, getMemosByUser } from "@/firebase";
 import { useUserUid } from "@/hooks/useUserUid";
-import HeaderComponent2 from "../../../components/Header/Header2";
 
 const MemoScreen = () => {
   const navigate = useNavigate();
@@ -81,9 +80,7 @@ const MemoScreen = () => {
 
   return (
     <div>
-      <HeaderComponent2 title="メモ" onUserIconClick={handleUserIconClick} />
-
-      <div className="p-4 max-w-2xl mx-auto" style={{ paddingTop: "88px" }}>
+      <div className="p-4 max-w-2xl mx-auto">
         {/* 検索バー */}
         <div className="mb-6">
           <input
