@@ -271,6 +271,7 @@ const CarNavigation = () => {
   const lastRestRouteCalcTimeRef = useRef(0); // 直近の休憩地点ルート再計算時刻
   const lastRestRouteInfoRef = useRef(null); // { start: {lat,lng}, restPoint: {lat,lng} }
   const lastRestRouteErrorTimeRef = useRef(0); // 直近の休憩地点APIエラー発生時刻
+  const isUpdatingRestRouteRef = useRef(false); // 休憩地点ルート計算中フラグ（重複呼び出し防止）
 
   // デバッグ: コンポーネントマウント時の状態
   useEffect(() => {
@@ -624,9 +625,9 @@ const CarNavigation = () => {
         
         // 合流ルート上にいる（50m以内）→ API呼び出し不要
         if (rejoinDistance <= 50) {
-          console.log("✅ 合流ルート上にいます（API呼び出しスキップ）:", {
-            distance: `${rejoinDistance.toFixed(1)}m`,
-          });
+          // console.log("✅ 合流ルート上にいます（API呼び出しスキップ）:", {
+          //   distance: `${rejoinDistance.toFixed(1)}m`,
+          // }); // 頻繁すぎるのでコメントアウト
           return;
         }
         
@@ -796,24 +797,29 @@ const CarNavigation = () => {
     }
   }, [routeData?.routeInfo?.arrivalTime]);
 
-  // 到着時刻をリアルタイムで更新（1分ごと）
+  // 到着時刻をリアルタイムで更新（2分ごと）
   useEffect(() => {
-    // 休憩地点がセットされている場合は休憩地点への到着時刻を更新（別のuseEffectで処理）
-    if (restPoint && activeTab === "rest") {
-      return;
-    }
-
-    // 現在地と目的地が存在しない場合はスキップ
-    if (!currentLocation || !routeData?.destination?.coordinates) {
+    // 目的地の座標を文字列化して安定した依存関係にする
+    const destCoords = routeData?.destination?.coordinates;
+    if (!destCoords) {
       return;
     }
 
     const updateETA = async () => {
+      // 休憩地点がセットされている場合はスキップ（別のuseEffectで処理）
+      if (restPoint && activeTab === "rest") {
+        return;
+      }
+
+      // 現在地が存在しない場合はスキップ
+      if (!currentLocation) {
+        return;
+      }
+
       try {
-        const destination = routeData.destination.coordinates;
-        const url = `https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${destination[1]},${destination[0]}?overview=false`;
+        const url = `https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${destCoords[1]},${destCoords[0]}?overview=false`;
         
-        // console.log("🕐 目的地までのETA更新中..."); // コメントアウト
+        console.log("🕐 目的地までのETA更新中..."); // 2分ごとなので表示
         const res = await fetch(url);
         
         if (!res.ok) {
@@ -831,7 +837,7 @@ const CarNavigation = () => {
           console.log("✅ ETA更新完了:", {
             duration: `${Math.round(durationSec / 60)}分`,
             arrival: newEta.toLocaleTimeString("ja-JP"),
-          });
+          }); // 2分ごとなので表示
         }
       } catch (error) {
         console.error("❌ ETA更新エラー:", error);
@@ -845,7 +851,7 @@ const CarNavigation = () => {
     const intervalId = setInterval(updateETA, 120000);
 
     return () => clearInterval(intervalId);
-  }, [currentLocation, routeData?.destination?.coordinates, restPoint, activeTab]);
+  }, [routeData?.destination?.coordinates?.[0], routeData?.destination?.coordinates?.[1]]); // 座標の値そのものを監視
 
   // 他のメンバーの位置情報をリアルタイム取得
   useEffect(() => {
@@ -1094,11 +1100,19 @@ const CarNavigation = () => {
       return;
     }
 
+    // 既に計算中の場合はスキップ（重複呼び出し防止）
+    if (isUpdatingRestRouteRef.current) {
+      console.log("⏭️ 休憩地点ルート計算中のため、API呼び出しスキップ");
+      return;
+    }
+
+    isUpdatingRestRouteRef.current = true;
+
     try {
-      console.log("🟣 休憩地点ルート計算開始:", {
-        from: `${from.lat.toFixed(4)}, ${from.lng.toFixed(4)}`,
-        to: `${to.lat.toFixed(4)}, ${to.lng.toFixed(4)}`,
-      });
+      // console.log("🟣 休憩地点ルート計算開始:", {
+      //   from: `${from.lat.toFixed(4)}, ${from.lng.toFixed(4)}`,
+      //   to: `${to.lat.toFixed(4)}, ${to.lng.toFixed(4)}`,
+      // }); // APIブロック対策のためコメントアウト
 
       const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=simplified&geometries=geojson`;
       const res = await fetch(url);
@@ -1113,20 +1127,20 @@ const CarNavigation = () => {
       
       if (coords.length > 0) {
         setRestRoute(coords);
-        console.log("✅ 休憩地点ルート生成完了:", { 
-          points: coords.length,
-          distance: `${Math.round((data.routes[0].distance / 1000) * 10) / 10}km`,
-        });
+        // console.log("✅ 休憩地点ルート生成完了:", { 
+        //   points: coords.length,
+        //   distance: `${Math.round((data.routes[0].distance / 1000) * 10) / 10}km`,
+        // }); // 頻繁すぎるのでコメントアウト
 
         // ETAを更新
         const durationSec = data?.routes?.[0]?.duration;
         if (typeof durationSec === "number") {
           setEtaTime(new Date(Date.now() + durationSec * 1000));
           setEtaSource("rest");
-          console.log("🕐 休憩地点ETA更新:", {
-            duration: `${Math.round(durationSec / 60)}分`,
-            arrival: new Date(Date.now() + durationSec * 1000).toLocaleTimeString("ja-JP"),
-          });
+          // console.log("🕐 休憩地点ETA更新:", {
+          //   duration: `${Math.round(durationSec / 60)}分`,
+          //   arrival: new Date(Date.now() + durationSec * 1000).toLocaleTimeString("ja-JP"),
+          // }); // 頻繁すぎるのでコメントアウト
         }
       } else {
         console.warn("⚠️ ルートが見つかりません");
@@ -1136,6 +1150,8 @@ const CarNavigation = () => {
       console.error("❌ 休憩地点ルート生成エラー:", e);
       lastRestRouteErrorTimeRef.current = Date.now(); // エラー時刻を記録
       setRestRoute(null);
+    } finally {
+      isUpdatingRestRouteRef.current = false; // フラグをリセット
     }
   }, []);
 
@@ -1153,6 +1169,7 @@ const CarNavigation = () => {
     lastRestRouteCalcTimeRef.current = 0;
     lastRestRouteInfoRef.current = null;
     lastRestRouteErrorTimeRef.current = 0;
+    isUpdatingRestRouteRef.current = false; // 計算中フラグもクリア
     
     // 休憩地点を設定
     setRestPoint(newRestPoint);
@@ -1175,6 +1192,7 @@ const CarNavigation = () => {
     lastRestRouteCalcTimeRef.current = 0;
     lastRestRouteInfoRef.current = null;
     lastRestRouteErrorTimeRef.current = 0;
+    isUpdatingRestRouteRef.current = false; // 計算中フラグもクリア
     
     // 休憩地点の到着時刻をクリアして、元の目的地の到着時刻に戻す
     if (originalEtaTime) {
@@ -1213,19 +1231,25 @@ const CarNavigation = () => {
     let isInitialCalculation = !restRoute || restRoute.length === 0;
 
     const tick = async () => {
+      // 既に計算中の場合はスキップ（重要：無限ループ防止）
+      if (isUpdatingRestRouteRef.current) {
+        // console.log("⏭️ tick: 既に計算中のためスキップ"); // 頻繁すぎるのでコメントアウト
+        return;
+      }
+      
       // エラー発生後30秒以内は再試行しない（無限ループ防止）
       const now = Date.now();
       const timeSinceError = now - lastRestRouteErrorTimeRef.current;
       if (lastRestRouteErrorTimeRef.current > 0 && timeSinceError < 30000) {
-        console.log("⏸️ 休憩地点API呼び出しスキップ（エラー発生後30秒待機中）:", {
-          elapsed: `${(timeSinceError / 1000).toFixed(1)}秒`,
-        });
+        // console.log("⏸️ 休憩地点API呼び出しスキップ（エラー発生後30秒待機中）:", {
+        //   elapsed: `${(timeSinceError / 1000).toFixed(1)}秒`,
+        // }); // APIブロック対策のためコメントアウト
         return;
       }
       
       // ルートが未計算の場合は即座に計算（API呼び出し）
       if (!restRoute || restRoute.length === 0) {
-        console.log("🟣 休憩地点ルート初回計算（API呼び出し）");
+        // console.log("🟣 休憩地点ルート初回計算（API呼び出し）"); // 無限ループデバッグ用
         await computeRestRoute(currentLocation, restPoint);
         return;
       }
@@ -1239,9 +1263,9 @@ const CarNavigation = () => {
       
       if (onRestRoute) {
         // ルート上にいる → API呼び出し不要
-        console.log("✅ 休憩地点ルート上にいます（API呼び出しスキップ）:", {
-          distance: `${distance.toFixed(1)}m`,
-        });
+        // console.log("✅ 休憩地点ルート上にいます（API呼び出しスキップ）:", {
+        //   distance: `${distance.toFixed(1)}m`,
+        // }); // 頻繁すぎるのでコメントアウト
       } else {
         // ルート外 → ヒステリシスチェック後にAPI呼び出し
         const now = Date.now();
@@ -1253,18 +1277,18 @@ const CarNavigation = () => {
           
           // 直近再計算から15秒以内かつ開始点からの移動が50m未満なら再計算をスキップ
           if (elapsedMs < 15000 && movedFromLastStart < 50) {
-            console.log("⏭️ 休憩地点ルート再計算スキップ（ヒステリシス）:", {
-              elapsed: `${(elapsedMs / 1000).toFixed(1)}秒`,
-              moved: `${movedFromLastStart.toFixed(1)}m`,
-            });
+            // console.log("⏭️ 休憩地点ルート再計算スキップ（ヒステリシス）:", {
+            //   elapsed: `${(elapsedMs / 1000).toFixed(1)}秒`,
+            //   moved: `${movedFromLastStart.toFixed(1)}m`,
+            // }); // 頻繁すぎるのでコメントアウト
             return;
           }
         }
         
         // ルート外 → API呼び出しして再計算
-        console.log("⚠️ 休憩地点ルートから外れました（API再呼び出し）:", {
-          distance: `${distance.toFixed(1)}m`,
-        });
+        // console.log("⚠️ 休憩地点ルートから外れました（API再呼び出し）:", {
+        //   distance: `${distance.toFixed(1)}m`,
+        // }); // APIブロック対策のためコメントアウト
         
         lastRestRouteInfoRef.current = {
           start: { ...currentLocation },

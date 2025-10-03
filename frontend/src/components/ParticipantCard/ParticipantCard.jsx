@@ -55,7 +55,7 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
   const getIconURL = () => {
     // ローカル参加者でGoogleアイコンが利用可能な場合はそれを使用
     if (isLocal && currentUser?.photoURL) {
-      console.log("🖼️ ローカル参加者のGoogleアイコンを使用:", currentUser.photoURL);
+      // console.log("🖼️ ローカル参加者のGoogleアイコンを使用:", currentUser.photoURL); // 頻繁すぎるのでコメントアウト
       validPhotoURLRef.current = currentUser.photoURL;
       return currentUser.photoURL;
     }
@@ -64,14 +64,14 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
     const cachedPhotoURL =
       participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name);
     if (cachedPhotoURL !== undefined && cachedPhotoURL !== null && cachedPhotoURL !== "") {
-      console.log("🖼️ キャッシュされたphotoURLを使用:", cachedPhotoURL);
+      // console.log("🖼️ キャッシュされたphotoURLを使用:", cachedPhotoURL); // 頻繁すぎるのでコメントアウト
       validPhotoURLRef.current = cachedPhotoURL;
       return cachedPhotoURL;
     }
 
     // FirebaseのmembersデータからphotoURLが取得できる場合はそれを使用
     if (photoURL && photoURL !== "" && photoURL !== null) {
-      console.log("🖼️ Firebase photoURLを使用:", photoURL);
+      // console.log("🖼️ Firebase photoURLを使用:", photoURL); // 頻繁すぎるのでコメントアウト
       validPhotoURLRef.current = photoURL;
       return photoURL;
     }
@@ -79,20 +79,20 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
     // Google認証からphotoURLを取得を試行
     const googlePhotoURL = getGooglePhotoURL(user_name);
     if (googlePhotoURL) {
-      console.log("🖼️ Google認証からphotoURLを取得:", googlePhotoURL);
+      // console.log("🖼️ Google認証からphotoURLを取得:", googlePhotoURL); // 頻繁すぎるのでコメントアウト
       validPhotoURLRef.current = googlePhotoURL;
       return googlePhotoURL;
     }
 
     // 有効なphotoURLが既に保存されている場合はそれを使用
     if (validPhotoURLRef.current && !validPhotoURLRef.current.includes("ui-avatars.com")) {
-      console.log("🖼️ 保存された有効なphotoURLを使用:", validPhotoURLRef.current);
+      // console.log("🖼️ 保存された有効なphotoURLを使用:", validPhotoURLRef.current); // 頻繁すぎるのでコメントアウト
       return validPhotoURLRef.current;
     }
 
     // それ以外の場合は生成されたアイコンを使用
     const generatedURL = generateIconURL(user_name, uid || session_id);
-    console.log("🖼️ 生成されたアイコンを使用:", generatedURL);
+    // console.log("🖼️ 生成されたアイコンを使用:", generatedURL); // 頻繁すぎるのでコメントアウト
     return generatedURL;
   };
 
@@ -110,7 +110,7 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
   // photoURLが更新された時に画像エラー状態をリセット
   useEffect(() => {
     if (photoURL && photoURL !== "" && photoURL !== null) {
-      console.log("🖼️ photoURLが更新されました、画像エラー状態をリセット:", photoURL);
+      // console.log("🖼️ photoURLが更新されました、画像エラー状態をリセット:", photoURL); // 頻繁すぎるのでコメントアウト
       setImageError(false);
       // エラー状態のキャッシュからも削除
       if (imageErrorRef.current.has(photoURL)) {
@@ -120,35 +120,35 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
   }, [photoURL]);
 
   // デバッグログを追加（重要な情報のみ）
-  const cachedPhotoURL =
-    participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name);
-  const googlePhotoURL = getGooglePhotoURL(user_name);
+  // const cachedPhotoURL =
+  //   participantPhotoURLs.get(session_id) || participantPhotoURLs.get(user_name);
+  // const googlePhotoURL = getGooglePhotoURL(user_name);
 
-  console.log("ParticipantCard Debug:", {
-    user_name,
-    isLocal,
-    participantLocal: participant.local,
-    audio,
-    session_id: participant.session_id,
-    uid: uid,
-    iconURL,
-    imageError,
-    willShowImage: !imageError,
-    hasGooglePhoto: !!(isLocal && currentUser?.photoURL),
-    hasFirebasePhoto: !!photoURL,
-    hasCachedPhoto: !!cachedPhotoURL,
-    cachedPhotoURL: cachedPhotoURL,
-    googlePhotoURL: googlePhotoURL,
-    usingGeneratedIcon:
-      !(isLocal && currentUser?.photoURL) && !photoURL && !cachedPhotoURL && !googlePhotoURL,
-    iconSource: (() => {
-      if (isLocal && currentUser?.photoURL) return "local-google";
-      if (cachedPhotoURL) return "cached";
-      if (photoURL) return "firebase";
-      if (googlePhotoURL) return "google-auth";
-      return "generated";
-    })(),
-  });
+  // console.log("ParticipantCard Debug:", {
+  //   user_name,
+  //   isLocal,
+  //   participantLocal: participant.local,
+  //   audio,
+  //   session_id: participant.session_id,
+  //   uid: uid,
+  //   iconURL,
+  //   imageError,
+  //   willShowImage: !imageError,
+  //   hasGooglePhoto: !!(isLocal && currentUser?.photoURL),
+  //   hasFirebasePhoto: !!photoURL,
+  //   hasCachedPhoto: !!cachedPhotoURL,
+  //   cachedPhotoURL: cachedPhotoURL,
+  //   googlePhotoURL: googlePhotoURL,
+  //   usingGeneratedIcon:
+  //     !(isLocal && currentUser?.photoURL) && !photoURL && !cachedPhotoURL && !googlePhotoURL,
+  //   iconSource: (() => {
+  //     if (isLocal && currentUser?.photoURL) return "local-google";
+  //     if (cachedPhotoURL) return "cached";
+  //     if (photoURL) return "firebase";
+  //     if (googlePhotoURL) return "google-auth";
+  //     return "generated";
+  //   })(),
+  // }); // 頻繁すぎるのでコメントアウト
 
   // ユーザー名が長すぎる場合は省略
   const displayName =
@@ -164,16 +164,16 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
   };
 
   // デバッグログを追加（音声状態の確認）
-  console.log("ParticipantCard state:", {
-    user_name,
-    audio,
-    cardColor: audio ? "green" : "red",
-    isLocal,
-    participantLocal: participant.local,
-    session_id: participant.session_id,
-    hasPhotoURL: !!photoURL,
-    imageError,
-  });
+  // console.log("ParticipantCard state:", {
+  //   user_name,
+  //   audio,
+  //   cardColor: audio ? "green" : "red",
+  //   isLocal,
+  //   participantLocal: participant.local,
+  //   session_id: participant.session_id,
+  //   hasPhotoURL: !!photoURL,
+  //   imageError,
+  // }); // 頻繁すぎるのでコメントアウト
 
   return (
     <div style={cardStyle}>
@@ -190,28 +190,28 @@ const ParticipantCard = ({ participant, isLocal = false, participantPhotoURLs = 
             alt={user_name || "User"}
             style={styles.profileImg}
             onLoad={() => {
-              console.log("🖼️ アイコン読み込み成功:", {
-                user_name,
-                iconURL,
-                session_id: participant.session_id,
-              });
+              // console.log("🖼️ アイコン読み込み成功:", {
+              //   user_name,
+              //   iconURL,
+              //   session_id: participant.session_id,
+              // }); // 頻繁すぎるのでコメントアウト
             }}
             onError={() => {
-              console.log("🖼️ アイコン読み込みエラー:", {
-                user_name,
-                iconURL,
-                session_id: participant.session_id,
-              });
+              // console.log("🖼️ アイコン読み込みエラー:", {
+              //   user_name,
+              //   iconURL,
+              //   session_id: participant.session_id,
+              // }); // エラー時のみ必要なら有効化
               // エラー状態を永続化
               if (iconURL) {
                 imageErrorRef.current.add(iconURL);
-                console.log("🖼️ エラー状態を永続化:", iconURL);
+                // console.log("🖼️ エラー状態を永続化:", iconURL); // 頻繁すぎるのでコメントアウト
               }
               setImageError(true);
 
               // photoURLが更新された場合は、エラー状態をリセットして再試行
               if (photoURL && photoURL !== iconURL) {
-                console.log("🖼️ photoURLが更新されたため、エラー状態をリセットして再試行");
+                // console.log("🖼️ photoURLが更新されたため、エラー状態をリセットして再試行"); // 頻繁すぎるのでコメントアウト
                 setTimeout(() => {
                   setImageError(false);
                   if (imageErrorRef.current.has(iconURL)) {
