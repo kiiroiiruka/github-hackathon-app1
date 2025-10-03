@@ -1,7 +1,7 @@
 import { onValue, ref, update } from "firebase/database";
 import L, { Icon } from "leaflet";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import { useNavigate, useParams } from "react-router-dom";
 import AudioCallFooter from "@/components/Footer/AudioCallFooter";
 import AudioCallRoom from "@/components/VideoCall/VideoCallRoom";
@@ -243,6 +243,7 @@ const CarNavigation = () => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isUsingMockLocation, setIsUsingMockLocation] = useState(true);
   const [mockLocationIndex, setMockLocationIndex] = useState(0);
+  const [gpsAccuracy, setGpsAccuracy] = useState(null); // GPS精度（メートル）
   const [routeStatus, setRouteStatus] = useState({
     isOnRoute: true,
     distance: 0,
@@ -295,11 +296,16 @@ const CarNavigation = () => {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const { latitude, longitude } = position.coords;
+        const { latitude, longitude, accuracy } = position.coords;
         const newLocation = { lat: latitude, lng: longitude };
         setCurrentLocation(newLocation);
         setIsUsingMockLocation(false);
-        console.log("📍 GPS位置取得（初回）:", { latitude, longitude });
+        setGpsAccuracy(accuracy); // GPS精度を保存
+        console.log("📍 GPS位置取得（初回）:", { 
+          latitude, 
+          longitude,
+          accuracy: `${accuracy.toFixed(1)}m`
+        });
 
         // Firebaseに位置情報を送信
         sendLocationToFirebase(newLocation);
@@ -373,6 +379,7 @@ const CarNavigation = () => {
         // 位置情報を即座に反映
         setCurrentLocation(newLocation);
         setIsUsingMockLocation(false);
+        setGpsAccuracy(accuracy); // GPS精度を保存
         
         // デバウンス処理：前回送信から1秒以上経過している場合のみFirebaseに送信
         const now = Date.now();
@@ -2089,6 +2096,33 @@ const CarNavigation = () => {
                   </Marker>
                 )}
 
+                {/* GPS精度の青い円（精度が低い場合のみ表示） */}
+                {currentLocation && gpsAccuracy && gpsAccuracy > 30 && !isUsingMockLocation && (
+                  <Circle
+                    center={[currentLocation.lat, currentLocation.lng]}
+                    radius={gpsAccuracy}
+                    pathOptions={{
+                      color: '#3B82F6', // blue-500
+                      fillColor: '#3B82F6',
+                      fillOpacity: 0.15,
+                      weight: 2,
+                      opacity: 0.5,
+                    }}
+                  >
+                    <Popup>
+                      <div className="text-center text-xs">
+                        <div className="font-semibold text-blue-600 mb-1">📡 GPS精度範囲</div>
+                        <div className="text-gray-600">
+                          誤差: ±{gpsAccuracy.toFixed(0)}m
+                        </div>
+                        <div className="text-gray-500 mt-1">
+                          この円の中にいると思われます
+                        </div>
+                      </div>
+                    </Popup>
+                  </Circle>
+                )}
+
                 {/* 現在地マーカー（自分のユーザーアイコン、丸型） */}
                 {currentLocation && (
                   <Marker
@@ -2131,6 +2165,13 @@ const CarNavigation = () => {
                         <div className="text-xs text-gray-500 break-all">
                           {currentLocation.lat.toFixed(4)}, {currentLocation.lng.toFixed(4)}
                         </div>
+                        {gpsAccuracy && (
+                          <div className="text-xs text-blue-600 mt-1">
+                            📡 精度: ±{gpsAccuracy.toFixed(0)}m
+                            {gpsAccuracy > 30 && <span className="text-orange-600"> (やや低め)</span>}
+                            {gpsAccuracy > 100 && <span className="text-red-600"> (低い)</span>}
+                          </div>
+                        )}
                         <div className="text-xs mt-1">
                           {routeStatus.isOnRoute ? (
                             <span className="text-green-600">✅ ルート上</span>
@@ -2257,6 +2298,25 @@ const CarNavigation = () => {
               <div className="text-center text-gray-600">
                 <div className="text-4xl mb-2">🗺️</div>
                 <p>ルート情報がありません</p>
+              </div>
+            </div>
+          )}
+
+          {/* GPS精度警告を地図左上に表示 */}
+          {gpsAccuracy && gpsAccuracy > 30 && !isUsingMockLocation && (
+            <div className={`absolute top-3 left-3 z-[1000] px-3 py-2 rounded-lg shadow-lg ${
+              gpsAccuracy > 100 ? 'bg-red-500' : gpsAccuracy > 50 ? 'bg-orange-500' : 'bg-blue-500'
+            } text-white`}>
+              <div className="text-[10px] font-medium mb-0.5 flex items-center gap-1">
+                📡 GPS精度
+                {gpsAccuracy > 100 && <span>(低い)</span>}
+                {gpsAccuracy > 50 && gpsAccuracy <= 100 && <span>(やや低め)</span>}
+              </div>
+              <div className="text-sm font-bold leading-tight">
+                ±{gpsAccuracy.toFixed(0)}m範囲内
+              </div>
+              <div className="text-[9px] mt-0.5 opacity-90">
+                青い円の中にいると思われます
               </div>
             </div>
           )}
