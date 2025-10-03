@@ -54,7 +54,7 @@ const InviterPreference = () => {
   if (error) return <ErrorScreen error={error} onRetry={retryFetch} onBack={handleBack} />;
 
   return (
-    <PageLayout title="通信">
+    <PageLayout title="友達追加">
       <div className="text-center mb-8">
         <div className="text-6xl mb-4">📨</div>
         <h1 className="text-3xl font-bold text-gray-800 mb-2">招待するユーザー</h1>

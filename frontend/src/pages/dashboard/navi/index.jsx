@@ -35,6 +35,7 @@ const NaviCreateScreen = () => {
     return saved ? JSON.parse(saved) : null;
   });
 
+
   // InviterPreferenceから戻ってきた時のフレンド情報を受け取る
   useEffect(() => {
     console.log("NaviCreateScreen - location.state:", location.state);
@@ -612,7 +613,7 @@ const NaviCreateScreen = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <HeaderComponent2 title="ナビ作成" />
+      <HeaderComponent2 title="カーナビ作成" />
 
       <div className="px-4 py-6 pt-20 pb-40 min-h-screen">
         <div className="max-w-2xl mx-auto">

@@ -178,29 +178,25 @@ const AddressSearch = ({
           )}
         </div>
 
-        <div className="flex gap-1.5 flex-shrink-0">
+        <div className="flex gap-1 flex-shrink-0">
           {enableDirectInput && (
             <button
               type="button"
               onClick={handleDirectInput}
               disabled={!input.trim() || isLoading}
-              className={`px-2.5 py-2 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+              className={`px-2 py-1.5 rounded-md text-[11px] font-bold transition-all whitespace-nowrap flex-shrink-0 min-w-[40px] ${
                 !input.trim() || isLoading
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-green-600 text-white hover:bg-green-700 hover:shadow-md"
+                  : "bg-green-600 text-white hover:bg-green-700 active:scale-95"
               }`}
               title="入力された住所から座標を自動取得して確定"
             >
               {isLoading ? (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center justify-center">
                   <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <span className="hidden sm:inline">取得中</span>
                 </span>
               ) : (
-                <>
-                  <span className="hidden sm:inline">✓ 確定</span>
-                  <span className="sm:hidden">✓</span>
-                </>
+                <span>✓</span>
               )}
             </button>
           )}
@@ -208,22 +204,18 @@ const AddressSearch = ({
             type="button"
             onClick={searchAddress}
             disabled={isLoading || !input.trim()}
-            className={`px-2.5 py-2 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+            className={`px-2.5 py-1.5 rounded-md text-[11px] font-bold transition-all whitespace-nowrap flex-shrink-0 min-w-[50px] ${
               isLoading || !input.trim()
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md"
+                : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
             }`}
           >
             {isLoading ? (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center justify-center">
                 <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                <span className="hidden sm:inline">検索中</span>
               </span>
             ) : (
-              <>
-                <span className="hidden sm:inline">🔍 検索</span>
-                <span className="sm:hidden">🔍</span>
-              </>
+              <span>🔍</span>
             )}
           </button>
         </div>

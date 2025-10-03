@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import HeaderComponent from "../../../components/Header/Header";
 import LocationSearch from "../../../components/ui/LocationSearch";
+import { auth } from "../../../firebase/firebaseConfig";
+import { addSearchHistory, clearSearchHistory, deleteSearchHistory, getSearchHistory } from "../../../firebase/users";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { useFavorites } from "../../../hooks/useFavorites";
 
@@ -12,24 +14,26 @@ const RouteSelect = () => {
   const [selectedDeparture, setSelectedDeparture] = useState(null);
   const [locationType, setLocationType] = useState("destination"); // "departure" or "destination"
 
+  // 🆕 検索履歴の管理
+  const [searchHistory, setSearchHistory] = useState([]);
+
   // Firebase認証状態を監視
   useAuthState();
 
   // Firebaseベースのお気に入り管理
-  const { favorites, loading, error, addFavorite, removeFavorite, removeAllFavorites } =
-    useFavorites();
+  const { favorites, loading, error } = useFavorites();
 
-  // お気に入り追加処理（Firebase対応）
-  const addToFavorites = useCallback(
-    async (name, coordinates) => {
-      const success = await addFavorite(name, coordinates);
-      if (success) {
-        console.log("お気に入りに追加:", name, coordinates);
+  // 🆕 検索履歴を取得
+  useEffect(() => {
+    const fetchSearchHistory = async () => {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const history = await getSearchHistory(currentUser.uid, 20); // 最新20件
+        setSearchHistory(history);
       }
-      return success;
-    },
-    [addFavorite]
-  );
+    };
+    fetchSearchHistory();
+  }, []);
 
   // 既に選択された場所がある場合（RoomCreatから）
   useEffect(() => {
@@ -53,10 +57,18 @@ const RouteSelect = () => {
         setSelectedDestination(location);
         localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(location));
       }
-      // 自動的にお気に入りに追加
-      await addToFavorites(location.name, location.coordinates);
+      
+      // 🆕 検索履歴として自動保存（お気に入りではない）
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await addSearchHistory(currentUser.uid, location.name, location.coordinates);
+        
+        // 検索履歴を再取得
+        const updatedHistory = await getSearchHistory(currentUser.uid, 20);
+        setSearchHistory(updatedHistory);
+      }
     },
-    [locationType, addToFavorites]
+    [locationType]
   );
 
   // 選択をクリア
@@ -72,7 +84,7 @@ const RouteSelect = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <HeaderComponent title="通信" />
+      <HeaderComponent title="カーナビ作成" />
 
       <div className="px-4 py-6 pt-20">
         <div className="max-w-2xl mx-auto">
@@ -126,35 +138,18 @@ const RouteSelect = () => {
 
           {/* お気に入り一覧セクション */}
           <div className="bg-white rounded-xl p-6 shadow-lg mb-6 border border-gray-100">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">⭐</span>
-                <h2 className="text-lg font-semibold text-gray-800">お気に入り一覧</h2>
-                {favorites.length > 0 && (
-                  <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
-                    {favorites.length}件
-                  </span>
-                )}
-                {loading && (
-                  <span className="bg-gray-100 text-gray-600 text-sm px-2 py-1 rounded-full">
-                    読み込み中...
-                  </span>
-                )}
-              </div>
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-2xl">⭐</span>
+              <h2 className="text-lg font-semibold text-gray-800">お気に入り一覧</h2>
               {favorites.length > 0 && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const success = await removeAllFavorites();
-                    if (success) {
-                      console.log("お気に入りを全削除しました");
-                    }
-                  }}
-                  disabled={loading}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                  全削除
-                </button>
+                <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
+                  {favorites.length}件
+                </span>
+              )}
+              {loading && (
+                <span className="bg-gray-100 text-gray-600 text-sm px-2 py-1 rounded-full">
+                  読み込み中...
+                </span>
               )}
             </div>
 
@@ -181,48 +176,148 @@ const RouteSelect = () => {
                 {favorites.map((favorite) => (
                   <div
                     key={favorite.id}
-                    className="group relative p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:bg-gray-50 transition-all duration-200"
+                    className="group relative p-4 rounded-lg border-2 border-yellow-200 bg-yellow-50 hover:border-yellow-400 transition-all duration-200"
                   >
-                    <button
-                      type="button"
-                      onClick={() => handleLocationSelect(favorite)}
-                      className="w-full text-left"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-lg">📍</span>
-                            <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                              {favorite.name}
-                            </h3>
-                            {selectedDestination?.id === favorite.id && (
-                              <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                                選択中
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <p>📏 緯度: {favorite.coordinates[0].toFixed(6)}</p>
-                            <p>📏 経度: {favorite.coordinates[1].toFixed(6)}</p>
-                            <p className="text-xs text-gray-500">
-                              登録日: {new Date(favorite.addedAt).toLocaleDateString()}
-                            </p>
+                    <div className="flex items-start gap-3">
+                      <span className="text-lg flex-shrink-0">⭐</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 break-words mb-2">
+                          {favorite.name}
+                        </div>
+                        <div className="text-xs text-gray-600 mb-3">
+                          📏 {favorite.coordinates[0].toFixed(6)}, {favorite.coordinates[1].toFixed(6)}
+                          <div className="mt-1 text-gray-500">
+                            🕐 {new Date(favorite.addedAt).toLocaleDateString('ja-JP')}
                           </div>
                         </div>
-                        <span className="text-blue-500 text-lg">→</span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const location = {
+                                name: favorite.name,
+                                coordinates: favorite.coordinates,
+                              };
+                              setSelectedDeparture(location);
+                              localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(location));
+                            }}
+                            className="px-3 py-1.5 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors font-medium"
+                          >
+                            🚗 出発地に設定
+                          </button>
+                          <button
+                            onClick={() => {
+                              const location = {
+                                name: favorite.name,
+                                coordinates: favorite.coordinates,
+                              };
+                              setSelectedDestination(location);
+                              localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(location));
+                            }}
+                            className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors font-medium"
+                          >
+                            🎯 目的地に設定
+                          </button>
+                        </div>
                       </div>
-                    </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 🆕 検索履歴セクション */}
+          {searchHistory.length > 0 && (
+            <div className="bg-white rounded-xl p-6 shadow-lg mb-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📜</span>
+                  <h2 className="text-lg font-semibold text-gray-800">検索履歴</h2>
+                  <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
+                    {searchHistory.length}件
+                  </span>
+                </div>
+                {searchHistory.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const currentUser = auth.currentUser;
+                      if (currentUser) {
+                        const success = await clearSearchHistory(currentUser.uid);
+                        if (success) {
+                          setSearchHistory([]);
+                          console.log("検索履歴を全削除しました");
+                        }
+                      }
+                    }}
+                    className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors"
+                  >
+                    全削除
+                  </button>
+                )}
+              </div>
+
+              <div className="grid gap-3 max-h-96 overflow-y-auto">
+                {searchHistory.map((history) => (
+                  <div
+                    key={history.id}
+                    className="relative p-4 pr-14 rounded-lg border border-gray-200 hover:border-blue-400 transition-all duration-200 group"
+                  >
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className="text-lg flex-shrink-0">📍</span>
+                      <div className="font-medium text-gray-900 break-words">
+                        {history.name}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 mb-3 pl-7">
+                      📏 {history.coordinates[0].toFixed(6)}, {history.coordinates[1].toFixed(6)}
+                      <div className="mt-1">
+                        🕐 {new Date(history.searchedAt?.seconds * 1000).toLocaleString('ja-JP')}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pl-7">
+                      <button
+                        onClick={() => {
+                          const location = {
+                            name: history.name,
+                            coordinates: history.coordinates,
+                          };
+                          setSelectedDeparture(location);
+                          localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(location));
+                        }}
+                        className="px-3 py-1.5 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors font-medium"
+                      >
+                        🚗 出発地に設定
+                      </button>
+                      <button
+                        onClick={() => {
+                          const location = {
+                            name: history.name,
+                            coordinates: history.coordinates,
+                          };
+                          setSelectedDestination(location);
+                          localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(location));
+                        }}
+                        className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors font-medium"
+                      >
+                        🎯 目的地に設定
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={async (e) => {
                         e.stopPropagation();
-                        const success = await removeFavorite(favorite.id);
-                        if (success) {
-                          console.log("お気に入りを削除:", favorite.id);
+                        const currentUser = auth.currentUser;
+                        if (currentUser) {
+                          const success = await deleteSearchHistory(currentUser.uid, history.id);
+                          if (success) {
+                            // 履歴リストを更新
+                            setSearchHistory(searchHistory.filter(h => h.id !== history.id));
+                            console.log("検索履歴を削除:", history.id);
+                          }
                         }
                       }}
-                      disabled={loading}
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all duration-200 p-2 hover:bg-red-50 rounded-lg disabled:opacity-50"
+                      className="absolute top-3 right-3 text-red-500 hover:text-white bg-red-50 hover:bg-red-500 transition-all duration-200 p-2 rounded-lg text-base shadow-sm hover:shadow-md"
                       title="削除"
                     >
                       🗑️
@@ -230,8 +325,8 @@ const RouteSelect = () => {
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* アクションボタンセクション */}
           <div className="space-y-4">
@@ -272,51 +367,7 @@ const RouteSelect = () => {
               )}
             </div>
 
-            {/* 設定した場所でルーム作成ボタン */}
-            {(selectedDeparture || selectedDestination) && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    // 両方の場所をローカルストレージに保存
-                    if (selectedDeparture) {
-                      localStorage.setItem(
-                        "roomCreat_selectedDeparture",
-                        JSON.stringify(selectedDeparture)
-                      );
-                    }
-                    if (selectedDestination) {
-                      localStorage.setItem(
-                        "roomCreat_selectedLocation",
-                        JSON.stringify(selectedDestination)
-                      );
-                    }
-
-                    // returnToが指定されていればそちらに、なければ/dashboard/naviに遷移
-                    const targetPath = location.state?.returnTo || "/dashboard/navi";
-                    navigate(targetPath, {
-                      state: {
-                        selectedLocation: selectedDestination,
-                        selectedDeparture: selectedDeparture,
-                      },
-                    });
-                  }}
-                  className="w-full flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-                >
-                  <span className="text-2xl">🏠</span>
-                  <div className="text-center">
-                    <div className="font-semibold">上記の内容でルーム作成</div>
-                    <div className="text-sm opacity-90">
-                      {selectedDeparture && selectedDestination
-                        ? "出発地と目的地を設定してルーム作成"
-                        : selectedDeparture
-                          ? "出発地を設定してルーム作成"
-                          : "目的地を設定してルーム作成"}
-                    </div>
-                  </div>
-                </button>
-              </div>
-            )}
+        
           </div>
         </div>
       </div>

@@ -7,7 +7,9 @@ import { isLoggedInAtom, userUidAtom } from "../../../atom/userAtom";
 import HeaderComponent from "../../../components/Header/Header";
 import Card from "../../../components/ui/Card";
 import RoutingControl from "../../../components/ui/RoutingControl";
+import { auth } from "../../../firebase/firebaseConfig";
 import { formatRouteData, saveUserRoute } from "../../../firebase/route";
+import { addSearchHistory } from "../../../firebase/users";
 import { useAuthState } from "../../../hooks/useAuthState";
 
 const _RecenterMap = ({ position }) => {
@@ -145,6 +147,22 @@ const RouteScreen = () => {
     // デフォルト出発地は設定しない（GPS自動取得に任せる）
   }, [location.state]);
 
+  // 🆕 出発地・目的地を検索履歴として自動保存
+  useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    // 出発地を履歴に保存
+    if (departure && departureName) {
+      addSearchHistory(currentUser.uid, departureName, departure);
+    }
+
+    // 目的地を履歴に保存
+    if (destination && destinationName) {
+      addSearchHistory(currentUser.uid, destinationName, destination);
+    }
+  }, [departure, destination, departureName, destinationName]);
+
   // 出発地や目的地が変更されたときにルート計算状態をリセット
   useEffect(() => {
     if (departure && destination) {
@@ -252,7 +270,7 @@ const RouteScreen = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <HeaderComponent title="通信" />
+      <HeaderComponent title="ルート表示" />
 
       <div className="px-4 py-6 pt-20">
         <div className="max-w-6xl mx-auto">

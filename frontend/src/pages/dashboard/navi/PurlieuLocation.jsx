@@ -7,7 +7,6 @@ import { useFavorites } from "../../../hooks/useFavorites";
 
 const PurlieuLocation = () => {
   const navigate = useNavigate();
-  const [selectedFavorite, setSelectedFavorite] = useState(null);
   const [locationType, setLocationType] = useState("destination"); // "departure" or "destination"
   const [selectedDeparture, setSelectedDeparture] = useState(null);
   const [selectedDestination, setSelectedDestination] = useState(null);
@@ -159,7 +158,7 @@ const PurlieuLocation = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50">
-      <HeaderComponent title="通信" />
+      <HeaderComponent title="お気に入りの場所" />
 
       <div className="px-4 py-6 pt-24">
         <div className="max-w-2xl mx-auto">
@@ -182,8 +181,8 @@ const PurlieuLocation = () => {
             onLocationTypeChange={setLocationType}
             onLocationSelect={handleLocationSelect}
             onClearLocation={clearLocationSelection}
-            showLocationTypeSelector={true}
-            showCurrentSettings={true}
+            showLocationTypeSelector={false}
+            showCurrentSettings={false}
             className="mb-6"
           />
 
@@ -337,110 +336,44 @@ const PurlieuLocation = () => {
                 {favorites.map((favorite) => (
                   <div
                     key={favorite.id}
-                    className={`w-full text-left group relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                      selectedFavorite?.id === favorite.id
-                        ? "bg-blue-50 border-blue-400 shadow-md"
-                        : "bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
-                    }`}
-                    onClick={() => {
-                      setSelectedFavorite(selectedFavorite?.id === favorite.id ? null : favorite);
-                      // 選択されたお気に入りを現在のタイプに設定
-                      if (selectedFavorite?.id !== favorite.id) {
-                        handleLocationSelect(favorite);
-                      }
-                    }}
+                    className="w-full text-left group relative p-4 pr-14 rounded-lg border-2 bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200"
                   >
-                    {/* 選択中バッジ（右上に配置） */}
-                    {selectedFavorite?.id === favorite.id && (
-                      <div className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1 z-10">
-                        <span>✓</span>
-                        <span>選択中</span>
-                      </div>
-                    )}
-                    
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <span className="text-lg flex-shrink-0">📍</span>
-                          <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors break-words flex-1">
-                            {favorite.name}
-                          </h3>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <p className="break-all">📐 緯度: {favorite.coordinates[0].toFixed(6)}</p>
-                          <p className="break-all">📐 経度: {favorite.coordinates[1].toFixed(6)}</p>
-                          <p className="text-xs text-gray-500">
-                            登録日: {new Date(favorite.addedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const success = await removeFavorite(favorite.id);
-                          if (success && selectedFavorite?.id === favorite.id) {
-                            setSelectedFavorite(null);
-                          }
-                        }}
-                        disabled={loading}
-                        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all duration-200 p-2 hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0"
-                        title="削除"
-                      >
-                        🗑️
-                      </button>
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className="text-lg flex-shrink-0">📍</span>
+                      <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors break-words">
+                        {favorite.name}
+                      </h3>
                     </div>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p className="break-all">📐 緯度: {favorite.coordinates[0].toFixed(6)}</p>
+                      <p className="break-all">📐 経度: {favorite.coordinates[1].toFixed(6)}</p>
+                      <p className="text-xs text-gray-500">
+                        登録日: {new Date(favorite.addedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const success = await removeFavorite(favorite.id);
+                        if (success) {
+                          console.log("お気に入りを削除しました:", favorite.id);
+                        }
+                      }}
+                      disabled={loading}
+                      className="absolute top-3 right-3 text-red-500 hover:text-white bg-red-50 hover:bg-red-500 transition-all duration-200 p-2 rounded-lg disabled:opacity-50 text-base shadow-sm hover:shadow-md"
+                      title="削除"
+                    >
+                      🗑️
+                    </button>
                   </div>
                 ))}
               </div>
             )}
 
-            {selectedFavorite && (
-              <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-400 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">✨</span>
-                  <h4 className="font-semibold text-blue-900">選択された場所</h4>
-                </div>
-                <p className="text-blue-800 font-medium">{selectedFavorite.name}</p>
-                <p className="text-sm text-blue-700 mt-1">この場所をルート設定で使用できます</p>
-              </div>
-            )}
           </div>
 
-          {/* アクションボタン */}
-          <div className="flex justify-center gap-4 mt-8">
-            {(selectedDeparture || selectedDestination) && (
-              <button
-                type="button"
-                onClick={() => {
-                  // 両方の場所をローカルストレージに保存
-                  if (selectedDeparture) {
-                    localStorage.setItem(
-                      "roomCreat_selectedDeparture",
-                      JSON.stringify(selectedDeparture)
-                    );
-                  }
-                  if (selectedDestination) {
-                    localStorage.setItem(
-                      "roomCreat_selectedLocation",
-                      JSON.stringify(selectedDestination)
-                    );
-                  }
-
-                  navigate("/dashboard/navi", {
-                    state: {
-                      selectedLocation: selectedDestination,
-                      selectedDeparture: selectedDeparture,
-                    },
-                  });
-                }}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
-              >
-                <span>🚀</span>
-                設定した場所でルーム作成
-              </button>
-            )}
-          </div>
+         
         </div>
       </div>
     </div>
