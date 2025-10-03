@@ -65,9 +65,9 @@ function LoginScreen() {
           disabled={isLoading}
           className={clsx(
             "relative w-full max-w-[280px]", // position & width
-            "flex items-center justify-center", // layout
-            "gap-3 px-8 py-4", // spacing
-            "text-[26px] leading-none font-semibold", // typography
+            "flex items-center justify-center", // layout - 中央配置
+            "gap-2.5 px-6 py-4", // spacing - バランス調整
+            "text-[24px] leading-none font-semibold", // typography - やや小さく
             "bg-gradient-to-r from-blue-600 to-indigo-600", // gradient background
             "text-white", // white text
             "rounded-2xl", // rounded corners
@@ -79,13 +79,13 @@ function LoginScreen() {
           )}
           aria-busy={isLoading}
         >
-          <span>{isLoading ? "処理中..." : "ログインする"}</span>
-          <span className={clsx("inline-flex items-center justify-center", "w-8 h-8")}>
+          <span className="flex-shrink-0">{isLoading ? "処理中..." : "ログインする"}</span>
+          <span className="inline-flex items-center justify-center w-7 h-7 flex-shrink-0">
             {/* Google G logo as SVG */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 48 48"
-              className="w-8 h-8"
+              className="w-7 h-7"
               aria-hidden="true"
               focusable="false"
             >
