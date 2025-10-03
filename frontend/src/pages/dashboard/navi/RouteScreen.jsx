@@ -44,6 +44,7 @@ const RouteScreen = () => {
   const [saveMessage, setSaveMessage] = useState("");
   const routeCalculatedRef = useRef(false); // ルート計算完了フラグ
   const routeKeyRef = useRef(null); // ルート用の安定したkey
+  const [mapCenter, setMapCenter] = useState(null); // 🆕 地図の中心位置を制御
 
   // 出発地アイコン（車マーク + START）
   const departureIcon = L.divIcon({
@@ -129,20 +130,40 @@ const RouteScreen = () => {
     if (location.state?.destination) {
       setDestination(location.state.destination);
       setDestinationName(location.state.destinationName || "");
+      
+      // 🆕 localStorageにも保存（ルーム作成画面に戻ったときのため）
+      const locationData = {
+        name: location.state.destinationName || "",
+        coordinates: location.state.destination,
+      };
+      localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(locationData));
     }
     // selectedLocationオブジェクトから値を取得する場合の対応
     else if (location.state?.selectedLocation) {
       setDestination(location.state.selectedLocation.coordinates);
       setDestinationName(location.state.selectedLocation.name || "");
+      
+      // 🆕 localStorageにも保存
+      localStorage.setItem("roomCreat_selectedLocation", JSON.stringify(location.state.selectedLocation));
     }
 
     // 出発地点の設定
     if (location.state?.departure) {
       setDeparture(location.state.departure);
       setDepartureName(location.state.departureName || "");
+      
+      // 🆕 localStorageにも保存
+      const departureData = {
+        name: location.state.departureName || "",
+        coordinates: location.state.departure,
+      };
+      localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(departureData));
     } else if (location.state?.selectedDeparture) {
       setDeparture(location.state.selectedDeparture.coordinates);
       setDepartureName(location.state.selectedDeparture.name || "");
+      
+      // 🆕 localStorageにも保存
+      localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(location.state.selectedDeparture));
     }
     // デフォルト出発地は設定しない（GPS自動取得に任せる）
   }, [location.state]);
@@ -356,6 +377,9 @@ const RouteScreen = () => {
               )}
             </div>
           </Card>
+
+   
+
           {/* 地図セクション */}
           <Card className="mb-6" variant="default">
             <div className="h-96 md:h-[500px] relative rounded-lg overflow-hidden">
@@ -402,8 +426,11 @@ const RouteScreen = () => {
                   </Marker>
                 )}
 
-                {/* 地図中心を出発地点と目的地の中間に設定 */}
-                {destination && departure && (
+                {/* 🆕 地図中心を制御（ボタンで移動可能） */}
+                {mapCenter && <_RecenterMap position={mapCenter} />}
+                
+                {/* 地図中心を出発地点と目的地の中間に設定（初期表示のみ） */}
+                {destination && departure && !mapCenter && (
                   <RecenterMapWithZoom
                     position={[
                       (departure[0] + destination[0]) / 2,
@@ -433,6 +460,25 @@ const RouteScreen = () => {
                 )}
               </MapContainer>
             </div>
+                   {/* 🆕 地図移動ボタン */}
+          {departure && destination && (
+            <div className="mt-4 mb-4 flex gap-3 justify-center">
+              <button
+                onClick={() => setMapCenter(departure)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 font-medium"
+              >
+                <span className="text-lg">🚗</span>
+                <span>出発地点へ移動</span>
+              </button>
+              <button
+                onClick={() => setMapCenter(destination)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 font-medium"
+              >
+                <span className="text-lg">🎯</span>
+                <span>ゴール地点に移動</span>
+              </button>
+            </div>
+          )}
           </Card>
         </div>
       </div>
