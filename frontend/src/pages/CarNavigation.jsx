@@ -599,11 +599,11 @@ const CarNavigation = () => {
     return optimized;
   };
 
-  // ルート判定と合流ルート計算（OSRM API使用版）
+  // ルート判定と合流ルート計算（最適化版：必要な時だけAPI呼び出し）
   const updateRouteStatus = useCallback(async (_source = "timer") => {
     if (!currentLocation || !routeData) return;
 
-    // 高精度の最短距離で判定（20m閾値）
+    // 高精度の最短距離で判定（20m閾値）- ローカル計算（APIなし）
     const { distance } = calculateShortestDistanceToRoute(currentLocation, routeData);
     const onRoute = distance <= ROUTE_THRESHOLD_METERS;
     setRouteStatus({ isOnRoute: onRoute, distance: distance || 0 });
@@ -611,6 +611,26 @@ const CarNavigation = () => {
     if (!onRoute) {
       // 休憩タブ中は合流ルートを更新しない（UI要件）
       if (activeTab === "rest") return;
+
+      // 合流ルートが既に存在する場合、合流ルート上にいるかチェック（ローカル計算）
+      if (rejoinRoute && rejoinRoute.length > 0) {
+        const rejoinRouteData = {
+          polyline: { geometry: { coordinates: rejoinRoute } },
+        };
+        const { distance: rejoinDistance } = calculateShortestDistanceToRoute(currentLocation, rejoinRouteData);
+        
+        // 合流ルート上にいる（50m以内）→ API呼び出し不要
+        if (rejoinDistance <= 50) {
+          console.log("✅ 合流ルート上にいます（API呼び出しスキップ）:", {
+            distance: `${rejoinDistance.toFixed(1)}m`,
+          });
+          return;
+        }
+        
+        console.log("⚠️ 合流ルートから外れました（API再呼び出し）:", {
+          distance: `${rejoinDistance.toFixed(1)}m`,
+        });
+      }
 
       // 位置ノイズによるルートのコロコロ切替を抑制（ヒステリシス）
       const now = Date.now();
@@ -680,12 +700,14 @@ const CarNavigation = () => {
         isUpdatingRejoinRef.current = false;
       }
     } else {
-      // ルート上にいる場合、合流ルートをクリア
-      setRejoinRoute(null);
-      setJoinPoint(null);
-      console.log("✅ ルート上にいます");
+      // ルート上にいる場合、合流ルートをクリア（API呼び出し不要）
+      if (rejoinRoute) {
+        setRejoinRoute(null);
+        setJoinPoint(null);
+        console.log("✅ ルート上に復帰しました（合流ルートをクリア）");
+      }
     }
-  }, [currentLocation, routeData, activeTab]);
+  }, [currentLocation, routeData, activeTab, rejoinRoute]);
 
   // 現在地を中心とした地図の中心座標を計算（フォーカス機能対応）
   const getMapCenter = () => {
@@ -884,14 +906,14 @@ const CarNavigation = () => {
     };
   }, [currentLocation, routeData, updateRouteStatus]);
 
-  // 15秒間隔でルート判定とオレンジルート再計算を行うタイマー（APIレート制限対策）
+  // 1秒間隔でルート判定（ローカル計算、必要な時だけAPI呼び出し）
   useEffect(() => {
     if (!currentLocation || !routeData) return;
 
     const routeCheckInterval = setInterval(async () => {
-      console.log("🔄 15秒間隔ルート判定・オレンジルート再計算実行");
+      console.log("🔄 1秒間隔ルート判定実行（ローカルチェック）");
       await updateRouteStatus();
-    }, 15000);
+    }, 1000);
 
     return () => {
       clearInterval(routeCheckInterval);
@@ -1147,7 +1169,7 @@ const CarNavigation = () => {
     console.log("🔄 休憩地点を解除し、元の到着時刻に戻しました");
   };
 
-  // 休憩地点ルートの維持と再計算（15秒、APIレート制限対策）
+  // 休憩地点ルートの維持と再計算（1秒間隔ローカルチェック、必要な時だけAPI呼び出し）
   useEffect(() => {
     // 休憩地点が設定されていない場合はルートをクリア
     if (!restPoint || !currentLocation) {
@@ -1159,22 +1181,30 @@ const CarNavigation = () => {
     let isInitialCalculation = !restRoute || restRoute.length === 0;
 
     const tick = async () => {
-      // ルートが未計算の場合は即座に計算
+      // ルートが未計算の場合は即座に計算（API呼び出し）
       if (!restRoute || restRoute.length === 0) {
-        console.log("🟣 休憩地点ルート初回計算");
+        console.log("🟣 休憩地点ルート初回計算（API呼び出し）");
         await computeRestRoute(currentLocation, restPoint);
         return;
       }
 
-      // ルートが既に存在する場合、現在地がルート外にいる場合のみ再計算
+      // ルートが既に存在する場合、現在地がルート上にいるかローカルチェック
       const restRouteData = {
         polyline: { geometry: { coordinates: restRoute } },
       };
       const { distance } = calculateShortestDistanceToRoute(currentLocation, restRouteData);
       const onRestRoute = (distance || 0) <= ROUTE_THRESHOLD_METERS;
       
-      if (!onRestRoute) {
-        console.log("🟣 休憩地点ルート再計算（ルート外）");
+      if (onRestRoute) {
+        // ルート上にいる → API呼び出し不要
+        console.log("✅ 休憩地点ルート上にいます（API呼び出しスキップ）:", {
+          distance: `${distance.toFixed(1)}m`,
+        });
+      } else {
+        // ルート外 → API呼び出しして再計算
+        console.log("⚠️ 休憩地点ルートから外れました（API再呼び出し）:", {
+          distance: `${distance.toFixed(1)}m`,
+        });
         await computeRestRoute(currentLocation, restPoint);
       }
     };
@@ -1184,8 +1214,8 @@ const CarNavigation = () => {
       tick();
     }
 
-    // 15秒間隔で定期チェック（APIレート制限対策）
-    const id = setInterval(tick, 15000);
+    // 1秒間隔でローカルチェック（必要な時だけAPI呼び出し）
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [restPoint, currentLocation, restRoute, computeRestRoute]);
 
