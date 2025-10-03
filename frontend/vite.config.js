@@ -34,6 +34,8 @@ export default defineConfig(({ mode }) => ({
 			},
 			includeAssets: ["carIcon.png", "vite.svg"],
 			manifest: {
+				// バージョンを追加してキャッシュを強制更新（変更するたびに更新）
+				version: "2.0.1",
 				name: "DriveLink",
 				short_name: "DriveLink",
 				description: "車のナビゲーションと駐車場管理アプリ",
@@ -64,6 +66,8 @@ export default defineConfig(({ mode }) => ({
 			workbox: {
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
 				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB制限
+				// キャッシュ名にバージョンを付けて、デプロイごとに自動更新
+				cacheId: "drivelink-v2.0.1",
 				// navigateFallbackを無効化して、外部APIリクエストを確実にネットワーク経由にする
 				navigateFallback: null,
 				navigateFallbackDenylist: [/^\/api/, /router\.project-osrm\.org/, /nominatim\.openstreetmap\.org/],

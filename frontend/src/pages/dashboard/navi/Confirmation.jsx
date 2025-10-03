@@ -208,10 +208,14 @@ const Confirmation = () => {
                     destination: selectedLocation,
                   });
                   
-                  const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=true`;
+                  const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
                   console.log("🗺️ OSRM API URL:", apiUrl);
 
-                  const routeResponse = await fetch(apiUrl);
+                  // タイムアウト付きfetch (30秒に延長、APIレート制限対策）
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), 30000);
+                  const routeResponse = await fetch(apiUrl, { signal: controller.signal });
+                  clearTimeout(timeoutId);
                   console.log("🗺️ OSRM API response status:", routeResponse.status);
 
                   if (routeResponse.ok) {
@@ -250,7 +254,11 @@ const Confirmation = () => {
                         test: false,
                       };
 
-                      console.log("🗺️ ルート情報取得完了:", `${distanceKm}km, ${durationMin}分`);
+                      console.log("🗺️ ルート情報取得完了:", {
+                        distance: `${distanceKm}km`,
+                        duration: `${durationMin}分`,
+                        coordinatesCount: route.geometry?.coordinates?.length || 0,
+                      });
                     } else {
                       console.warn("⚠️ ルートが見つかりません");
                     }
@@ -258,7 +266,7 @@ const Confirmation = () => {
                     console.warn("⚠️ ルート計算エラー:", routeResponse.status);
                   }
                 } catch (_routeError) {
-                  console.warn("⚠️ ルート計算に失敗、直線ルートを使用");
+                  console.warn("⚠️ ルート計算に失敗、直線ルートを使用:", _routeError.name === 'AbortError' ? 'タイムアウト' : _routeError.message);
                   // エラー時は直線ルートを作成
                   routeData = {
                     departure: {
@@ -277,7 +285,10 @@ const Confirmation = () => {
                     polyline: {
                       geometry: {
                         type: "LineString",
-                        coordinates: [selectedDeparture.coordinates, selectedLocation.coordinates],
+                        coordinates: [
+                          [selectedDeparture.coordinates[1], selectedDeparture.coordinates[0]],
+                          [selectedLocation.coordinates[1], selectedLocation.coordinates[0]]
+                        ],
                       },
                       steps: [],
                       waypoints: [],
@@ -424,10 +435,14 @@ const Confirmation = () => {
 										destination: selectedLocation,
 									});
 									
-									const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=true`;
+									const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
 									console.log("🗺️ OSRM API URL（音声なし）:", apiUrl);
 
-									const routeResponse = await fetch(apiUrl);
+									// タイムアウト付きfetch (30秒に延長、APIレート制限対策）
+									const controller = new AbortController();
+									const timeoutId = setTimeout(() => controller.abort(), 30000);
+									const routeResponse = await fetch(apiUrl, { signal: controller.signal });
+									clearTimeout(timeoutId);
 									console.log("🗺️ OSRM API response status（音声なし）:", routeResponse.status);
 
 									if (routeResponse.ok) {
@@ -470,7 +485,51 @@ const Confirmation = () => {
 										}
 									}
 								} catch (routeError) {
-									console.warn("⚠️ ルート計算に失敗:", routeError);
+									const errorType = routeError.name === 'AbortError' ? 'タイムアウト' : routeError.message;
+									console.warn("⚠️ ルート計算に失敗、直線ルートで作成:", errorType);
+									
+									// ユーザーに分かりやすいメッセージを表示
+									if (routeError.name === 'AbortError') {
+										alert("⚠️ ルート計算がタイムアウトしました。\n\nOSRM APIが混雑している可能性があります。\n5〜10分待ってから再度お試しください。\n\n今回は簡易ルート（直線）で作成されます。");
+									} else if (errorType.includes('Failed to fetch')) {
+										alert("⚠️ ルート計算サーバーに接続できませんでした。\n\nネットワーク接続を確認するか、しばらく待ってから再度お試しください。\n\n今回は簡易ルート（直線）で作成されます。");
+									}
+									
+									// エラー時は直線ルートを作成（地図表示のため）
+									routeData = {
+										departure: {
+											name: selectedDeparture.name || "出発地",
+											coordinates: selectedDeparture.coordinates,
+										},
+										destination: {
+											name: selectedLocation.name || "目的地",
+											coordinates: selectedLocation.coordinates,
+										},
+										routeInfo: {
+											distanceKm: 0,
+											durationMin: 0,
+											arrivalTime: new Date().toISOString(),
+										},
+										polyline: {
+											geometry: {
+												type: "LineString",
+												coordinates: [
+													[selectedDeparture.coordinates[1], selectedDeparture.coordinates[0]],
+													[selectedLocation.coordinates[1], selectedLocation.coordinates[0]]
+												],
+											},
+											steps: [],
+											waypoints: [],
+											summary: {
+												distance: 0,
+												duration: 0,
+												profile: "driving",
+											},
+										},
+										createdAt: new Date().toISOString(),
+										test: true, // 直線ルートフラグ
+									};
+									console.log("🗺️ 直線ルートで作成（タイムアウト対策）");
 								}
 							}
 

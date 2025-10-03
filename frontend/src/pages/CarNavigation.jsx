@@ -816,8 +816,8 @@ const CarNavigation = () => {
     // 初回は即座に実行
     updateETA();
 
-    // 1分ごとに更新
-    const intervalId = setInterval(updateETA, 60000);
+    // 2分ごとに更新（APIレート制限対策）
+    const intervalId = setInterval(updateETA, 120000);
 
     return () => clearInterval(intervalId);
   }, [currentLocation, routeData?.destination?.coordinates, restPoint, activeTab]);
@@ -884,14 +884,14 @@ const CarNavigation = () => {
     };
   }, [currentLocation, routeData, updateRouteStatus]);
 
-  // 4秒間隔でルート判定とオレンジルート再計算を行うタイマー
+  // 15秒間隔でルート判定とオレンジルート再計算を行うタイマー（APIレート制限対策）
   useEffect(() => {
     if (!currentLocation || !routeData) return;
 
     const routeCheckInterval = setInterval(async () => {
-      console.log("🔄 4秒間隔ルート判定・オレンジルート再計算実行");
+      console.log("🔄 15秒間隔ルート判定・オレンジルート再計算実行");
       await updateRouteStatus();
-    }, 4000);
+    }, 15000);
 
     return () => {
       clearInterval(routeCheckInterval);
@@ -1147,7 +1147,7 @@ const CarNavigation = () => {
     console.log("🔄 休憩地点を解除し、元の到着時刻に戻しました");
   };
 
-  // 休憩地点ルートの維持と再計算（4秒）
+  // 休憩地点ルートの維持と再計算（15秒、APIレート制限対策）
   useEffect(() => {
     // 休憩地点が設定されていない場合はルートをクリア
     if (!restPoint || !currentLocation) {
@@ -1184,8 +1184,8 @@ const CarNavigation = () => {
       tick();
     }
 
-    // 4秒間隔で定期チェック
-    const id = setInterval(tick, 4000);
+    // 15秒間隔で定期チェック（APIレート制限対策）
+    const id = setInterval(tick, 15000);
     return () => clearInterval(id);
   }, [restPoint, currentLocation, restRoute, computeRestRoute]);
 
@@ -1511,10 +1511,18 @@ const CarNavigation = () => {
                 ? `[${room.routeData.polyline.geometry.coordinates[0][0]}, ${room.routeData.polyline.geometry.coordinates[0][1]}]`
                 : "N/A",
             });
+            
+            // ルートデータが既に完全な形で存在する場合はフォールバック処理をスキップ
+            if (room.routeData.polyline?.geometry?.coordinates && room.routeData.polyline.geometry.coordinates.length > 0) {
+              setRouteEnsured(true);
+              console.log("✅ ルートデータは完全です。フォールバック処理をスキップします。");
+            }
             // ルートがあるがポリライン欠落時はフォールバック生成
-            if (!room.routeData.polyline && !routeEnsured) {
+            if (!room.routeData.polyline?.geometry?.coordinates && !routeEnsured) {
               console.warn("⚠️ ポリライン欠落を検出。フォールバック生成を試行", {
                 hasPolyline: !!room.routeData.polyline,
+                hasGeometry: !!room.routeData.polyline?.geometry,
+                hasCoordinates: !!room.routeData.polyline?.geometry?.coordinates,
                 routeEnsured,
                 dep: room.routeData?.departure,
                 dst: room.routeData?.destination,
@@ -1525,10 +1533,11 @@ const CarNavigation = () => {
                   const dst = room.routeData.destination;
                   if (!dep?.coordinates || !dst?.coordinates) {
                     console.warn("⚠️ departure/destination が不足しているため中止", { dep, dst });
+                    setRouteEnsured(true); // 再試行を防ぐ
                     return;
                   }
 
-                  const url = `https://router.project-osrm.org/route/v1/driving/${dep.coordinates[1]},${dep.coordinates[0]};${dst.coordinates[1]},${dst.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
+                  const url = `https://router.project-osrm.org/route/v1/driving/${dep.coordinates[1]},${dep.coordinates[0]};${dst.coordinates[1]},${dst.coordinates[0]}?overview=full&geometries=geojson&steps=false`;
                   console.log("🌐 OSRM URL(欠落フォールバック)", url);
                   const res = await fetch(url);
                   console.log("🌐 OSRM status(欠落フォールバック)", res.status, res.ok);
@@ -1538,11 +1547,16 @@ const CarNavigation = () => {
                       status: res.status,
                       text,
                     });
+                    setRouteEnsured(true); // 再試行を防ぐ
                     return;
                   }
                   const data = await res.json();
                   const route = data?.routes?.[0];
-                  if (!route) return;
+                  if (!route) {
+                    console.warn("⚠️ ルートが見つかりません");
+                    setRouteEnsured(true); // 再試行を防ぐ
+                    return;
+                  }
 
                   const rebuilt = {
                     ...room.routeData,
@@ -1595,6 +1609,7 @@ const CarNavigation = () => {
               })();
             }
           } else if (!routeEnsured) {
+            console.warn("⚠️ ルート情報が存在しません。localStorageからフォールバック生成を試行");
             // フォールバック: ルート情報が無い場合はローカル保存値から生成して保存
             (async () => {
               try {
@@ -1605,6 +1620,7 @@ const CarNavigation = () => {
                     hasLoc: !!storedLoc,
                     hasDep: !!storedDep,
                   });
+                  setRouteEnsured(true); // 再試行を防ぐ
                   return;
                 }
                 const selectedLocation = JSON.parse(storedLoc);
@@ -1614,10 +1630,11 @@ const CarNavigation = () => {
                     selectedLocation,
                     selectedDeparture,
                   });
+                  setRouteEnsured(true); // 再試行を防ぐ
                   return;
                 }
 
-                const url = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
+                const url = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=full&geometries=geojson&steps=false`;
                 console.log("🌐 OSRM URL(localStorageフォールバック)", url);
                 const res = await fetch(url);
                 console.log("🌐 OSRM status(localStorageフォールバック)", res.status, res.ok);
@@ -1627,11 +1644,16 @@ const CarNavigation = () => {
                     status: res.status,
                     text,
                   });
+                  setRouteEnsured(true); // 再試行を防ぐ
                   return;
                 }
                 const data = await res.json();
                 const route = data?.routes?.[0];
-                if (!route) return;
+                if (!route) {
+                  console.warn("⚠️ ルートが見つかりません");
+                  setRouteEnsured(true); // 再試行を防ぐ
+                  return;
+                }
 
                 const builtRouteData = {
                   departure: {
