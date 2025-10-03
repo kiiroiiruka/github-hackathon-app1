@@ -18,6 +18,10 @@ const app = initializeApp(firebaseConfig);
 //ログイン機能実装の為のオブジェクトを取得
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+// アカウント選択画面を常に表示するように設定
+provider.setCustomParameters({
+  prompt: 'select_account'
+});
 //データベース機能実装の為のオブジェクトを取得
 const db = getFirestore(app);
 const rtdb = getDatabase(app);
