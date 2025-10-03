@@ -268,6 +268,8 @@ const CarNavigation = () => {
   const lastRecalcTimeRef = useRef(0); // 直近の合流ルート再計算時刻
   const lastRejoinInfoRef = useRef(null); // { start: {lat,lng}, joinPoint: {lat,lng} }
   const isUpdatingRejoinRef = useRef(false);
+  const lastRestRouteCalcTimeRef = useRef(0); // 直近の休憩地点ルート再計算時刻
+  const lastRestRouteInfoRef = useRef(null); // { start: {lat,lng}, restPoint: {lat,lng} }
 
   // デバッグ: コンポーネントマウント時の状態
   useEffect(() => {
@@ -1097,7 +1099,7 @@ const CarNavigation = () => {
         to: `${to.lat.toFixed(4)}, ${to.lng.toFixed(4)}`,
       });
 
-      const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+      const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=simplified&geometries=geojson`;
       const res = await fetch(url);
       
       if (!res.ok) {
@@ -1201,10 +1203,35 @@ const CarNavigation = () => {
           distance: `${distance.toFixed(1)}m`,
         });
       } else {
+        // ルート外 → ヒステリシスチェック後にAPI呼び出し
+        const now = Date.now();
+        const last = lastRestRouteInfoRef.current;
+        
+        if (last) {
+          const movedFromLastStart = getDistanceMeters(currentLocation, last.start);
+          const elapsedMs = now - lastRestRouteCalcTimeRef.current;
+          
+          // 直近再計算から15秒以内かつ開始点からの移動が50m未満なら再計算をスキップ
+          if (elapsedMs < 15000 && movedFromLastStart < 50) {
+            console.log("⏭️ 休憩地点ルート再計算スキップ（ヒステリシス）:", {
+              elapsed: `${(elapsedMs / 1000).toFixed(1)}秒`,
+              moved: `${movedFromLastStart.toFixed(1)}m`,
+            });
+            return;
+          }
+        }
+        
         // ルート外 → API呼び出しして再計算
         console.log("⚠️ 休憩地点ルートから外れました（API再呼び出し）:", {
           distance: `${distance.toFixed(1)}m`,
         });
+        
+        lastRestRouteInfoRef.current = {
+          start: { ...currentLocation },
+          restPoint: { ...restPoint },
+        };
+        lastRestRouteCalcTimeRef.current = now;
+        
         await computeRestRoute(currentLocation, restPoint);
       }
     };
@@ -2354,32 +2381,25 @@ const CarNavigation = () => {
             </div>
           )}
 
-          {/* GPS精度警告を地図左上に表示 */}
+          {/* GPS精度警告を地図左上に表示（コンパクト版） */}
           {gpsAccuracy && gpsAccuracy > 30 && !isUsingMockLocation && (
-            <div className={`absolute top-3 left-3 z-[1000] px-3 py-2 rounded-lg shadow-lg ${
+            <div className={`absolute top-2 left-2 z-[1000] px-2 py-1 rounded shadow-md ${
               gpsAccuracy > 100 ? 'bg-red-500' : gpsAccuracy > 50 ? 'bg-orange-500' : 'bg-blue-500'
             } text-white`}>
-              <div className="text-[10px] font-medium mb-0.5 flex items-center gap-1">
-                📡 GPS精度
-                {gpsAccuracy > 100 && <span>(低い)</span>}
-                {gpsAccuracy > 50 && gpsAccuracy <= 100 && <span>(やや低め)</span>}
-              </div>
-              <div className="text-sm font-bold leading-tight">
-                ±{gpsAccuracy.toFixed(0)}m範囲内
-              </div>
-              <div className="text-[9px] mt-0.5 opacity-90">
-                青い円の中にいると思われます
+              <div className="text-[9px] font-bold flex items-center gap-1">
+                📡 ±{gpsAccuracy.toFixed(0)}m
+                {gpsAccuracy > 100 && <span className="text-[8px]">(低)</span>}
               </div>
             </div>
           )}
 
-          {/* 到着時刻を地図右上に表示 */}
+          {/* 到着時刻を地図右上に表示（コンパクト版） */}
           {(routeData || etaTime || originalEtaTime) && (
-            <div className="absolute top-3 right-3 z-[1000] bg-red-500 text-white px-3 py-1.5 rounded-lg shadow-md">
-              <div className="text-[10px] font-medium mb-0.5">
-                到着時刻{restPoint && activeTab === "rest" ? " (休憩地点まで)" : ""}
+            <div className="absolute top-2 right-2 z-[1000] bg-red-500 text-white px-2 py-1 rounded shadow-md">
+              <div className="text-[9px] font-medium">
+                {restPoint && activeTab === "rest" ? "休憩" : "到着"}
               </div>
-              <div className="text-lg font-bold leading-tight">
+              <div className="text-sm font-bold leading-tight">
                 {restPoint && activeTab === "rest" && etaTime
                   ? new Date(etaTime).toLocaleTimeString("ja-JP", {
                       hour: "2-digit",
