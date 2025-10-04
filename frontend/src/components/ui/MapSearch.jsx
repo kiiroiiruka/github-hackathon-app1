@@ -56,7 +56,7 @@ const MapSearch = ({ onSelectDestination }) => {
           onClick={searchDestination}
           className="px-5 py-2.5 bg-blue-600 text-white rounded-md cursor-pointer text-sm font-bold transition hover:bg-blue-700 active:scale-95 flex-shrink-0"
         >
-          🔍 検索
+          🔍
         </button>
       </div>
 
