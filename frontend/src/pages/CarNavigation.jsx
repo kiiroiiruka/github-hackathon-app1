@@ -1306,7 +1306,7 @@ const CarNavigation = () => {
     switch (activeTab) {
       case "main":
         return (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {/* GPS座標操作UI */}
             {isDebugModeEnabled() && (
             <div className="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-md">
@@ -1446,17 +1446,17 @@ const CarNavigation = () => {
             )}
 
             {/* 運転メモ */}
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-3">運転メモ</h3>
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <h3 className="font-semibold mb-2">運転メモ</h3>
               <MemoScroller memos={memos} />
             </div>
           </div>
         );
       case "locations":
         return (
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
+          <div className="space-y-2">
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold">他の車の位置</h3>
                 {focusedMember && (
                   <button
@@ -1538,9 +1538,9 @@ const CarNavigation = () => {
         );
       case "rest":
         return (
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-3">休憩地点のセット</h3>
+          <div className="space-y-2">
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <h3 className="font-semibold mb-2">休憩地点のセット</h3>
               <p
                 className={`text-sm ${activeTab === "rest" && !restPoint ? "text-blue-700 blink-text" : "text-gray-600"}`}
               >
@@ -2472,9 +2472,9 @@ const CarNavigation = () => {
         </div>
 
         {/* 地図下のコントロールパネル */}
-        <div className="bg-white border-t border-gray-200 p-3 sm:p-4 flex-1 overflow-y-auto">
+        <div className="bg-white border-t border-gray-200 p-3 sm:p-4 overflow-y-auto">
           {/* コントロールボタン（縦並びで余裕を持たせる） */}
-          <div className="space-y-3 mb-4">
+          <div className="space-y-2 mb-2">
             {/* 上段：ズームコントロール（現在地固定ON時のみ表示） */}
             {isLocationFixed && (
               <div className="flex items-center justify-between gap-3">
@@ -2579,7 +2579,7 @@ const CarNavigation = () => {
             </button>
           </div>
           {/* タブコンテンツ */}
-          <div className="mb-4">{renderTabContent()}</div>
+          <div className="mb-2">{renderTabContent()}</div>
         </div>
       </div>
 
