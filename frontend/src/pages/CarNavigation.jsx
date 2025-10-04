@@ -29,8 +29,8 @@ const fixedPopupStyle = `
 	}
 `;
 
-// ルート上判定のしきい値（m）: 小さめにして軽微な逸脱でも合流ルートを表示
-const ROUTE_THRESHOLD_METERS = 20;
+// ルート上判定のしきい値（m）: 歩行・運転両対応で敏感に反応
+const ROUTE_THRESHOLD_METERS = 8; // 20m → 8mに縮小（より敏感に）
 
 // 緯度経度間の距離（m）
 const getDistanceMeters = (a, b) => {
@@ -256,6 +256,7 @@ const CarNavigation = () => {
   const [isLocationFixed, setIsLocationFixed] = useState(true); // 現在地固定のON/OFF
   const [mapCenter, setMapCenter] = useState(null); // 地図の中心位置（手動移動時用）
   const [forceResetToCurrentLocation, setForceResetToCurrentLocation] = useState(false); // 現在地へ強制リセット
+  const [isWalkingMode, setIsWalkingMode] = useState(false); // 歩行モード（より敏感なルート判定）
   const currentUserUid = useUserUid();
   const updateTimeoutRef = useRef(null);
   const gpsIntervalRef = useRef(null);
@@ -773,9 +774,10 @@ const CarNavigation = () => {
   const updateRouteStatus = useCallback(async (_source = "timer") => {
     if (!currentLocation || !routeData) return;
 
-    // 高精度の最短距離で判定（20m閾値）- ローカル計算（APIなし）
+    // 高精度の最短距離で判定（歩行モード時はより敏感）- ローカル計算（APIなし）
     const { distance } = calculateShortestDistanceToRoute(currentLocation, routeData);
-    const onRoute = distance <= ROUTE_THRESHOLD_METERS;
+    const threshold = isWalkingMode ? 5 : ROUTE_THRESHOLD_METERS; // 歩行モード時は5m
+    const onRoute = distance <= threshold;
     setRouteStatus({ isOnRoute: onRoute, distance: distance || 0 });
 
     if (!onRoute) {
@@ -789,8 +791,9 @@ const CarNavigation = () => {
         };
         const { distance: rejoinDistance } = calculateShortestDistanceToRoute(currentLocation, rejoinRouteData);
 
-        // 合流ルート上にいる（50m以内）→ API呼び出し不要
-        if (rejoinDistance <= 50) {
+        // 合流ルート上にいる（歩行モード時はより敏感）→ API呼び出し不要
+        const rejoinThreshold = isWalkingMode ? 8 : 15;
+        if (rejoinDistance <= rejoinThreshold) {
           // console.log("✅ 合流ルート上にいます（API呼び出しスキップ）:", {
           //   distance: `${rejoinDistance.toFixed(1)}m`,
           // }); // 頻繁すぎるのでコメントアウト
@@ -808,8 +811,10 @@ const CarNavigation = () => {
       if (last) {
         const movedFromLastStart = getDistanceMeters(currentLocation, last.start);
         const elapsedMs = now - lastRecalcTimeRef.current;
-        // 直近再計算から8秒以内かつ開始点からの移動が25m未満なら再計算をスキップ
-        if (elapsedMs < 8000 && movedFromLastStart < 25) {
+        // 直近再計算から（歩行モード時はより頻繁に）開始点からの移動距離も考慮
+        const timeThreshold = isWalkingMode ? 1500 : 3000; // 歩行モード時は1.5秒
+        const distanceThreshold = isWalkingMode ? 5 : 10; // 歩行モード時は5m
+        if (elapsedMs < timeThreshold && movedFromLastStart < distanceThreshold) {
           return;
         }
       }
@@ -1065,7 +1070,7 @@ const CarNavigation = () => {
     return () => unsubscribe();
   }, [roomId, currentUserUid]);
 
-  // 現在地変更時にルート状態をデバウンス更新（500ms）
+  // 現在地変更時にルート状態をデバウンス更新（200ms）- より敏感に反応
   useEffect(() => {
     if (!currentLocation || !routeData) return;
     if (rejoinCalcDebounceRef.current) {
@@ -1073,7 +1078,7 @@ const CarNavigation = () => {
     }
     rejoinCalcDebounceRef.current = setTimeout(() => {
       updateRouteStatus("location");
-    }, 500);
+    }, 200); // 500ms → 200msに短縮
     return () => {
       if (rejoinCalcDebounceRef.current) {
         clearTimeout(rejoinCalcDebounceRef.current);
@@ -1081,14 +1086,14 @@ const CarNavigation = () => {
     };
   }, [currentLocation, routeData, updateRouteStatus]);
 
-  // 1秒間隔でルート判定（ローカル計算、必要な時だけAPI呼び出し）
+  // 0.5秒間隔でルート判定（ローカル計算、必要な時だけAPI呼び出し）- より敏感に反応
   useEffect(() => {
     if (!currentLocation || !routeData) return;
 
     const routeCheckInterval = setInterval(async () => {
-      // console.log("🔄 1秒間隔ルート判定実行（ローカルチェック）"); // 頻繁すぎるのでコメントアウト
+      // console.log("🔄 0.5秒間隔ルート判定実行（ローカルチェック）"); // 頻繁すぎるのでコメントアウト
       await updateRouteStatus();
-    }, 1000);
+    }, 500); // 1000ms → 500msに短縮
 
     return () => {
       clearInterval(routeCheckInterval);
@@ -2699,6 +2704,16 @@ const CarNavigation = () => {
                   title={isLocationFixed ? "現在地固定ON（地図操作無効）" : "現在地固定OFF（地図操作有効）"}
                 >
                   {isLocationFixed ? "📍固定ON" : "📍固定OFF"}
+                </button>
+                <button
+                  onClick={() => setIsWalkingMode(!isWalkingMode)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${isWalkingMode
+                    ? "bg-green-100 border-green-500 text-green-700"
+                    : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  title={isWalkingMode ? "歩行モードON（より敏感なルート判定）" : "歩行モードOFF（通常のルート判定）"}
+                >
+                  {isWalkingMode ? "🚶歩行ON" : "🚶歩行OFF"}
                 </button>
                 {!isLocationFixed && (
                   <button
