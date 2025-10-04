@@ -157,15 +157,15 @@ const MemoScroller = ({ memos }) => {
 
   useEffect(() => {
     if (!containerRef.current || !textRef.current || memos.length === 0) return;
-    
+
     // テキストの実際の幅を測定
     const textWidth = textRef.current.offsetWidth;
-    
+
     // スクロール速度を計算（ピクセル/秒）
     // 速すぎず遅すぎない速度：約60px/秒（読みやすい速度）
     const pixelsPerSecond = 60;
     const duration = textWidth / pixelsPerSecond;
-    
+
     // 最小10秒、最大120秒に制限
     setAnimationDuration(Math.max(10, Math.min(120, duration)));
   }, [memos]);
@@ -180,7 +180,7 @@ const MemoScroller = ({ memos }) => {
 
   // すべてのメモを「 🚗 」で区切ってつなぎ合わせる
   const allMemosText = memos.map(memo => memo.content).join(' 🚗 ');
-  
+
   // スムーズな無限ループのために、同じテキストを2回繰り返す
   const doubledText = `${allMemosText}　　　　　${allMemosText}`;
 
@@ -204,7 +204,7 @@ const MemoScroller = ({ memos }) => {
           }
         `}
       </style>
-      <div 
+      <div
         ref={textRef}
         className="whitespace-nowrap text-gray-800 font-medium memo-scroll-infinite inline-block"
       >
@@ -295,16 +295,16 @@ const CarNavigation = () => {
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
         const newLocation = { lat: latitude, lng: longitude };
-        
+
         // GPS位置フィルタリングを適用
         const filteredNewLocation = filterGpsLocation(newLocation, accuracy);
-        
+
         setCurrentLocation(filteredNewLocation);
         setFilteredLocation(filteredNewLocation);
         setIsUsingMockLocation(false);
         setGpsAccuracy(accuracy); // GPS精度を保存
-        console.log("📍 GPS位置取得（初回）:", { 
-          latitude, 
+        console.log("📍 GPS位置取得（初回）:", {
+          latitude,
           longitude,
           accuracy: `${accuracy.toFixed(1)}m`
         });
@@ -328,16 +328,16 @@ const CarNavigation = () => {
   // GPS位置フィルタリング関数（精度が悪い時のブレ抑制）
   const filterGpsLocation = useCallback((newLocation, accuracy) => {
     const lastValid = lastValidLocationRef.current;
-    
+
     // 初回または精度が良い場合はそのまま使用
     if (!lastValid || accuracy <= 30) {
       lastValidLocationRef.current = newLocation;
       return newLocation;
     }
-    
+
     // 精度が悪い場合の距離チェック
     const distance = getDistanceMeters(lastValid, newLocation);
-    
+
     // 精度が悪い場合の閾値設定
     let maxDistance;
     if (accuracy <= 50) {
@@ -347,13 +347,13 @@ const CarNavigation = () => {
     } else {
       maxDistance = 10; // 精度100m超：10m以内の移動のみ許可
     }
-    
+
     // 移動距離が閾値を超えている場合は前回の位置を維持
     if (distance > maxDistance) {
       console.log(`📍 GPS位置フィルタリング: 移動距離${distance.toFixed(1)}m > 閾値${maxDistance}m、前回位置を維持`);
       return lastValid;
     }
-    
+
     // 閾値以内の場合は新しい位置を採用
     lastValidLocationRef.current = newLocation;
     return newLocation;
@@ -411,16 +411,16 @@ const CarNavigation = () => {
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
         const newLocation = { lat: latitude, lng: longitude };
-        
+
         // GPS位置フィルタリングを適用
         const filteredNewLocation = filterGpsLocation(newLocation, accuracy);
-        
+
         // フィルタリングされた位置情報を反映
         setCurrentLocation(filteredNewLocation);
         setFilteredLocation(filteredNewLocation);
         setIsUsingMockLocation(false);
         setGpsAccuracy(accuracy); // GPS精度を保存
-        
+
         // デバウンス処理：前回送信から1秒以上経過している場合のみFirebaseに送信
         const now = Date.now();
         if (now - lastSendTime >= SEND_INTERVAL) {
@@ -550,7 +550,7 @@ const CarNavigation = () => {
     setIsLocationFixed((prev) => {
       const newValue = !prev;
       console.log(`📍 現在地固定を${newValue ? 'ON' : 'OFF'}に切り替え`);
-      
+
       if (newValue) {
         // 現在地固定ONに切り替える場合、手動中心位置をクリアして現在地にフォーカス
         setMapCenter(null);
@@ -563,7 +563,7 @@ const CarNavigation = () => {
         });
         console.log('📍 現在地固定OFF切り替え時、現在地を手動中心位置に設定:', currentLocation);
       }
-      
+
       return newValue;
     });
   };
@@ -658,7 +658,7 @@ const CarNavigation = () => {
           polyline: { geometry: { coordinates: rejoinRoute } },
         };
         const { distance: rejoinDistance } = calculateShortestDistanceToRoute(currentLocation, rejoinRouteData);
-        
+
         // 合流ルート上にいる（50m以内）→ API呼び出し不要
         if (rejoinDistance <= 50) {
           // console.log("✅ 合流ルート上にいます（API呼び出しスキップ）:", {
@@ -666,7 +666,7 @@ const CarNavigation = () => {
           // }); // 頻繁すぎるのでコメントアウト
           return;
         }
-        
+
         console.log("⚠️ 合流ルートから外れました（API再呼び出し）:", {
           distance: `${rejoinDistance.toFixed(1)}m`,
         });
@@ -742,10 +742,10 @@ const CarNavigation = () => {
     } else {
       // ルート上にいる場合、合流ルートをクリア（API呼び出し不要）
       if (rejoinRoute) {
-      setRejoinRoute(null);
-      setJoinPoint(null);
+        setRejoinRoute(null);
+        setJoinPoint(null);
         console.log("✅ ルート上に復帰しました（合流ルートをクリア）");
-    }
+      }
     }
   }, [currentLocation, routeData, activeTab, rejoinRoute]);
 
@@ -854,10 +854,10 @@ const CarNavigation = () => {
 
       try {
         const url = `https://router.project-osrm.org/route/v1/driving/${currentLocation.lng},${currentLocation.lat};${destCoords[1]},${destCoords[0]}?overview=false`;
-        
+
         console.log("🕐 目的地までのETA更新中..."); // 2分ごとなので表示
         const res = await fetch(url);
-        
+
         if (!res.ok) {
           console.warn("⚠️ ETA更新APIエラー:", res.status);
           return;
@@ -865,7 +865,7 @@ const CarNavigation = () => {
 
         const data = await res.json();
         const durationSec = data?.routes?.[0]?.duration;
-        
+
         if (typeof durationSec === "number") {
           const newEta = new Date(Date.now() + durationSec * 1000);
           setOriginalEtaTime(newEta);
@@ -1152,7 +1152,7 @@ const CarNavigation = () => {
 
       const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=simplified&geometries=geojson`;
       const res = await fetch(url);
-      
+
       if (!res.ok) {
         console.warn("⚠️ OSRM APIエラー:", res.status);
         return;
@@ -1160,7 +1160,7 @@ const CarNavigation = () => {
 
       const data = await res.json();
       const coords = data?.routes?.[0]?.geometry?.coordinates || [];
-      
+
       if (coords.length > 0) {
         setRestRoute(coords);
         // console.log("✅ 休憩地点ルート生成完了:", { 
@@ -1200,16 +1200,16 @@ const CarNavigation = () => {
 
     const newRestPoint = { lat: latlng.lat, lng: latlng.lng };
     console.log("📍 休憩地点をセット:", newRestPoint);
-    
+
     // 休憩地点が変更されたので、ヒステリシス情報をクリア
     lastRestRouteCalcTimeRef.current = 0;
     lastRestRouteInfoRef.current = null;
     lastRestRouteErrorTimeRef.current = 0;
     isUpdatingRestRouteRef.current = false; // 計算中フラグもクリア
-    
+
     // 休憩地点を設定
     setRestPoint(newRestPoint);
-    
+
     // 即座にルート計算を実行
     try {
       await computeRestRoute(currentLocation, newRestPoint);
@@ -1223,13 +1223,13 @@ const CarNavigation = () => {
   const clearRestPoint = () => {
     setRestPoint(null);
     setRestRoute(null);
-    
+
     // ヒステリシス情報をクリア
     lastRestRouteCalcTimeRef.current = 0;
     lastRestRouteInfoRef.current = null;
     lastRestRouteErrorTimeRef.current = 0;
     isUpdatingRestRouteRef.current = false; // 計算中フラグもクリア
-    
+
     // 休憩地点の到着時刻をクリアして、元の目的地の到着時刻に戻す
     if (originalEtaTime) {
       setEtaTime(originalEtaTime);
@@ -1250,10 +1250,10 @@ const CarNavigation = () => {
     // （前の休憩地点のルートが残っていると判定されてしまうため）
     const last = lastRestRouteInfoRef.current;
     if (last && last.restPoint) {
-      const restPointChanged = 
+      const restPointChanged =
         Math.abs(restPoint.lat - last.restPoint.lat) > 0.0001 ||
         Math.abs(restPoint.lng - last.restPoint.lng) > 0.0001;
-      
+
       if (restPointChanged) {
         console.log("📍 休憩地点が変更されました、ルートをクリアして再計算します");
         setRestRoute(null);
@@ -1272,7 +1272,7 @@ const CarNavigation = () => {
         // console.log("⏭️ tick: 既に計算中のためスキップ"); // 頻繁すぎるのでコメントアウト
         return;
       }
-      
+
       // エラー発生後30秒以内は再試行しない（無限ループ防止）
       const now = Date.now();
       const timeSinceError = now - lastRestRouteErrorTimeRef.current;
@@ -1282,7 +1282,7 @@ const CarNavigation = () => {
         // }); // APIブロック対策のためコメントアウト
         return;
       }
-      
+
       // ルートが未計算の場合は即座に計算（API呼び出し）
       if (!restRoute || restRoute.length === 0) {
         // console.log("🟣 休憩地点ルート初回計算（API呼び出し）"); // 無限ループデバッグ用
@@ -1296,7 +1296,7 @@ const CarNavigation = () => {
       };
       const { distance } = calculateShortestDistanceToRoute(currentLocation, restRouteData);
       const onRestRoute = (distance || 0) <= ROUTE_THRESHOLD_METERS;
-      
+
       if (onRestRoute) {
         // ルート上にいる → API呼び出し不要
         // console.log("✅ 休憩地点ルート上にいます（API呼び出しスキップ）:", {
@@ -1306,11 +1306,11 @@ const CarNavigation = () => {
         // ルート外 → ヒステリシスチェック後にAPI呼び出し
         const now = Date.now();
         const last = lastRestRouteInfoRef.current;
-        
+
         if (last) {
           const movedFromLastStart = getDistanceMeters(currentLocation, last.start);
           const elapsedMs = now - lastRestRouteCalcTimeRef.current;
-          
+
           // 直近再計算から15秒以内かつ開始点からの移動が50m未満なら再計算をスキップ
           if (elapsedMs < 15000 && movedFromLastStart < 50) {
             // console.log("⏭️ 休憩地点ルート再計算スキップ（ヒステリシス）:", {
@@ -1320,18 +1320,18 @@ const CarNavigation = () => {
             return;
           }
         }
-        
+
         // ルート外 → API呼び出しして再計算
         // console.log("⚠️ 休憩地点ルートから外れました（API再呼び出し）:", {
         //   distance: `${distance.toFixed(1)}m`,
         // }); // APIブロック対策のためコメントアウト
-        
+
         lastRestRouteInfoRef.current = {
           start: { ...currentLocation },
           restPoint: { ...restPoint },
         };
         lastRestRouteCalcTimeRef.current = now;
-        
+
         await computeRestRoute(currentLocation, restPoint);
       }
     };
@@ -1354,146 +1354,147 @@ const CarNavigation = () => {
           <div className="space-y-2">
             {/* GPS座標操作UI */}
             {isDebugModeEnabled() && (
-            <div className="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-md">
-              <h3 className="font-semibold mb-2 text-yellow-800 text-sm">
-                🔧 GPS座標操作（開発用）
-              </h3>
+              <div className="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-md">
+                <h3 className="font-semibold mb-2 text-yellow-800 text-sm">
+                  🔧 GPS座標操作（開発用）
+                </h3>
 
-              {/* 移動距離設定 */}
-              <div className="mb-2">
-                <label className="text-xs font-medium text-gray-700 mb-1 block">移動距離</label>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => setMoveDistance(0.0001)}
-                    className={`px-2 py-1 rounded text-xs ${moveDistance === 0.0001 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}
-                  >
-                    10m
-                  </button>
-                  <button
-                    onClick={() => setMoveDistance(0.001)}
-                    className={`px-2 py-1 rounded text-xs ${moveDistance === 0.001 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}
-                  >
-                    100m
-                  </button>
-                  <button
-                    onClick={() => setMoveDistance(0.01)}
-                    className={`px-2 py-1 rounded text-xs ${moveDistance === 0.01 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}
-                  >
-                    1km
-                  </button>
-                </div>
-              </div>
-
-              {/* 方向操作ボタン */}
-              <div className="mb-2">
-                <div className="text-xs font-medium text-gray-700 mb-1">方向操作</div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <button
-                    onClick={() => moveLocation("northwest")}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
-                  >
-                    ↖
-                  </button>
-                  <button
-                    onClick={() => moveLocation("north")}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => moveLocation("northeast")}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
-                  >
-                    ↗
-                  </button>
-                  <button
-                    onClick={() => moveLocation("west")}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
-                  >
-                    ←
-                  </button>
-                  <div className="bg-yellow-200 px-2 py-1 rounded text-xs text-center text-yellow-800 font-bold">
-                    📍
+                {/* 移動距離設定 */}
+                <div className="mb-2">
+                  <label className="text-xs font-medium text-gray-700 mb-1 block">移動距離</label>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => setMoveDistance(0.0001)}
+                      className={`px-2 py-1 rounded text-xs ${moveDistance === 0.0001 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}
+                    >
+                      10m
+                    </button>
+                    <button
+                      onClick={() => setMoveDistance(0.001)}
+                      className={`px-2 py-1 rounded text-xs ${moveDistance === 0.001 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}
+                    >
+                      100m
+                    </button>
+                    <button
+                      onClick={() => setMoveDistance(0.01)}
+                      className={`px-2 py-1 rounded text-xs ${moveDistance === 0.01 ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700"}`}
+                    >
+                      1km
+                    </button>
                   </div>
-                  <button
-                    onClick={() => moveLocation("east")}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
-                  >
-                    →
-                  </button>
-                  <button
-                    onClick={() => moveLocation("southwest")}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
-                  >
-                    ↙
-                  </button>
-                  <button
-                    onClick={() => moveLocation("south")}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    onClick={() => moveLocation("southeast")}
-                    className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm font-bold"
-                  >
-                    ↘
-                  </button>
                 </div>
-              </div>
 
-              {/* 特殊操作ボタン */}
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => {
-                    if (routeData?.polyline?.geometry?.coordinates) {
-                      const coords = routeData.polyline.geometry.coordinates;
-                      const randomIndex = Math.floor(Math.random() * coords.length);
-                      const randomCoord = coords[randomIndex];
+                {/* 方向操作ボタン */}
+                <div className="mb-2">
+                  <div className="text-xs font-medium text-gray-700 mb-1">方向操作</div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      onClick={() => moveLocation("northwest")}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+                    >
+                      ↖
+                    </button>
+                    <button
+                      onClick={() => moveLocation("north")}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      onClick={() => moveLocation("northeast")}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+                    >
+                      ↗
+                    </button>
+                    <button
+                      onClick={() => moveLocation("west")}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+                    >
+                      ←
+                    </button>
+                    <div className="bg-yellow-200 px-2 py-1 rounded text-xs text-center text-yellow-800 font-bold">
+                      📍
+                    </div>
+                    <button
+                      onClick={() => moveLocation("east")}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+                    >
+                      →
+                    </button>
+                    <button
+                      onClick={() => moveLocation("southwest")}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+                    >
+                      ↙
+                    </button>
+                    <button
+                      onClick={() => moveLocation("south")}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs font-bold"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      onClick={() => moveLocation("southeast")}
+                      className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded text-sm font-bold"
+                    >
+                      ↘
+                    </button>
+                  </div>
+                </div>
+
+                {/* 特殊操作ボタン */}
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      if (routeData?.polyline?.geometry?.coordinates) {
+                        const coords = routeData.polyline.geometry.coordinates;
+                        const randomIndex = Math.floor(Math.random() * coords.length);
+                        const randomCoord = coords[randomIndex];
+                        const newLocation = {
+                          lat: randomCoord[1],
+                          lng: randomCoord[0],
+                        };
+                        setCurrentLocation(newLocation);
+                        sendLocationToFirebase(newLocation);
+                        console.log("🎯 ルート上ランダム位置に移動:", newLocation);
+                      }
+                    }}
+                    className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
+                    disabled={!routeData?.polyline?.geometry?.coordinates}
+                  >
+                    ルート上ランダム
+                  </button>
+                  <button
+                    onClick={() => {
                       const newLocation = {
-                        lat: randomCoord[1],
-                        lng: randomCoord[0],
+                        lat: 35.6812 + (Math.random() - 0.5) * 0.1,
+                        lng: 139.7671 + (Math.random() - 0.5) * 0.1,
                       };
                       setCurrentLocation(newLocation);
                       sendLocationToFirebase(newLocation);
-                      console.log("🎯 ルート上ランダム位置に移動:", newLocation);
-                    }
-                  }}
-                  className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
-                  disabled={!routeData?.polyline?.geometry?.coordinates}
-                >
-                  ルート上ランダム
-                </button>
-                <button
-                  onClick={() => {
-                    const newLocation = {
-                      lat: 35.6812 + (Math.random() - 0.5) * 0.1,
-                      lng: 139.7671 + (Math.random() - 0.5) * 0.1,
-                    };
-                    setCurrentLocation(newLocation);
-                    sendLocationToFirebase(newLocation);
-                    console.log("🎯 東京周辺ランダム位置に移動:", newLocation);
-                  }}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs"
-                >
-                  東京周辺ランダム
-                </button>
-                <button
-                  onClick={() => {
-                    getCurrentPosition();
-                  }}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
-                >
-                  GPS取得
-                </button>
+                      console.log("🎯 東京周辺ランダム位置に移動:", newLocation);
+                    }}
+                    className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded text-xs"
+                  >
+                    東京周辺ランダム
+                  </button>
+                  <button
+                    onClick={() => {
+                      getCurrentPosition();
+                    }}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+                  >
+                    GPS取得
+                  </button>
+                </div>
               </div>
-            </div>
             )}
 
             {/* 運転メモ */}
             <div className="bg-blue-50 p-3 rounded-lg">
               <h3 className="font-semibold mb-2">運転メモ</h3>
               <MemoScroller memos={memos} />
+
             </div>
           </div>
         );
@@ -1524,11 +1525,10 @@ const CarNavigation = () => {
                     return (
                       <div
                         key={index}
-                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-all duration-200 ${
-                          isFocused
-                            ? "bg-blue-100 border-2 border-blue-500 shadow-md"
-                            : "bg-white hover:bg-gray-50 border border-gray-200"
-                        }`}
+                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-all duration-200 ${isFocused
+                          ? "bg-blue-100 border-2 border-blue-500 shadow-md"
+                          : "bg-white hover:bg-gray-50 border border-gray-200"
+                          }`}
                         onClick={() => {
                           if (memberLocation) {
                             focusOnMember(member);
@@ -1668,7 +1668,7 @@ const CarNavigation = () => {
             //     ? `[${room.routeData.polyline.geometry.coordinates[0][0]}, ${room.routeData.polyline.geometry.coordinates[0][1]}]`
             //     : "N/A",
             // }); // 頻繁すぎるのでコメントアウト
-            
+
             // ルートデータが既に完全な形で存在する場合はフォールバック処理をスキップ
             if (room.routeData.polyline?.geometry?.coordinates && room.routeData.polyline.geometry.coordinates.length > 0) {
               setRouteEnsured(true);
@@ -1725,29 +1725,29 @@ const CarNavigation = () => {
                     polyline: {
                       geometry: route.geometry
                         ? {
-                            type: route.geometry.type,
-                            coordinates: (() => {
-                              const coords = route.geometry.coordinates || [];
-                              if (coords.length <= 1000) return coords;
-                              const simplified = [];
-                              const maxPoints = 50000;
-                              const step = Math.max(1, Math.floor(coords.length / maxPoints));
-                              simplified.push(coords[0]);
-                              for (let i = step; i < coords.length - step; i += step) {
-                                const prev = coords[i - step];
-                                const curr = coords[i];
-                                const next = coords[i + step];
-                                const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
-                                const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
-                                const angleDiff = Math.abs(angle1 - angle2);
-                                if (angleDiff > 0.02 || i % Math.floor(step * 1.2) === 0) {
-                                  simplified.push(curr);
-                                }
+                          type: route.geometry.type,
+                          coordinates: (() => {
+                            const coords = route.geometry.coordinates || [];
+                            if (coords.length <= 1000) return coords;
+                            const simplified = [];
+                            const maxPoints = 50000;
+                            const step = Math.max(1, Math.floor(coords.length / maxPoints));
+                            simplified.push(coords[0]);
+                            for (let i = step; i < coords.length - step; i += step) {
+                              const prev = coords[i - step];
+                              const curr = coords[i];
+                              const next = coords[i + step];
+                              const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
+                              const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
+                              const angleDiff = Math.abs(angle1 - angle2);
+                              if (angleDiff > 0.02 || i % Math.floor(step * 1.2) === 0) {
+                                simplified.push(curr);
                               }
-                              simplified.push(coords[coords.length - 1]);
-                              return simplified;
-                            })(),
-                          }
+                            }
+                            simplified.push(coords[coords.length - 1]);
+                            return simplified;
+                          })(),
+                        }
                         : null,
                     },
                   };
@@ -1829,29 +1829,29 @@ const CarNavigation = () => {
                   polyline: {
                     geometry: route.geometry
                       ? {
-                          type: route.geometry.type,
-                          coordinates: (() => {
-                            const coords = route.geometry.coordinates || [];
-                            if (coords.length <= 1000) return coords;
-                            const simplified = [];
-                            const maxPoints = 50000;
-                            const step = Math.max(1, Math.floor(coords.length / maxPoints));
-                            simplified.push(coords[0]);
-                            for (let i = step; i < coords.length - step; i += step) {
-                              const prev = coords[i - step];
-                              const curr = coords[i];
-                              const next = coords[i + step];
-                              const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
-                              const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
-                              const angleDiff = Math.abs(angle1 - angle2);
-                              if (angleDiff > 0.02 || i % Math.floor(step * 1.2) === 0) {
-                                simplified.push(curr);
-                              }
+                        type: route.geometry.type,
+                        coordinates: (() => {
+                          const coords = route.geometry.coordinates || [];
+                          if (coords.length <= 1000) return coords;
+                          const simplified = [];
+                          const maxPoints = 50000;
+                          const step = Math.max(1, Math.floor(coords.length / maxPoints));
+                          simplified.push(coords[0]);
+                          for (let i = step; i < coords.length - step; i += step) {
+                            const prev = coords[i - step];
+                            const curr = coords[i];
+                            const next = coords[i + step];
+                            const angle1 = Math.atan2(curr[1] - prev[1], curr[0] - prev[0]);
+                            const angle2 = Math.atan2(next[1] - curr[1], next[0] - curr[0]);
+                            const angleDiff = Math.abs(angle1 - angle2);
+                            if (angleDiff > 0.02 || i % Math.floor(step * 1.2) === 0) {
+                              simplified.push(curr);
                             }
-                            simplified.push(coords[coords.length - 1]);
-                            return simplified;
-                          })(),
-                        }
+                          }
+                          simplified.push(coords[coords.length - 1]);
+                          return simplified;
+                        })(),
+                      }
                       : null,
                     steps:
                       route.legs?.[0]?.steps?.map((step) => ({
@@ -1993,16 +1993,16 @@ const CarNavigation = () => {
         try {
           // 参加者からphotoURLのみを抽出して更新
           const newPhotoURLMap = new Map();
-          
+
           uniqueParticipants.forEach((participant) => {
             try {
               const sessionId = participant?.session_id;
               const userName = participant?.user_name;
               const photoURL = participant?.photoURL;
-              
+
               // 有効なphotoURLがある場合のみ追加（生成アイコンは除外）
-              if (sessionId && photoURL && typeof photoURL === 'string' && 
-                  photoURL !== "" && !photoURL.includes("ui-avatars.com")) {
+              if (sessionId && photoURL && typeof photoURL === 'string' &&
+                photoURL !== "" && !photoURL.includes("ui-avatars.com")) {
                 newPhotoURLMap.set(sessionId, photoURL);
                 if (userName) {
                   newPhotoURLMap.set(userName, photoURL);
@@ -2013,7 +2013,7 @@ const CarNavigation = () => {
               console.warn("⚠️ 参加者photoURL処理スキップ");
             }
           });
-          
+
           // 新しいMapに変更がある場合のみ更新
           if (newPhotoURLMap.size > 0) {
             setParticipantPhotoURLs(newPhotoURLMap);
@@ -2310,7 +2310,7 @@ const CarNavigation = () => {
                       const currentMember = members.find((m) => m.uid === currentUserUid);
                       const url =
                         currentMember?.photoURL &&
-                        !currentMember.photoURL.includes("ui-avatars.com")
+                          !currentMember.photoURL.includes("ui-avatars.com")
                           ? currentMember.photoURL
                           : `https://ui-avatars.com/api/?name=${encodeURIComponent(currentMember?.name || "?")}&background=4F46E5&color=fff&size=80&rounded=true`;
                       return createRoundedImageIcon(url, 40);
@@ -2483,9 +2483,8 @@ const CarNavigation = () => {
 
           {/* GPS精度警告を地図左上に表示（コンパクト版） */}
           {gpsAccuracy && gpsAccuracy > 30 && !isUsingMockLocation && (
-            <div className={`absolute top-2 left-2 z-[1000] px-2 py-1 rounded shadow-md ${
-              gpsAccuracy > 100 ? 'bg-red-500' : gpsAccuracy > 50 ? 'bg-orange-500' : 'bg-blue-500'
-            } text-white`}>
+            <div className={`absolute top-2 left-2 z-[1000] px-2 py-1 rounded shadow-md ${gpsAccuracy > 100 ? 'bg-red-500' : gpsAccuracy > 50 ? 'bg-orange-500' : 'bg-blue-500'
+              } text-white`}>
               <div className="text-[9px] font-bold flex items-center gap-1">
                 📡 ±{gpsAccuracy.toFixed(0)}m
                 {gpsAccuracy > 100 && <span className="text-[8px]">(低)</span>}
@@ -2503,15 +2502,15 @@ const CarNavigation = () => {
               <div className="text-sm font-bold leading-tight">
                 {restPoint && activeTab === "rest" && etaTime
                   ? new Date(etaTime).toLocaleTimeString("ja-JP", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
                   : originalEtaTime || routeData?.routeInfo?.arrivalTime
-                  ? new Date(originalEtaTime || routeData.routeInfo.arrivalTime).toLocaleTimeString("ja-JP", {
+                    ? new Date(originalEtaTime || routeData.routeInfo.arrivalTime).toLocaleTimeString("ja-JP", {
                       hour: "2-digit",
                       minute: "2-digit",
                     })
-                  : "○○:00"}
+                    : "○○:00"}
               </div>
             </div>
           )}
@@ -2528,7 +2527,7 @@ const CarNavigation = () => {
                   <div className="flex items-center gap-2">
                     <span className="font-bold">Zoom: {mapZoom}</span>
                     <span className="text-xs text-gray-600">
-                      {routeData?.polyline?.geometry?.coordinates && 
+                      {routeData?.polyline?.geometry?.coordinates &&
                         `${routeData.polyline.geometry.coordinates.length}点`}
                     </span>
                   </div>
@@ -2538,7 +2537,7 @@ const CarNavigation = () => {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleZoomOut}
@@ -2563,11 +2562,10 @@ const CarNavigation = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={toggleLocationFixed}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                    isLocationFixed
-                      ? "bg-blue-100 border-blue-500 text-blue-700"
-                      : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
-                  }`}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${isLocationFixed
+                    ? "bg-blue-100 border-blue-500 text-blue-700"
+                    : "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                    }`}
                   title={isLocationFixed ? "現在地固定ON（地図操作無効）" : "現在地固定OFF（地図操作有効）"}
                 >
                   {isLocationFixed ? "📍固定ON" : "📍固定OFF"}
@@ -2595,51 +2593,50 @@ const CarNavigation = () => {
           <div className="flex gap-2">
             <button
               onClick={() => handleTabChange("main")}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border-2 ${
-                activeTab === "main"
-                  ? "bg-blue-100 border-blue-500 text-blue-700"
-                  : "bg-gray-100 border-gray-300 text-gray-700"
-              }`}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border-2 ${activeTab === "main"
+                ? "bg-blue-100 border-blue-500 text-blue-700"
+                : "bg-gray-100 border-gray-300 text-gray-700"
+                }`}
             >
               メインナビ
             </button>
             <button
               onClick={() => handleTabChange("locations")}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border-2 ${
-                activeTab === "locations"
-                  ? "bg-blue-100 border-blue-500 text-blue-700"
-                  : "bg-gray-100 border-gray-300 text-gray-700"
-              }`}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border-2 ${activeTab === "locations"
+                ? "bg-blue-100 border-blue-500 text-blue-700"
+                : "bg-gray-100 border-gray-300 text-gray-700"
+                }`}
             >
               他の車の位置
             </button>
             <button
               onClick={() => handleTabChange("rest")}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border-2 ${
-                activeTab === "rest"
-                  ? "bg-blue-100 border-blue-500 text-blue-700"
-                  : "bg-gray-100 border-gray-300 text-gray-700"
-              }`}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium border-2 ${activeTab === "rest"
+                ? "bg-blue-100 border-blue-500 text-blue-700"
+                : "bg-gray-100 border-gray-300 text-gray-700"
+                }`}
             >
               休憩地点のセット
             </button>
           </div>
+
           {/* タブコンテンツ */}
-          <div className="mb-2">{renderTabContent()}</div>
+          <div>{renderTabContent()}</div>
+
+          {/* 音声通話コントロール */}
+          {roomData?.dailyRoom && isJoined && (
+            <div className="mt-2">
+              <AudioCallRoom
+                roomId={roomId}
+                roomName={roomData?.name || "カーナビルーム"}
+                ownerUid={roomData?.ownerUid || ""}
+                members={members}
+                onCallEnd={handleCallEnd}
+                onCallStateUpdate={handleCallStateUpdate}
+              />
+            </div>)}
         </div>
       </div>
-
-      {/* 音声通話機能 */}
-      {roomData?.dailyRoom && (
-        <AudioCallRoom
-          roomId={roomId}
-          roomName={roomData?.name || "カーナビルーム"}
-          ownerUid={roomData?.ownerUid || ""}
-          members={members}
-          onCallEnd={handleCallEnd}
-          onCallStateUpdate={handleCallStateUpdate}
-        />
-      )}
 
       {/* Audio Call Footer */}
       <AudioCallFooter

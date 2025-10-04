@@ -326,23 +326,23 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
       displayError.includes("APIサーバー") || displayError.includes("Cloudflare Workers");
 
     return (
-      <div className="flex flex-col items-center justify-center h-96 bg-gray-100 rounded-lg">
-        <div className="text-red-600 text-center max-w-md">
-          <p className="text-lg font-semibold mb-4">
+      <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-gray-100 rounded" style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', maxWidth: '100%', maxHeight: '100%' }}>
+        <div className="text-red-600 text-center w-full h-full flex flex-col justify-center" style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', maxWidth: '100%', maxHeight: '100%' }}>
+          <p className="text-sm font-semibold mb-1">
             {isMicrophoneError
               ? "🎤 マイクエラー"
               : isApiError
                 ? "🔧 APIサーバーエラー"
                 : "通話エラー"}
           </p>
-          <p className="text-sm mb-4">{displayError}</p>
+          <p className="text-xs mb-1">{displayError}</p>
 
           {isMicrophoneError && (
-            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-800 mb-2">
+            <div className="mb-1 p-1 bg-yellow-50 border border-yellow-200 rounded text-xs">
+              <p className="text-xs text-yellow-800 mb-1">
                 <strong>解決方法:</strong>
               </p>
-              <ol className="text-xs text-yellow-700 text-left list-decimal list-inside space-y-1">
+              <ol className="text-xs text-yellow-700 text-left list-decimal list-inside">
                 <li>ブラウザのアドレスバーの左側にある🔒マークをクリック</li>
                 <li>「マイク」の設定を「許可」に変更</li>
                 <li>ページを再読み込みしてから再度試行</li>
@@ -351,11 +351,11 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
           )}
 
           {isApiError && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800 mb-2">
+            <div className="mb-1 p-1 bg-blue-50 border border-blue-200 rounded text-xs">
+              <p className="text-xs text-blue-800 mb-1">
                 <strong>開発環境での解決方法:</strong>
               </p>
-              <ol className="text-xs text-blue-700 text-left list-decimal list-inside space-y-1">
+              <ol className="text-xs text-blue-700 text-left list-decimal list-inside">
                 <li>
                   ターミナルで <code className="bg-blue-100 px-1 rounded">cd functions</code> を実行
                 </li>
@@ -368,12 +368,12 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
             </div>
           )}
 
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-1 justify-center">
             {isMicrophoneError && (
               <button
                 type="button"
                 onClick={retryMicrophonePermission}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-xs"
               >
                 再試行
               </button>
@@ -381,7 +381,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
             <button
               type="button"
               onClick={handleLeaveCall}
-              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs"
             >
               閉じる
             </button>
@@ -393,22 +393,22 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
   if (isLoading || isConnecting) {
     return (
-      <div className="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-lg">
-        <div className="text-center max-w-sm">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-gray-600 text-xs font-medium mb-2">
+      <div className="w-full h-full flex flex-col items-center justify-center p-1 bg-gray-50 rounded" style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', maxWidth: '100%', maxHeight: '100%' }}>
+        <div className="text-center w-full h-full flex flex-col justify-center" style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', maxWidth: '100%', maxHeight: '100%' }}>
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mx-auto mb-1"></div>
+          <p className="text-gray-600 text-xs font-medium mb-1">
             {isLoading ? "通話開始中..." : "接続中..."}
           </p>
 
           {isConnecting && (
-            <div className="text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
-              <p className="font-semibold mb-1">🎤 マイク許可が必要</p>
+            <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200">
+              <p className="font-semibold">🎤 マイク許可が必要</p>
               <p className="text-gray-600 text-xs">ブラウザで「許可」をクリック</p>
             </div>
           )}
 
           {isLoading && (
-            <div className="text-xs text-gray-600 bg-gray-100 px-3 py-2 rounded-lg">
+            <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
               <p>📞 音声通話ルームに参加中...</p>
             </div>
           )}
@@ -418,34 +418,33 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
   }
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-2">
+    <div className="w-full h-full flex flex-col items-center justify-center" style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', maxWidth: '100%', maxHeight: '100%' }}>
       {/* 音声制御ボタンのみ表示（通話時間表示付き） - コンパクト版・常に表示 */}
-      <div className="flex flex-col items-center gap-2 w-full max-w-md">
+      <div className="flex flex-col items-center gap-1 w-full h-full" style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', maxWidth: '100%', maxHeight: '100%' }}>
         {/* 通話時間表示 */}
-        <div className="p-2 bg-blue-50 rounded-lg w-full">
+        <div className="p-1 bg-blue-50 rounded w-full">
           <p className="text-xs text-blue-600 text-center">
             通話時間: <span className="font-mono font-semibold text-sm">{formattedDuration}</span>
           </p>
-          <div className="flex items-center justify-center gap-1 mt-1">
+          <div className="flex items-center justify-center gap-1">
             <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
             <span className="text-xs text-red-600">{isJoined ? "通話中" : "待機中"}</span>
           </div>
         </div>
 
         {/* 音声制御ボタン */}
-        <div className="flex gap-2 w-full">
+        <div className="flex gap-1 w-full">
           {/* マイク切り替えボタン */}
           <button
             type="button"
             onClick={handleToggleMicrophone}
             disabled={!isJoined}
-            className={`flex-1 px-3 py-2 rounded-lg shadow-md transition-colors text-xs font-medium ${
-              !isJoined
+            className={`flex-1 px-2 py-1 rounded shadow-md transition-colors text-xs font-medium ${!isJoined
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                 : dailyMicrophoneEnabled
-                ? "bg-green-500 hover:bg-green-600 text-white"
-                : "bg-red-500 hover:bg-red-600 text-white"
-            }`}
+                  ? "bg-green-500 hover:bg-green-600 text-white"
+                  : "bg-red-500 hover:bg-red-600 text-white"
+              }`}
             title={dailyMicrophoneEnabled ? "マイクをミュート" : "マイクを有効化"}
           >
             {dailyMicrophoneEnabled ? "🎤 ON" : "🔇 OFF"}
@@ -454,11 +453,10 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
             type="button"
             onClick={handleLeaveCall}
             disabled={!isJoined}
-            className={`flex-1 px-3 py-2 rounded-lg transition-colors shadow-md text-xs font-medium ${
-              !isJoined
+            className={`flex-1 px-2 py-1 rounded transition-colors shadow-md text-xs font-medium ${!isJoined
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                 : "bg-red-500 hover:bg-red-600 text-white"
-            }`}
+              }`}
           >
             通話終了
           </button>
