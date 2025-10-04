@@ -2642,7 +2642,8 @@ const CarNavigation = () => {
       )}
 
       {/* Audio Call Footer */}
-      <AudioCallFooter
+      <div className="mt-4">
+        <AudioCallFooter
         participants={(() => {
           if (callParticipants.length > 0) {
             return callParticipants;
@@ -2661,7 +2662,8 @@ const CarNavigation = () => {
           return [];
         })()}
         participantPhotoURLs={participantPhotoURLs}
-      />
+        />
+      </div>
     </div>
   );
 };
