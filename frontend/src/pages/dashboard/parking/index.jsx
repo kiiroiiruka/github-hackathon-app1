@@ -790,23 +790,6 @@ const ParkingInfoDisplay = () => {
                 </div>
 
                 <div className="h-64 rounded-lg overflow-hidden shadow-md relative z-0">
-                  {/* ズームボタン（地図内に残す） */}
-                  <div className="absolute top-2 right-2 z-[1000] flex flex-col gap-1">
-                    <button
-                      onClick={() => setMapZoom(Math.min(mapZoom + 1, 18))}
-                      className="bg-white hover:bg-gray-50 text-gray-700 w-10 h-10 rounded-lg shadow-lg flex items-center justify-center font-bold text-lg transition-colors duration-200"
-                      title="ズームイン"
-                    >
-                      +
-                    </button>
-                    <button
-                      onClick={() => setMapZoom(Math.max(mapZoom - 1, 1))}
-                      className="bg-white hover:bg-gray-50 text-gray-700 w-10 h-10 rounded-lg shadow-lg flex items-center justify-center font-bold text-lg transition-colors duration-200"
-                      title="ズームアウト"
-                    >
-                      −
-                    </button>
-                  </div>
                   <MapContainer
                     center={getMapCenter()}
                     zoom={mapZoom}
