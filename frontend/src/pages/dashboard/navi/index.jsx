@@ -917,7 +917,7 @@ const NaviCreateScreen = () => {
       </div>
 
       {/* テスト用ボタン - 固定位置で常に表示 */}
-      {isDebugModeEnabled() && (
+      {false && (
       <div className="fixed bottom-16 left-0 right-0 bg-white border-t-2 border-orange-300 shadow-lg z-[60]">
         <div className="px-4 py-4 bg-orange-50">
           <div className="max-w-2xl mx-auto">
