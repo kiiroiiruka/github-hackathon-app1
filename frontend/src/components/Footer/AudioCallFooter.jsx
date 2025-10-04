@@ -12,7 +12,8 @@ const AudioCallFooter = ({ participants = [], participantPhotoURLs = new Map() }
     <div
       style={{
         ...styles.footer,
-        height: isCollapsed ? "20px" : "90px",
+        height: isCollapsed ? "20px" : "auto",
+        minHeight: isCollapsed ? "20px" : "auto",
       }}
     >
       {/* 折りたたみボタン（常に表示） */}
@@ -72,7 +73,7 @@ const styles = {
     borderRadius: "15px 15px 0 0",
     boxShadow: "0 -4px 12px rgba(0, 0, 0, 0.15)",
     zIndex: 1000,
-    transition: "height 0.3s ease",
+    transition: "min-height 0.3s ease",
     padding: "8px 12px",
     paddingBottom: "14px",
   },
@@ -108,13 +109,13 @@ const styles = {
     transition: "transform 0.3s ease",
   },
   participantsSection: {
-    marginBottom: "2px",
+    marginBottom: "0px",
   },
   participantsLabel: {
     fontSize: "11px",
     fontWeight: "600",
     color: "#495057",
-    marginBottom: "2px",
+    marginBottom: "1px",
     lineHeight: "1.2",
   },
   cardsContainer: {
@@ -127,9 +128,9 @@ const styles = {
     display: "flex",
     flexDirection: "row",
     gap: "6px",
-    paddingBottom: "2px",
+    paddingBottom: "1px",
     minWidth: "fit-content",
-    marginBottom: "2px",
+    marginBottom: "1px",
   },
 };
 
