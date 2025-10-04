@@ -1,5 +1,5 @@
 import { Icon } from "leaflet";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 // Leaflet関連
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
@@ -73,6 +73,64 @@ const RoutingControl = ({ from, to }) => {
   return null;
 };
 
+// ⭐ 地図コントローラー（ズームと中心を制御）
+const MapController = ({ center, zoom, onCenterChange }) => {
+  const map = useMap();
+  const isAnimatingRef = useRef(false);
+
+  useEffect(() => {
+    if (map && center && zoom !== undefined) {
+      isAnimatingRef.current = true;
+      map.setView(center, zoom, {
+        animate: true,
+        duration: 0.8,
+      });
+      // アニメーション完了後にフラグをリセット
+      setTimeout(() => {
+        isAnimatingRef.current = false;
+      }, 1000);
+    }
+  }, [map, center, zoom]);
+
+  useEffect(() => {
+    if (!map) return;
+
+    const handleMoveEnd = () => {
+      // アニメーション中は状態更新をスキップ
+      if (isAnimatingRef.current) return;
+      
+      const currentCenter = map.getCenter();
+      const currentZoom = map.getZoom();
+      
+      // 現在の状態と異なる場合のみ更新
+      const newCenter = {
+        lat: currentCenter.lat,
+        lng: currentCenter.lng,
+        zoom: currentZoom,
+      };
+      
+      // 微小な差は無視（無限ループ防止）
+      if (center && Math.abs(center.lat - newCenter.lat) < 0.000001 && 
+          Math.abs(center.lng - newCenter.lng) < 0.000001 && 
+          Math.abs(zoom - newCenter.zoom) < 0.1) {
+        return;
+      }
+      
+      onCenterChange(newCenter);
+    };
+
+    map.on('moveend', handleMoveEnd);
+    map.on('zoomend', handleMoveEnd);
+
+    return () => {
+      map.off('moveend', handleMoveEnd);
+      map.off('zoomend', handleMoveEnd);
+    };
+  }, [map, onCenterChange, center, zoom]);
+
+  return null;
+};
+
 // ⭐ メインコンポーネント
 const ParkingInfoDisplay = () => {
   const [parkingInfo, setParkingInfo] = useState(null);
@@ -82,8 +140,83 @@ const ParkingInfoDisplay = () => {
   const [loading, setLoading] = useState(true);
   const [_isDebugMode, _setIsDebugMode] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState(null);
+  const [isOverdue, setIsOverdue] = useState(false);
+  const [mapCenter, setMapCenter] = useState(null);
+  const [mapZoom, setMapZoom] = useState(14);
   const navigate = useNavigate();
   const currentUser = useCurrentUser();
+  const gpsIntervalRef = useRef(null);
+  const lastValidLocationRef = useRef(null);
+  const lastValidAccuracyRef = useRef(null);
+
+  // 緯度経度間の距離（m）
+  const getDistanceMeters = useCallback((a, b) => {
+    const R = 6371000; // 地球半径(m)
+    const toRad = (d) => (d * Math.PI) / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const sinDLat = Math.sin(dLat / 2);
+    const sinDLng = Math.sin(dLng / 2);
+    const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }, []);
+
+  // GPS位置・精度フィルタリング関数（精度が悪い時のブレ抑制）
+  const filterGpsLocation = useCallback((newLocation, accuracy) => {
+    const lastValid = lastValidLocationRef.current;
+    const lastValidAccuracy = lastValidAccuracyRef.current;
+
+    // 初回または精度が良い場合はそのまま使用
+    if (!lastValid || accuracy <= 30) {
+      lastValidLocationRef.current = newLocation;
+      lastValidAccuracyRef.current = accuracy;
+      return { location: newLocation, accuracy };
+    }
+
+    // 精度が悪い場合の距離チェック
+    const distance = getDistanceMeters(lastValid, newLocation);
+
+    // 精度が悪い場合の閾値設定
+    let maxDistance;
+    if (accuracy <= 50) {
+      maxDistance = 20; // 精度50m以下：20m以内の移動のみ許可
+    } else if (accuracy <= 100) {
+      maxDistance = 15; // 精度100m以下：15m以内の移動のみ許可
+    } else {
+      maxDistance = 10; // 精度100m超：10m以内の移動のみ許可
+    }
+
+    // 移動距離が閾値を超えている場合は前回の位置を維持
+    if (distance > maxDistance) {
+      console.log(`📍 GPS位置フィルタリング: 移動距離${distance.toFixed(1)}m > 閾値${maxDistance}m、前回位置を維持`);
+      return { location: lastValid, accuracy: lastValidAccuracy };
+    }
+
+    // 精度の急激な変化を抑制（前回の精度から80%以上変化した場合は段階的に調整）
+    let filteredAccuracy = accuracy;
+    if (lastValidAccuracy && lastValidAccuracy > 30) {
+      const accuracyChangeRatio = Math.abs(accuracy - lastValidAccuracy) / lastValidAccuracy;
+      
+      // 精度が良くなった場合はより積極的に採用
+      if (accuracy < lastValidAccuracy && accuracyChangeRatio > 0.3) {
+        // 精度が良くなった場合は70%の重みで新値を採用
+        filteredAccuracy = (lastValidAccuracy * 0.3 + accuracy * 0.7);
+        console.log(`📍 GPS精度フィルタリング: 精度改善を検出 ${lastValidAccuracy.toFixed(1)}m → ${accuracy.toFixed(1)}m、改善値 ${filteredAccuracy.toFixed(1)}m を使用`);
+      } else if (accuracyChangeRatio > 0.8) {
+        // 精度が悪くなった場合は前回値を重視
+        filteredAccuracy = (lastValidAccuracy * 0.7 + accuracy * 0.3);
+        console.log(`📍 GPS精度フィルタリング: 急激な変化を検出 ${lastValidAccuracy.toFixed(1)}m → ${accuracy.toFixed(1)}m、調整値 ${filteredAccuracy.toFixed(1)}m を使用`);
+      }
+    }
+
+    // 閾値以内の場合は新しい位置を採用
+    lastValidLocationRef.current = newLocation;
+    lastValidAccuracyRef.current = filteredAccuracy;
+    return { location: newLocation, accuracy: filteredAccuracy };
+  }, [getDistanceMeters]);
 
   // ユーザー情報を取得
   useEffect(() => {
@@ -197,13 +330,20 @@ const ParkingInfoDisplay = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setNowPosition({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
+          const { latitude, longitude, accuracy } = pos.coords;
+          const newLocation = { lat: latitude, lng: longitude };
+
+          // GPS位置・精度フィルタリングを適用
+          const filteredData = filterGpsLocation(newLocation, accuracy);
+
+          setNowPosition(filteredData.location);
+          setGpsAccuracy(filteredData.accuracy);
+          
           console.log("現在地をリセットしました:", {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
+            lat: latitude,
+            lng: longitude,
+            accuracy: `${accuracy.toFixed(1)}m`,
+            filteredAccuracy: `${filteredData.accuracy.toFixed(1)}m`
           });
         },
         (err) => {
@@ -236,41 +376,45 @@ const ParkingInfoDisplay = () => {
     fetchParkingInfo();
   }, []);
 
-  // ⭐ 現在地を取得（ブラウザのGeolocation API）
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      alert("このブラウザでは位置情報がサポートされていません。");
+  // リアルタイムGPS位置情報監視を開始（2秒間隔で更新）
+  const startLocationSharing = useCallback(() => {
+    // デバッグモードの場合はGPS監視をスキップ
+    if (isDebugModeEnabled()) {
+      console.log("📍 デバッグモード: GPS監視をスキップ");
       return;
     }
 
+    // 既存のGPS監視を停止
+    if (gpsIntervalRef.current) {
+      navigator.geolocation.clearWatch(gpsIntervalRef.current);
+      gpsIntervalRef.current = null;
+    }
+
+    if (!navigator.geolocation) {
+      console.log("GPS not supported");
+      return;
+    }
+
+    // 初回取得
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setNowPosition({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        const newLocation = { lat: latitude, lng: longitude };
+
+        // GPS位置・精度フィルタリングを適用
+        const filteredData = filterGpsLocation(newLocation, accuracy);
+
+        setNowPosition(filteredData.location);
+        setGpsAccuracy(filteredData.accuracy);
+        console.log("📍 GPS位置取得（初回）:", {
+          latitude,
+          longitude,
+          accuracy: `${accuracy.toFixed(1)}m`,
+          filteredAccuracy: `${filteredData.accuracy.toFixed(1)}m`
         });
       },
-      (err) => {
-        console.error("位置情報の取得に失敗しました:", err);
-
-        // エラーの種類に応じて適切なメッセージを表示
-        let errorMessage = "現在地を取得できませんでした。";
-
-        switch (err.code) {
-          case err.PERMISSION_DENIED:
-            errorMessage = "位置情報の許可が必要です。ブラウザの設定で位置情報を許可してください。";
-            break;
-          case err.POSITION_UNAVAILABLE:
-            errorMessage = "位置情報が利用できません。";
-            break;
-          case err.TIMEOUT:
-            errorMessage = "位置情報の取得がタイムアウトしました。";
-            break;
-        }
-
-        // アラートではなく、より優しい通知に変更
-        console.warn("⚠️ 位置情報エラー:", errorMessage);
-
+      (error) => {
+        console.error("GPS error:", error);
         // デフォルト位置（東京）を設定
         setNowPosition({
           lat: 35.6762,
@@ -279,55 +423,180 @@ const ParkingInfoDisplay = () => {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000, // 10秒でタイムアウト
-        maximumAge: 300000, // 5分間キャッシュ
+        timeout: 10000,
+        maximumAge: 0, // キャッシュを使わずに常に最新の位置を取得
       }
     );
+
+    // リアルタイムGPS監視を開始（watchPositionを使用）
+    gpsIntervalRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        const newLocation = { lat: latitude, lng: longitude };
+
+        // GPS位置・精度フィルタリングを適用
+        const filteredData = filterGpsLocation(newLocation, accuracy);
+
+        // フィルタリングされた位置情報を反映
+        setNowPosition(filteredData.location);
+        setGpsAccuracy(filteredData.accuracy);
+        
+        // 頻繁すぎるログはコメントアウト
+        // console.log("📍 GPS位置リアルタイム更新:", { 
+        //   latitude, 
+        //   longitude, 
+        //   accuracy: `${accuracy.toFixed(1)}m`,
+        //   filteredAccuracy: `${filteredData.accuracy.toFixed(1)}m`
+        // });
+      },
+      (error) => {
+        console.error("❌ GPS監視エラー:", error.message);
+      },
+      {
+        enableHighAccuracy: true, // 高精度モード
+        timeout: 5000, // タイムアウト5秒
+        maximumAge: 0, // キャッシュを使わずに常に最新の位置を取得
+      }
+    );
+
+    console.log("🔄 リアルタイムGPS監視開始（駐車場画面）");
+  }, [filterGpsLocation]);
+
+  // 位置情報共有を停止
+  const stopLocationSharing = useCallback(() => {
+    if (gpsIntervalRef.current) {
+      navigator.geolocation.clearWatch(gpsIntervalRef.current);
+      gpsIntervalRef.current = null;
+    }
+    console.log("⏹️ GPS位置情報共有停止");
   }, []);
 
-  // 出発までの時間を計算
+  // GPS監視の開始・停止制御
+  useEffect(() => {
+    // リアルタイムGPS監視を開始（デバッグモードOFFの場合のみ）
+    if (!isDebugModeEnabled()) {
+      startLocationSharing();
+    }
+
+    // クリーンアップ
+    return () => {
+      stopLocationSharing();
+    };
+  }, [startLocationSharing, stopLocationSharing]);
+
+  // 出発までの時間を計算（リアルタイム更新）
   useEffect(() => {
     if (parkingInfo?.departureTime && parkingInfo?.arrivalTime) {
       const dep = new Date(parkingInfo.departureTime);
       const arr = new Date(parkingInfo.arrivalTime);
-      const diffMs = dep - arr;
-      if (diffMs > 0) {
-        const hours = Math.floor(diffMs / (1000 * 60 * 60));
-        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-        setTimeDiff(`${hours}時間${minutes}分`);
+      const now = new Date();
+      
+      // 現在時刻と出発時刻を比較
+      const timeToDeparture = dep - now;
+      
+      if (timeToDeparture > 0) {
+        // 出発時刻まで時間がある場合
+        const diffMs = dep - arr;
+        if (diffMs > 0) {
+          const hours = Math.floor(diffMs / (1000 * 60 * 60));
+          const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          setTimeDiff(`${hours}時間${minutes}分`);
+        } else {
+          setTimeDiff("出発時刻が到着時刻より前です");
+        }
+        setIsOverdue(false);
       } else {
-        setTimeDiff("出発時刻が到着時刻より前です");
+        // 出発時刻を過ぎている場合
+        const overdueMinutes = Math.floor(Math.abs(timeToDeparture) / (1000 * 60));
+        setTimeDiff(`過ぎています ${overdueMinutes}分`);
+        setIsOverdue(true);
       }
     } else {
       setTimeDiff("");
+      setIsOverdue(false);
     }
   }, [parkingInfo]);
 
-  // 徒歩時間を計算（簡易計算）
+  // 出発時刻チェックを1分ごとに更新
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (parkingInfo?.departureTime) {
+        const dep = new Date(parkingInfo.departureTime);
+        const now = new Date();
+        const timeToDeparture = dep - now;
+        
+        if (timeToDeparture <= 0) {
+          const overdueMinutes = Math.floor(Math.abs(timeToDeparture) / (1000 * 60));
+          setTimeDiff(`過ぎています ${overdueMinutes}分`);
+          setIsOverdue(true);
+        } else {
+          setIsOverdue(false);
+        }
+      }
+    }, 60000); // 1分ごと
+
+    return () => clearInterval(intervalId);
+  }, [parkingInfo?.departureTime]);
+
+  // 徒歩時間を計算（GPS更新に応じてリアルタイム更新）
   useEffect(() => {
     if (nowPosition && parkingInfo?.position) {
-      const R = 6371e3; // 地球の半径(m)
-      const toRad = (deg) => (deg * Math.PI) / 180;
-
-      const lat1 = toRad(nowPosition.lat);
-      const lat2 = toRad(parkingInfo.position.lat);
-      const dLat = toRad(parkingInfo.position.lat - nowPosition.lat);
-      const dLng = toRad(parkingInfo.position.lng - nowPosition.lng);
-
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distance = R * c; // m
-
+      const distance = getDistanceMeters(nowPosition, parkingInfo.position);
+      
       const walkSpeed = 83; // m/分（約5km/h）
       const minutes = Math.round(distance / walkSpeed);
-      setWalkingTime(`徒歩 約${minutes}分`);
+      
+      // 距離も表示に含める
+      const distanceKm = (distance / 1000).toFixed(1);
+      setWalkingTime(`徒歩 約${minutes}分 (${distanceKm}km)`);
     } else {
       setWalkingTime("");
     }
-  }, [nowPosition, parkingInfo]);
+  }, [nowPosition, parkingInfo, getDistanceMeters]);
 
   const handleGoInput = () => {
     navigate("/dashboard/parking/input");
+  };
+
+  // 地図の中心位置を取得（初期値は現在地）
+  const getMapCenter = () => {
+    return mapCenter || nowPosition || { lat: 35.6762, lng: 139.6503 };
+  };
+
+  // 地図中心位置変更ハンドラー
+  const handleMapCenterChange = useCallback((newCenter) => {
+    // 現在の状態と異なる場合のみ更新（無限ループ防止）
+    if (!mapCenter || 
+        Math.abs(mapCenter.lat - newCenter.lat) > 0.000001 || 
+        Math.abs(mapCenter.lng - newCenter.lng) > 0.000001 || 
+        Math.abs(mapZoom - newCenter.zoom) > 0.1) {
+      setMapCenter(newCenter);
+      setMapZoom(newCenter.zoom);
+    }
+  }, [mapCenter, mapZoom]);
+
+  // 現在地にフォーカス
+  const focusOnCurrentLocation = () => {
+    if (nowPosition) {
+      setMapCenter({
+        lat: nowPosition.lat,
+        lng: nowPosition.lng,
+        zoom: 16,
+      });
+      console.log("📍 現在地にフォーカス:", nowPosition);
+    }
+  };
+
+  // 駐車場にフォーカス
+  const focusOnParkingLocation = () => {
+    if (parkingInfo?.position) {
+      setMapCenter({
+        lat: parkingInfo.position.lat,
+        lng: parkingInfo.position.lng,
+        zoom: 16,
+      });
+      console.log("🅿️ 駐車場にフォーカス:", parkingInfo.position);
+    }
   };
 
   return (
@@ -373,11 +642,18 @@ const ParkingInfoDisplay = () => {
                 </div>
 
                 {timeDiff && (
-                  <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
-                    <span className="text-2xl">⏰</span>
+                  <div className={`flex items-center gap-3 p-3 rounded-lg ${isOverdue 
+                    ? "bg-red-50 border-2 border-red-200 animate-pulse" 
+                    : "bg-yellow-50"
+                  }`}>
+                    <span className="text-2xl">{isOverdue ? "⚠️" : "⏰"}</span>
                     <div>
-                      <div className="font-semibold text-yellow-800">出発までの時間</div>
-                      <div className="text-yellow-700">{timeDiff}</div>
+                      <div className={`font-semibold ${isOverdue ? "text-red-800" : "text-yellow-800"}`}>
+                        {isOverdue ? "出発時刻を過ぎています！" : "出発までの時間"}
+                      </div>
+                      <div className={`${isOverdue ? "text-red-700 font-bold text-lg" : "text-yellow-700"}`}>
+                        {timeDiff}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -388,6 +664,20 @@ const ParkingInfoDisplay = () => {
                     <div>
                       <div className="font-semibold text-purple-800">現在地からの距離</div>
                       <div className="text-purple-700">{walkingTime}</div>
+                    </div>
+                  </div>
+                )}
+
+                {gpsAccuracy && (
+                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                    <span className="text-2xl">📡</span>
+                    <div>
+                      <div className="font-semibold text-blue-800">GPS精度</div>
+                      <div className={`text-blue-700 ${gpsAccuracy > 100 ? "font-bold text-red-600" : gpsAccuracy > 50 ? "text-orange-600" : ""}`}>
+                        ±{gpsAccuracy.toFixed(0)}m
+                        {gpsAccuracy > 100 && <span className="text-xs ml-1">(低精度)</span>}
+                        {gpsAccuracy > 50 && gpsAccuracy <= 100 && <span className="text-xs ml-1">(やや低め)</span>}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -448,7 +738,7 @@ const ParkingInfoDisplay = () => {
                     onClick={resetCurrentLocation}
                     className="w-full"
                   >
-                    🔄 現在地をリセット
+                    🔄 GPS位置を更新
                   </Button>
                 </div>
               </Card>
@@ -464,15 +754,38 @@ const ParkingInfoDisplay = () => {
                 </div>
 
                 <div className="h-64 rounded-lg overflow-hidden shadow-md relative z-0">
+                  {/* ズームボタン（地図内に残す） */}
+                  <div className="absolute top-2 right-2 z-[1000] flex flex-col gap-1">
+                    <button
+                      onClick={() => setMapZoom(Math.min(mapZoom + 1, 18))}
+                      className="bg-white hover:bg-gray-50 text-gray-700 w-10 h-10 rounded-lg shadow-lg flex items-center justify-center font-bold text-lg transition-colors duration-200"
+                      title="ズームイン"
+                    >
+                      +
+                    </button>
+                    <button
+                      onClick={() => setMapZoom(Math.max(mapZoom - 1, 1))}
+                      className="bg-white hover:bg-gray-50 text-gray-700 w-10 h-10 rounded-lg shadow-lg flex items-center justify-center font-bold text-lg transition-colors duration-200"
+                      title="ズームアウト"
+                    >
+                      −
+                    </button>
+                  </div>
                   <MapContainer
-                    center={nowPosition}
-                    zoom={14}
+                    center={getMapCenter()}
+                    zoom={mapZoom}
                     style={{ height: "100%", width: "100%", position: "relative", zIndex: 0 }}
                     attributionControl={true} // ライセンス表記を表示（法的に必要）
                   >
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    />
+
+                    <MapController
+                      center={getMapCenter()}
+                      zoom={mapZoom}
+                      onCenterChange={handleMapCenterChange}
                     />
                     {/* 現在地と駐車場の位置を比較して適切に表示 */}
                     {(() => {
@@ -552,6 +865,26 @@ const ParkingInfoDisplay = () => {
                       return null;
                     })()}
                   </MapContainer>
+                </div>
+
+                {/* 地図遷移ボタン（地図の下に配置） */}
+                <div className="mt-4 flex gap-3 justify-center">
+                  <button
+                    onClick={focusOnCurrentLocation}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2 flex-1 max-w-[200px]"
+                    title="現在地にフォーカス"
+                  >
+                    <span className="text-lg">📍</span>
+                    現在地にセット
+                  </button>
+                  <button
+                    onClick={focusOnParkingLocation}
+                    className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2 flex-1 max-w-[200px]"
+                    title="駐車場にフォーカス"
+                  >
+                    <span className="text-lg">🅿️</span>
+                    駐車場にセット
+                  </button>
                 </div>
               </Card>
             )}
