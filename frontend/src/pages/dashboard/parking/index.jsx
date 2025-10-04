@@ -333,7 +333,14 @@ const ParkingInfoDisplay = () => {
         break;
     }
 
-    setNowPosition({ lat: newLat, lng: newLng });
+    const newPosition = { lat: newLat, lng: newLng };
+    setNowPosition(newPosition);
+    
+    // デバッグモードでは安定位置も即座に更新してルート描画を反映
+    if (isDebugModeEnabled()) {
+      setStableNowPosition(newPosition);
+    }
+    
     console.log(`現在地を${direction}にずらしました:`, {
       lat: newLat,
       lng: newLng,
@@ -342,7 +349,8 @@ const ParkingInfoDisplay = () => {
 
   // 現在地をリセットする関数（デバッグ用）
   const resetCurrentLocation = () => {
-    if (navigator.geolocation) {
+    if (navigator.geolocation && !isDebugModeEnabled()) {
+      // 通常モードの場合はGPSから取得
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude, accuracy } = pos.coords;
@@ -364,13 +372,26 @@ const ParkingInfoDisplay = () => {
         (err) => {
           console.error("位置情報の取得に失敗しました:", err);
           // デフォルト位置（東京）にリセット
-          setNowPosition({
+          const defaultPosition = {
             lat: 35.6762,
             lng: 139.6503,
-          });
+          };
+          setNowPosition(defaultPosition);
+          if (isDebugModeEnabled()) {
+            setStableNowPosition(defaultPosition);
+          }
           console.log("デフォルト位置にリセットしました");
         }
       );
+    } else {
+      // デバッグモードの場合はデフォルト位置にリセット
+      const defaultPosition = {
+        lat: 35.6762,
+        lng: 139.6503,
+      };
+      setNowPosition(defaultPosition);
+      setStableNowPosition(defaultPosition);
+      console.log("デバッグモード: デフォルト位置にリセットしました");
     }
   };
 
@@ -393,9 +414,14 @@ const ParkingInfoDisplay = () => {
 
   // リアルタイムGPS位置情報監視を開始（2秒間隔で更新）
   const startLocationSharing = useCallback(() => {
-    // デバッグモードの場合はGPS監視をスキップ
+    // デバッグモードの場合はGPS監視をスキップ（デバッグUIの位置のみ使用）
     if (isDebugModeEnabled()) {
-      console.log("📍 デバッグモード: GPS監視をスキップ");
+      console.log("📍 デバッグモード: GPS監視をスキップ、デバッグUIの位置を使用");
+      // デバッグモードでは初期位置を設定（デバッグUIで調整可能）
+      setNowPosition({
+        lat: 35.6762,
+        lng: 139.6503,
+      });
       return;
     }
 
@@ -407,6 +433,11 @@ const ParkingInfoDisplay = () => {
 
     if (!navigator.geolocation) {
       console.log("GPS not supported");
+      // GPSが利用できない場合はデフォルト位置を設定
+      setNowPosition({
+        lat: 35.6762,
+        lng: 139.6503,
+      });
       return;
     }
 
@@ -488,10 +519,8 @@ const ParkingInfoDisplay = () => {
 
   // GPS監視の開始・停止制御
   useEffect(() => {
-    // リアルタイムGPS監視を開始（デバッグモードOFFの場合のみ）
-    if (!isDebugModeEnabled()) {
-      startLocationSharing();
-    }
+    // リアルタイムGPS監視を開始（デバッグモードの場合はスキップ）
+    startLocationSharing();
 
     // クリーンアップ
     return () => {
