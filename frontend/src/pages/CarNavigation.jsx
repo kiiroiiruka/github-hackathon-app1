@@ -2621,20 +2621,20 @@ const CarNavigation = () => {
           </div>
 
           {/* タブコンテンツ */}
-          <div>{renderTabContent()}</div>
+          <div>{renderTabContent()}          {/* 音声通話コントロール */}
+            {roomData?.dailyRoom && isJoined && (
+              <div className="mt-2">
+                <AudioCallRoom
+                  roomId={roomId}
+                  roomName={roomData?.name || "カーナビルーム"}
+                  ownerUid={roomData?.ownerUid || ""}
+                  members={members}
+                  onCallEnd={handleCallEnd}
+                  onCallStateUpdate={handleCallStateUpdate}
+                />
+              </div>)}</div>
 
-          {/* 音声通話コントロール */}
-          {roomData?.dailyRoom && isJoined && (
-            <div className="mt-2">
-              <AudioCallRoom
-                roomId={roomId}
-                roomName={roomData?.name || "カーナビルーム"}
-                ownerUid={roomData?.ownerUid || ""}
-                members={members}
-                onCallEnd={handleCallEnd}
-                onCallStateUpdate={handleCallStateUpdate}
-              />
-            </div>)}
+
         </div>
       </div>
 
