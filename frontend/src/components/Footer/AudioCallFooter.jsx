@@ -63,13 +63,11 @@ const styles = {
   footer: {
     position: "fixed",
     bottom: 0,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: "min(100%, 600px)", // 最大600px、画面幅が狭い場合は画面幅に合わせる
+    left: 0,
+    right: 0,
+    width: "100%", // 横幅いっぱいに活用
     backgroundColor: "#ffffff",
     borderTop: "1px solid #e9ecef",
-    borderLeft: "1px solid #e9ecef",
-    borderRight: "1px solid #e9ecef",
     borderRadius: "15px 15px 0 0",
     boxShadow: "0 -4px 12px rgba(0, 0, 0, 0.15)",
     zIndex: 1000,

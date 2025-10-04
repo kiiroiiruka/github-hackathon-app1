@@ -434,12 +434,12 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
         {/* 音声制御ボタン */}
         <div className="flex gap-1 w-full">
-          {/* マイク切り替えボタン */}
+          {/* マイク切り替えボタンのみ表示 */}
           <button
             type="button"
             onClick={handleToggleMicrophone}
             disabled={!isJoined}
-            className={`flex-1 px-2 py-1 rounded shadow-md transition-colors text-xs font-medium ${!isJoined
+            className={`w-full px-2 py-1 rounded shadow-md transition-colors text-xs font-medium ${!isJoined
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                 : dailyMicrophoneEnabled
                   ? "bg-green-500 hover:bg-green-600 text-white"
@@ -448,17 +448,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
             title={dailyMicrophoneEnabled ? "マイクをミュート" : "マイクを有効化"}
           >
             {dailyMicrophoneEnabled ? "🎤 ON" : "🔇 OFF"}
-          </button>
-          <button
-            type="button"
-            onClick={handleLeaveCall}
-            disabled={!isJoined}
-            className={`flex-1 px-2 py-1 rounded transition-colors shadow-md text-xs font-medium ${!isJoined
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "bg-red-500 hover:bg-red-600 text-white"
-              }`}
-          >
-            通話終了
           </button>
         </div>
       </div>
