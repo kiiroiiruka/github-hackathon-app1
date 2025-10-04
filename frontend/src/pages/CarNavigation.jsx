@@ -237,6 +237,8 @@ const CarNavigation = () => {
   const [gpsAccuracy, setGpsAccuracy] = useState(null); // GPS精度（メートル）
   const [filteredLocation, setFilteredLocation] = useState(null); // フィルタリングされた位置
   const lastValidLocationRef = useRef(null); // 最後の有効な位置
+  const lastValidAccuracyRef = useRef(null); // 最後の有効な精度
+  const gpsMeasurementsRef = useRef([]); // GPS測定値の配列（複数回測定用）
   const [routeStatus, setRouteStatus] = useState({
     isOnRoute: true,
     distance: 0,
@@ -284,55 +286,165 @@ const CarNavigation = () => {
     console.log("🎯 初期適当座標設定:", initialLocation);
   }, []);
 
-  // GPS位置情報の取得（初回用）
-  const getCurrentPosition = () => {
+  // GPS位置情報の取得（初回用・複数回測定版）
+  const getCurrentPosition = async () => {
     if (!navigator.geolocation) {
       console.log("GPS not supported");
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        const newLocation = { lat: latitude, lng: longitude };
+    try {
+      console.log("📍 GPS複数回測定開始（初回）...");
+      
+      // 複数回測定を実行（3回、500ms間隔）
+      const measurements = await getMultipleGpsMeasurements(3, 500);
+      
+      // 測定値を平均化
+      const averagedData = calculateAverageGpsMeasurement(measurements);
+      
+      if (averagedData) {
+        const newLocation = { lat: averagedData.lat, lng: averagedData.lng };
 
-        // GPS位置フィルタリングを適用
-        const filteredNewLocation = filterGpsLocation(newLocation, accuracy);
+        // GPS位置・精度フィルタリングを適用
+        const filteredData = filterGpsLocation(newLocation, averagedData.accuracy);
 
-        setCurrentLocation(filteredNewLocation);
-        setFilteredLocation(filteredNewLocation);
+        setCurrentLocation(filteredData.location);
+        setFilteredLocation(filteredData.location);
         setIsUsingMockLocation(false);
-        setGpsAccuracy(accuracy); // GPS精度を保存
-        console.log("📍 GPS位置取得（初回）:", {
-          latitude,
-          longitude,
-          accuracy: `${accuracy.toFixed(1)}m`
+        setGpsAccuracy(filteredData.accuracy);
+        
+        console.log("📍 GPS複数回測定完了（初回）:", {
+          measurementCount: averagedData.measurementCount,
+          accuracy: `${averagedData.accuracy.toFixed(1)}m`,
+          variance: `${(averagedData.variance * 111000).toFixed(1)}m`,
+          finalAccuracy: `${filteredData.accuracy.toFixed(1)}m`
         });
 
         // Firebaseに位置情報を送信
-        sendLocationToFirebase(filteredNewLocation);
-      },
-      (error) => {
-        console.error("GPS error:", error);
-        // GPSが失敗した場合はモック位置を使用
-        setIsUsingMockLocation(true);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0, // キャッシュを使わずに常に最新の位置を取得
+        sendLocationToFirebase(filteredData.location);
       }
-    );
+    } catch (error) {
+      console.error("GPS複数回測定エラー:", error);
+      // 複数回測定が失敗した場合は単回測定にフォールバック
+      console.log("📍 単回測定にフォールバック...");
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          const newLocation = { lat: latitude, lng: longitude };
+
+          const filteredData = filterGpsLocation(newLocation, accuracy);
+
+          setCurrentLocation(filteredData.location);
+          setFilteredLocation(filteredData.location);
+          setIsUsingMockLocation(false);
+          setGpsAccuracy(filteredData.accuracy);
+          
+          console.log("📍 GPS単回測定完了（フォールバック）:", {
+            accuracy: `${accuracy.toFixed(1)}m`
+          });
+
+          sendLocationToFirebase(filteredData.location);
+        },
+        (error) => {
+          console.error("GPS error:", error);
+          setIsUsingMockLocation(true);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    }
   };
 
-  // GPS位置フィルタリング関数（精度が悪い時のブレ抑制）
+  // 複数回GPS測定で精度向上を図る関数
+  const getMultipleGpsMeasurements = useCallback((count = 3, interval = 500) => {
+    return new Promise((resolve, reject) => {
+      const measurements = [];
+      let completed = 0;
+
+      const getSingleMeasurement = () => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude, accuracy } = position.coords;
+            measurements.push({
+              lat: latitude,
+              lng: longitude,
+              accuracy: accuracy,
+              timestamp: Date.now()
+            });
+            completed++;
+
+            if (completed >= count) {
+              // 全測定完了
+              resolve(measurements);
+            } else {
+              // 次の測定まで待機
+              setTimeout(getSingleMeasurement, interval);
+            }
+          },
+          (error) => {
+            reject(error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+          }
+        );
+      };
+
+      getSingleMeasurement();
+    });
+  }, []);
+
+  // GPS測定値の平均化関数
+  const calculateAverageGpsMeasurement = useCallback((measurements) => {
+    if (measurements.length === 0) return null;
+
+    // 異常値（精度が極端に悪い測定値）を除外
+    const validMeasurements = measurements.filter(m => m.accuracy <= 200); // 200m以下のみ採用
+    
+    if (validMeasurements.length === 0) {
+      // 有効な測定値がない場合は全測定値を使用
+      return measurements[Math.floor(measurements.length / 2)]; // 中央値を使用
+    }
+
+    // 位置の平均を計算
+    const avgLat = validMeasurements.reduce((sum, m) => sum + m.lat, 0) / validMeasurements.length;
+    const avgLng = validMeasurements.reduce((sum, m) => sum + m.lng, 0) / validMeasurements.length;
+    
+    // 精度の最良値を採用（最小値）
+    const bestAccuracy = Math.min(...validMeasurements.map(m => m.accuracy));
+    
+    // 測定値のばらつきを計算（品質指標）
+    const latVariance = validMeasurements.reduce((sum, m) => sum + Math.pow(m.lat - avgLat, 2), 0) / validMeasurements.length;
+    const lngVariance = validMeasurements.reduce((sum, m) => sum + Math.pow(m.lng - avgLng, 2), 0) / validMeasurements.length;
+    const positionVariance = Math.sqrt(latVariance + lngVariance);
+    
+    console.log(`📍 GPS複数回測定完了: ${validMeasurements.length}/${measurements.length}件有効, 位置分散: ${(positionVariance * 111000).toFixed(1)}m, 最良精度: ${bestAccuracy.toFixed(1)}m`);
+
+    return {
+      lat: avgLat,
+      lng: avgLng,
+      accuracy: bestAccuracy,
+      variance: positionVariance,
+      measurementCount: validMeasurements.length
+    };
+  }, []);
+
+  // GPS位置・精度フィルタリング関数（精度が悪い時のブレ抑制）
   const filterGpsLocation = useCallback((newLocation, accuracy) => {
     const lastValid = lastValidLocationRef.current;
+    const lastValidAccuracy = lastValidAccuracyRef.current;
 
     // 初回または精度が良い場合はそのまま使用
     if (!lastValid || accuracy <= 30) {
       lastValidLocationRef.current = newLocation;
-      return newLocation;
+      lastValidAccuracyRef.current = accuracy;
+      return { location: newLocation, accuracy };
     }
 
     // 精度が悪い場合の距離チェック
@@ -351,12 +463,30 @@ const CarNavigation = () => {
     // 移動距離が閾値を超えている場合は前回の位置を維持
     if (distance > maxDistance) {
       console.log(`📍 GPS位置フィルタリング: 移動距離${distance.toFixed(1)}m > 閾値${maxDistance}m、前回位置を維持`);
-      return lastValid;
+      return { location: lastValid, accuracy: lastValidAccuracy };
+    }
+
+    // 精度の急激な変化を抑制（前回の精度から80%以上変化した場合は段階的に調整）
+    let filteredAccuracy = accuracy;
+    if (lastValidAccuracy && lastValidAccuracy > 30) {
+      const accuracyChangeRatio = Math.abs(accuracy - lastValidAccuracy) / lastValidAccuracy;
+      
+      // 精度が良くなった場合はより積極的に採用
+      if (accuracy < lastValidAccuracy && accuracyChangeRatio > 0.3) {
+        // 精度が良くなった場合は70%の重みで新値を採用
+        filteredAccuracy = (lastValidAccuracy * 0.3 + accuracy * 0.7);
+        console.log(`📍 GPS精度フィルタリング: 精度改善を検出 ${lastValidAccuracy.toFixed(1)}m → ${accuracy.toFixed(1)}m、改善値 ${filteredAccuracy.toFixed(1)}m を使用`);
+      } else if (accuracyChangeRatio > 0.8) {
+        // 精度が悪くなった場合は前回値を重視
+        filteredAccuracy = (lastValidAccuracy * 0.7 + accuracy * 0.3);
+        console.log(`📍 GPS精度フィルタリング: 急激な変化を検出 ${lastValidAccuracy.toFixed(1)}m → ${accuracy.toFixed(1)}m、調整値 ${filteredAccuracy.toFixed(1)}m を使用`);
+      }
     }
 
     // 閾値以内の場合は新しい位置を採用
     lastValidLocationRef.current = newLocation;
-    return newLocation;
+    lastValidAccuracyRef.current = filteredAccuracy;
+    return { location: newLocation, accuracy: filteredAccuracy };
   }, []);
 
   // Firebaseに位置情報を送信
@@ -412,19 +542,19 @@ const CarNavigation = () => {
         const { latitude, longitude, accuracy } = position.coords;
         const newLocation = { lat: latitude, lng: longitude };
 
-        // GPS位置フィルタリングを適用
-        const filteredNewLocation = filterGpsLocation(newLocation, accuracy);
+        // GPS位置・精度フィルタリングを適用
+        const filteredData = filterGpsLocation(newLocation, accuracy);
 
         // フィルタリングされた位置情報を反映
-        setCurrentLocation(filteredNewLocation);
-        setFilteredLocation(filteredNewLocation);
+        setCurrentLocation(filteredData.location);
+        setFilteredLocation(filteredData.location);
         setIsUsingMockLocation(false);
-        setGpsAccuracy(accuracy); // GPS精度を保存
+        setGpsAccuracy(filteredData.accuracy); // フィルタリングされたGPS精度を保存
 
         // デバウンス処理：前回送信から1秒以上経過している場合のみFirebaseに送信
         const now = Date.now();
         if (now - lastSendTime >= SEND_INTERVAL) {
-          sendLocationToFirebase(filteredNewLocation);
+          sendLocationToFirebase(filteredData.location);
           lastSendTime = now;
           // console.log("📍 GPS位置リアルタイム更新:", { 
           //   latitude, 
@@ -1484,7 +1614,7 @@ const CarNavigation = () => {
                     }}
                     className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
                   >
-                    GPS取得
+                    GPS複数回測定
                   </button>
                 </div>
               </div>
