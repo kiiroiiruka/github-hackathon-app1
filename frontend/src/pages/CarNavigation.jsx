@@ -235,6 +235,8 @@ const CarNavigation = () => {
   const [isUsingMockLocation, setIsUsingMockLocation] = useState(true);
   const [mockLocationIndex, setMockLocationIndex] = useState(0);
   const [gpsAccuracy, setGpsAccuracy] = useState(null); // GPS精度（メートル）
+  const [filteredLocation, setFilteredLocation] = useState(null); // フィルタリングされた位置
+  const lastValidLocationRef = useRef(null); // 最後の有効な位置
   const [routeStatus, setRouteStatus] = useState({
     isOnRoute: true,
     distance: 0,
@@ -293,7 +295,12 @@ const CarNavigation = () => {
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
         const newLocation = { lat: latitude, lng: longitude };
-        setCurrentLocation(newLocation);
+        
+        // GPS位置フィルタリングを適用
+        const filteredNewLocation = filterGpsLocation(newLocation, accuracy);
+        
+        setCurrentLocation(filteredNewLocation);
+        setFilteredLocation(filteredNewLocation);
         setIsUsingMockLocation(false);
         setGpsAccuracy(accuracy); // GPS精度を保存
         console.log("📍 GPS位置取得（初回）:", { 
@@ -303,7 +310,7 @@ const CarNavigation = () => {
         });
 
         // Firebaseに位置情報を送信
-        sendLocationToFirebase(newLocation);
+        sendLocationToFirebase(filteredNewLocation);
       },
       (error) => {
         console.error("GPS error:", error);
@@ -317,6 +324,40 @@ const CarNavigation = () => {
       }
     );
   };
+
+  // GPS位置フィルタリング関数（精度が悪い時のブレ抑制）
+  const filterGpsLocation = useCallback((newLocation, accuracy) => {
+    const lastValid = lastValidLocationRef.current;
+    
+    // 初回または精度が良い場合はそのまま使用
+    if (!lastValid || accuracy <= 30) {
+      lastValidLocationRef.current = newLocation;
+      return newLocation;
+    }
+    
+    // 精度が悪い場合の距離チェック
+    const distance = getDistanceMeters(lastValid, newLocation);
+    
+    // 精度が悪い場合の閾値設定
+    let maxDistance;
+    if (accuracy <= 50) {
+      maxDistance = 20; // 精度50m以下：20m以内の移動のみ許可
+    } else if (accuracy <= 100) {
+      maxDistance = 15; // 精度100m以下：15m以内の移動のみ許可
+    } else {
+      maxDistance = 10; // 精度100m超：10m以内の移動のみ許可
+    }
+    
+    // 移動距離が閾値を超えている場合は前回の位置を維持
+    if (distance > maxDistance) {
+      console.log(`📍 GPS位置フィルタリング: 移動距離${distance.toFixed(1)}m > 閾値${maxDistance}m、前回位置を維持`);
+      return lastValid;
+    }
+    
+    // 閾値以内の場合は新しい位置を採用
+    lastValidLocationRef.current = newLocation;
+    return newLocation;
+  }, []);
 
   // Firebaseに位置情報を送信
   const sendLocationToFirebase = useCallback(async (location) => {
@@ -371,15 +412,19 @@ const CarNavigation = () => {
         const { latitude, longitude, accuracy } = position.coords;
         const newLocation = { lat: latitude, lng: longitude };
         
-        // 位置情報を即座に反映
-        setCurrentLocation(newLocation);
+        // GPS位置フィルタリングを適用
+        const filteredNewLocation = filterGpsLocation(newLocation, accuracy);
+        
+        // フィルタリングされた位置情報を反映
+        setCurrentLocation(filteredNewLocation);
+        setFilteredLocation(filteredNewLocation);
         setIsUsingMockLocation(false);
         setGpsAccuracy(accuracy); // GPS精度を保存
         
         // デバウンス処理：前回送信から1秒以上経過している場合のみFirebaseに送信
         const now = Date.now();
         if (now - lastSendTime >= SEND_INTERVAL) {
-          sendLocationToFirebase(newLocation);
+          sendLocationToFirebase(filteredNewLocation);
           lastSendTime = now;
           // console.log("📍 GPS位置リアルタイム更新:", { 
           //   latitude, 
@@ -2444,6 +2489,7 @@ const CarNavigation = () => {
               <div className="text-[9px] font-bold flex items-center gap-1">
                 📡 ±{gpsAccuracy.toFixed(0)}m
                 {gpsAccuracy > 100 && <span className="text-[8px]">(低)</span>}
+                {gpsAccuracy > 30 && <span className="text-[8px]">🔧</span>}
               </div>
             </div>
           )}
