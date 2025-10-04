@@ -421,6 +421,24 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
     <div className="w-full h-full flex flex-col items-center justify-center" style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', maxWidth: '100%', maxHeight: '100%' }}>
       {/* 音声制御ボタンのみ表示（通話時間表示付き） - コンパクト版・常に表示 */}
       <div className="flex flex-col items-center gap-1 w-full h-full" style={{ width: '100%', height: '100%', minWidth: '100%', minHeight: '100%', maxWidth: '100%', maxHeight: '100%' }}>
+        {/* 音声制御ボタン */}
+        <div className="flex gap-1 w-full">
+          {/* マイク切り替えボタンのみ表示 */}
+          <button
+            type="button"
+            onClick={handleToggleMicrophone}
+            disabled={!isJoined}
+            className={`w-full px-2 py-2 rounded shadow-md transition-colors text-xs font-medium ${!isJoined
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : dailyMicrophoneEnabled
+                ? "bg-green-500 hover:bg-green-600 text-white"
+                : "bg-red-500 hover:bg-red-600 text-white"
+              }`}
+            title={dailyMicrophoneEnabled ? "マイクをミュート" : "マイクを有効化"}
+          >
+            {dailyMicrophoneEnabled ? "🎤 ON" : "🔇 OFF"}
+          </button>
+        </div>
         {/* 通話時間表示 */}
         <div className="p-1 bg-blue-50 rounded w-full">
           <p className="text-xs text-blue-600 text-center">
@@ -431,27 +449,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
             <span className="text-xs text-red-600">{isJoined ? "通話中" : "待機中"}</span>
           </div>
         </div>
-
-        {/* 音声制御ボタン */}
-        <div className="flex gap-1 w-full">
-          {/* マイク切り替えボタンのみ表示 */}
-          <button
-            type="button"
-            onClick={handleToggleMicrophone}
-            disabled={!isJoined}
-            className={`w-full px-2 py-1 rounded shadow-md transition-colors text-xs font-medium ${!isJoined
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : dailyMicrophoneEnabled
-                  ? "bg-green-500 hover:bg-green-600 text-white"
-                  : "bg-red-500 hover:bg-red-600 text-white"
-              }`}
-            title={dailyMicrophoneEnabled ? "マイクをミュート" : "マイクを有効化"}
-          >
-            {dailyMicrophoneEnabled ? "🎤 ON" : "🔇 OFF"}
-          </button>
-        </div>
       </div>
-
       {/* 隠しiframe（Daily.co用） */}
       <div ref={iframeRef} className="hidden" />
     </div>
