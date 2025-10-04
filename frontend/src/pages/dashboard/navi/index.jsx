@@ -766,10 +766,10 @@ const NaviCreateScreen = () => {
                 >
                   <div className="text-left">
                     <div className="font-semibold">
-                      {selectedLocation ? "目的地を変更" : "ルートを選択"}
+                      {selectedLocation ? "ナビの設定変更" : "ナビの設定"}
                     </div>
                     <div className="text-sm text-gray-600">
-                      {selectedLocation ? "別の目的地を設定" : "目的地と経路を設定"}
+                      {selectedLocation ? "別の目的地を設定" : "目的地を設定"}
                     </div>
                   </div>
                 </Button>

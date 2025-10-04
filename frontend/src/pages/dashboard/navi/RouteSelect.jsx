@@ -368,22 +368,64 @@ const RouteSelect = () => {
                 </div>
               </button>
 
-              {selectedDeparture && selectedDestination && (
+              {selectedDestination && (
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
+                    let finalDeparture = selectedDeparture;
+                    
+                    // 出発地が未設定の場合、現在地のGPSを取得
+                    if (!selectedDeparture) {
+                      console.log("📍 RouteSelect - 出発地が未設定のため、現在地GPSを取得中...");
+                      
+                      try {
+                        const position = await new Promise((resolve, reject) => {
+                          if (!navigator.geolocation) {
+                            reject(new Error("GPS機能が利用できません"));
+                            return;
+                          }
+                          
+                          navigator.geolocation.getCurrentPosition(
+                            (pos) => resolve(pos),
+                            (err) => reject(err),
+                            {
+                              enableHighAccuracy: true,
+                              timeout: 10000,
+                              maximumAge: 0,
+                            }
+                          );
+                        });
+                        
+                        const { latitude, longitude } = position.coords;
+                        finalDeparture = {
+                          name: "現在地（GPS）",
+                          coordinates: [latitude, longitude],
+                        };
+                        
+                        // 状態とローカルストレージに保存
+                        setSelectedDeparture(finalDeparture);
+                        localStorage.setItem("roomCreat_selectedDeparture", JSON.stringify(finalDeparture));
+                        
+                        console.log("✅ RouteSelect - 現在地GPSを出発地に設定:", finalDeparture);
+                      } catch (gpsError) {
+                        console.error("❌ RouteSelect - GPS取得エラー:", gpsError);
+                        alert("現在地の取得に失敗しました。\n\n出発地を手動で設定してください。");
+                        return;
+                      }
+                    }
+                    
                     console.log("🧭 RouteSelect - ルート確認画面に遷移:", {
-                      selectedDeparture,
+                      selectedDeparture: finalDeparture,
                       selectedDestination,
                     });
                     navigate("/dashboard/navi/route-screen", {
                       state: {
                         destination: selectedDestination.coordinates,
                         destinationName: selectedDestination.name,
-                        departure: selectedDeparture.coordinates,
-                        departureName: selectedDeparture.name,
+                        departure: finalDeparture.coordinates,
+                        departureName: finalDeparture.name,
                         // 🆕 オブジェクトそのものも渡す（RouteScreen.jsx で優先使用）
-                        selectedDeparture: selectedDeparture,
+                        selectedDeparture: finalDeparture,
                         selectedDestination: selectedDestination,
                       },
                     });
@@ -393,7 +435,9 @@ const RouteSelect = () => {
                   <span className="text-2xl">🧭</span>
                   <div className="text-left">
                     <div className="font-semibold">ルートを確認</div>
-                    <div className="text-sm opacity-90">地図でルートを表示</div>
+                    <div className="text-sm opacity-90">
+                      {selectedDeparture ? "地図でルートを表示" : "現在地から地図で確認"}
+                    </div>
                   </div>
                 </button>
               )}
