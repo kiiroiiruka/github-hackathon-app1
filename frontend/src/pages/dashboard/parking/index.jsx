@@ -1,5 +1,5 @@
 import { Icon } from "leaflet";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 // Leaflet関連
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
@@ -35,8 +35,8 @@ if (typeof document !== "undefined") {
   document.head.appendChild(style);
 }
 
-// ⭐ ルート描画コンポーネント（案内非表示）
-const RoutingControl = ({ from, to }) => {
+// ⭐ ルート描画コンポーネント（案内非表示、メモ化）
+const RoutingControl = React.memo(({ from, to }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -71,7 +71,20 @@ const RoutingControl = ({ from, to }) => {
   }, [from, to, map]);
 
   return null;
-};
+}, (prevProps, nextProps) => {
+  // カスタム比較関数：位置が大きく変わった場合のみ再描画
+  if (!prevProps.from || !nextProps.from || !prevProps.to || !nextProps.to) {
+    return false;
+  }
+  
+  const fromDistance = Math.abs(prevProps.from.lat - nextProps.from.lat) + 
+                      Math.abs(prevProps.from.lng - nextProps.from.lng);
+  const toDistance = Math.abs(prevProps.to.lat - nextProps.to.lat) + 
+                    Math.abs(prevProps.to.lng - nextProps.to.lng);
+  
+  // 0.001度（約100m）以上の変化がある場合のみ再描画
+  return fromDistance < 0.001 && toDistance < 0.001;
+});
 
 // ⭐ 地図コントローラー（ズームと中心を制御）
 const MapController = ({ center, zoom, onCenterChange }) => {
@@ -144,11 +157,13 @@ const ParkingInfoDisplay = () => {
   const [isOverdue, setIsOverdue] = useState(false);
   const [mapCenter, setMapCenter] = useState(null);
   const [mapZoom, setMapZoom] = useState(14);
+  const [stableNowPosition, setStableNowPosition] = useState(null);
   const navigate = useNavigate();
   const currentUser = useCurrentUser();
   const gpsIntervalRef = useRef(null);
   const lastValidLocationRef = useRef(null);
   const lastValidAccuracyRef = useRef(null);
+  const routeUpdateTimeoutRef = useRef(null);
 
   // 緯度経度間の距離（m）
   const getDistanceMeters = useCallback((a, b) => {
@@ -554,6 +569,27 @@ const ParkingInfoDisplay = () => {
     }
   }, [nowPosition, parkingInfo, getDistanceMeters]);
 
+  // ルート描画用の安定した位置を更新（デバウンス）
+  useEffect(() => {
+    if (!nowPosition) return;
+
+    // 既存のタイムアウトをクリア
+    if (routeUpdateTimeoutRef.current) {
+      clearTimeout(routeUpdateTimeoutRef.current);
+    }
+
+    // 3秒後に安定した位置を更新（ルートの点滅を防ぐ）
+    routeUpdateTimeoutRef.current = setTimeout(() => {
+      setStableNowPosition(nowPosition);
+    }, 3000);
+
+    return () => {
+      if (routeUpdateTimeoutRef.current) {
+        clearTimeout(routeUpdateTimeoutRef.current);
+      }
+    };
+  }, [nowPosition]);
+
   const handleGoInput = () => {
     navigate("/dashboard/parking/input");
   };
@@ -853,14 +889,18 @@ const ParkingInfoDisplay = () => {
                         );
                       }
                     })()}
-                    {/* ルート描画は異なる位置の場合のみ表示 */}
+                    {/* ルート描画は異なる位置の場合のみ表示（安定した位置を使用） */}
                     {(() => {
+                      const routePosition = stableNowPosition || nowPosition;
+                      
+                      if (!routePosition || !parkingInfo?.position) return null;
+                      
                       const isSameLocation =
-                        Math.abs(nowPosition.lat - parkingInfo.position.lat) < 0.0001 &&
-                        Math.abs(nowPosition.lng - parkingInfo.position.lng) < 0.0001;
+                        Math.abs(routePosition.lat - parkingInfo.position.lat) < 0.0001 &&
+                        Math.abs(routePosition.lng - parkingInfo.position.lng) < 0.0001;
 
                       if (!isSameLocation) {
-                        return <RoutingControl from={nowPosition} to={parkingInfo.position} />;
+                        return <RoutingControl from={routePosition} to={parkingInfo.position} />;
                       }
                       return null;
                     })()}
