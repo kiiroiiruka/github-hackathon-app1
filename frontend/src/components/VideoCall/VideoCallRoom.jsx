@@ -8,6 +8,7 @@ import { useUserUid } from "@/hooks/useUserUid";
 
 const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallStateUpdate }) => {
   const iframeRef = useRef(null);
+  const callDurationRef = useRef(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dailyRoomUrl, setDailyRoomUrl] = useState(null);
@@ -38,6 +39,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
   // 通話時間の定期更新
   useEffect(() => {
+    callDurationRef.current = callDuration;
     if (isJoined && callDuration > 0 && currentUserUid) {
       // 10秒ごとに通話時間を更新
       if (callDuration % 10 === 0) {
@@ -139,7 +141,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
       return;
     }
 
-    let isMounted = true; // コンポーネントがマウントされているかチェック
+    let isMounted = true;
 
     const initializeCall = async () => {
       try {
@@ -148,7 +150,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
         setIsLoading(true);
         setError(null);
 
-        // Get current user info
         if (!currentUserUid) {
           throw new Error("User not authenticated");
         }
@@ -158,7 +159,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
           throw new Error("User not authenticated");
         }
 
-        // FirebaseからDaily.coルーム情報を取得
         const roomRef = ref(rtdb, `rooms/${roomId}`);
         const roomSnapshot = await get(roomRef);
         const firebaseRoomData = roomSnapshot.val();
@@ -171,7 +171,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
         const roomUrl = dailyRoomInfo.url;
         setDailyRoomUrl(roomUrl);
 
-        // Get user token
         const token = await getDailyToken(
           roomId,
           currentUser.uid,
@@ -181,7 +180,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
         if (!isMounted) return;
 
-        // フォールバックトークンの場合は警告を表示
         if (token.startsWith("fallback-token-")) {
           console.warn("⚠️ フォールバックトークンが使用されています。実際の通話はできません。");
           const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === "development";
@@ -193,7 +191,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
           return;
         }
 
-        // 通話セッション開始（既に開始済みでない場合のみ）
         if (!sessionStarted) {
           await startParticipantSession(currentUser.uid, {
             name: currentUser.displayName || "Anonymous",
@@ -204,7 +201,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
         if (!isMounted) return;
 
-        // Join the room (既に接続中でない場合のみ)
         if (!isJoined && !isConnecting) {
           console.log("🚀 ルームに参加を開始します:", {
             roomUrl,
@@ -212,7 +208,6 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
           });
           await joinRoom(token, roomUrl);
 
-          // iframe の状態を確認
           setTimeout(() => {
             if (isMounted) {
               console.log("After joinRoom - iframe state:", {
@@ -227,7 +222,7 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
 
         if (isMounted) {
           setIsLoading(false);
-          setIsInitialized(true); // 初期化完了フラグを設定
+          setIsInitialized(true);
         }
       } catch (err) {
         console.error("Video call initialization error:", err);
@@ -235,35 +230,27 @@ const AudioCallRoom = ({ roomId, roomName, ownerUid, members, onCallEnd, onCallS
           setRetryCount((prev) => prev + 1);
           setError(err.message);
           setIsLoading(false);
-          setIsInitialized(false); // エラー時は初期化フラグをリセット
+          setIsInitialized(false);
         }
       }
     };
 
     initializeCall();
 
-    // Cleanup on unmount
     return () => {
       isMounted = false;
-      if (currentUserUid && callDuration > 0) {
-        endCallSession(roomId, currentUserUid, callDuration);
+    };
+  }, [roomId, currentUserUid, retryCount, isInitialized]);
+
+  // アンマウント時のみ通話をクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (currentUserUid && callDurationRef.current > 0) {
+        endCallSession(roomId, currentUserUid, callDurationRef.current);
       }
       destroyDaily();
     };
-  }, [
-    roomId,
-    currentUserUid,
-    retryCount,
-    callDuration,
-    daily,
-    destroyDaily,
-    isConnecting,
-    isInitialized,
-    isJoined,
-    joinRoom,
-    sessionStarted,
-    startParticipantSession,
-  ]); // isInitializedを依存配列から削除
+  }, [roomId, currentUserUid, destroyDaily]);
 
   const handleLeaveCall = async () => {
     if (currentUserUid && callDuration > 0) {

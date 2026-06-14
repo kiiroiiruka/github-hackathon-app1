@@ -8,7 +8,12 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
   const map = useMap();
   const routingControlRef = useRef(null);
   const isMountedRef = useRef(true);
-  const routeLayerRef = useRef(null); // ルートの線を保持するLayer
+  const routeLayerRef = useRef(null);
+  const onRouteInfoRef = useRef(onRouteInfo);
+
+  useEffect(() => {
+    onRouteInfoRef.current = onRouteInfo;
+  }, [onRouteInfo]);
 
   useEffect(() => {
     // コンポーネントがマウントされていることを記録
@@ -126,11 +131,11 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
               }
 
               // ルート情報を親コンポーネントに渡す
-              if (onRouteInfo && typeof onRouteInfo === "function" && isMountedRef.current) {
+              if (onRouteInfoRef.current && typeof onRouteInfoRef.current === "function" && isMountedRef.current) {
                 const summary = route.summary;
                 const distanceKm = (summary.totalDistance / 1000).toFixed(2);
                 const durationMin = Math.round(summary.totalTime / 60);
-                onRouteInfo({
+                onRouteInfoRef.current({
                   distanceKm: parseFloat(distanceKm),
                   durationMin,
                   arrivalTime: new Date(Date.now() + summary.totalTime * 1000),
@@ -202,7 +207,7 @@ const RoutingControl = ({ position, destination, onRouteInfo }) => {
         }
       }
     };
-  }, [map, position, destination, onRouteInfo]);
+  }, [map, position, destination]);
 
   // コンポーネントのアンマウント時にクリーンアップ
   useEffect(() => {

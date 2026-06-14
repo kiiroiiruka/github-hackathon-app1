@@ -1,4 +1,5 @@
-import { get, push, ref, serverTimestamp, set } from "firebase/database";
+import { push, ref, serverTimestamp, set } from "firebase/database";
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PageLayout from "../../../components/layout/PageLayout";
 import Button from "../../../components/ui/Button";
@@ -9,6 +10,7 @@ import { createRoomWithInvitesAndRoute } from "../../../firebase/room";
 const Confirmation = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
+  const [isCreating, setIsCreating] = useState(false);
   const { roomId, roomName, selectedFriends, selectedLocation, selectedDeparture } =
     location.state || {};
 
@@ -145,236 +147,45 @@ const Confirmation = () => {
 					variant="primary"
 					size="lg"
 					className="w-full"
+					disabled={isCreating}
 					onClick={async () => {
-            console.log("🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀");
-            console.log("🚀 NEW CONFIRMATION CODE EXECUTED! 🚀");
-            console.log("🚀 THIS IS THE UPDATED VERSION! 🚀");
-            console.log("🚀 TIMESTAMP: 2025-09-29-11:25:00 🚀");
-            console.log("🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀");
-            alert(
-              "✅ 新しいコードが実行されました！\n\nルート情報を段階的に保存します。\n\nタイムスタンプ: 2025-09-29-11:25:00"
-            );
+            if (isCreating) return;
+
             const currentUser = auth.currentUser;
-            if (!currentUser || !currentUser.uid) {
+            if (!currentUser?.uid) {
               alert("ログインが必要です。");
               return;
             }
 
-            if (!String(roomName || "").trim()) {
+            const trimmedRoomName = String(roomName || "").trim();
+            if (!trimmedRoomName) {
               alert("ルーム名を入力してください。");
               return;
             }
 
-            let createdRoomId = null;
+            setIsCreating(true);
 
             try {
-              console.log("🎤 通話機能付きルーム作成開始:", roomName);
+              const createdRoomId = await createRoomWithInvitesAndRoute(
+                trimmedRoomName,
+                selectedFriends || [],
+                selectedLocation,
+                selectedDeparture
+              );
 
-              // ルームID作成
-              const roomRef = push(ref(rtdb, "rooms"));
-              const roomId = roomRef.key;
+              await set(ref(rtdb, `rooms/${createdRoomId}/testMode`), false);
 
-              // メンバー一覧: 作成者も含める（デフォルトaccepted: true）
-              const members = {
-                [currentUser.uid]: {
-                  uid: currentUser.uid,
-                  name: currentUser.displayName || "",
-                  photoURL: currentUser.photoURL || "",
-                  invited: true,
-                  accepted: true,
-                },
-              };
-
-              // 選択されたフレンドを追加
-              for (const friend of selectedFriends || []) {
-                members[friend.uid] = {
-                  uid: friend.uid,
-                  name: friend.name || friend.displayName || "",
-                  photoURL: friend.photoURL || "",
-                  invited: true,
-                  accepted: false, // 初期状態: 未参加
-                };
-              }
-
-              // ルート情報を構築
-              let routeData = null;
-
-              // 実際のルートデータを取得
-              if (selectedLocation && selectedDeparture) {
-                // ルート計算（OSRM API使用）
-                try {
-                  console.log("🗺️ ルート計算開始:", {
-                    departure: selectedDeparture,
-                    destination: selectedLocation,
-                  });
-                  
-                  const apiUrl = `https://router.project-osrm.org/route/v1/driving/${selectedDeparture.coordinates[1]},${selectedDeparture.coordinates[0]};${selectedLocation.coordinates[1]},${selectedLocation.coordinates[0]}?overview=simplified&geometries=geojson&steps=false`;
-                  console.log("🗺️ OSRM API URL:", apiUrl);
-
-                  // タイムアウト付きfetch (30秒に延長、APIレート制限対策）
-                  const controller = new AbortController();
-                  const timeoutId = setTimeout(() => controller.abort(), 30000);
-                  const routeResponse = await fetch(apiUrl, { signal: controller.signal });
-                  clearTimeout(timeoutId);
-                  console.log("🗺️ OSRM API response status:", routeResponse.status);
-
-                  if (routeResponse.ok) {
-                    const routeResult = await routeResponse.json();
-
-                    if (routeResult.routes && routeResult.routes.length > 0) {
-                      const route = routeResult.routes[0];
-                      const distanceKm = Math.round((route.distance / 1000) * 100) / 100;
-                      const durationMin = Math.round(route.duration / 60);
-
-                      routeData = {
-                        departure: {
-                          name: selectedDeparture.name || "出発地",
-                          coordinates: selectedDeparture.coordinates,
-                        },
-                        destination: {
-                          name: selectedLocation.name || "目的地",
-                          coordinates: selectedLocation.coordinates,
-                        },
-                        routeInfo: {
-                          distanceKm,
-                          durationMin,
-                          arrivalTime: new Date(Date.now() + route.duration * 1000).toISOString(),
-                        },
-                        polyline: {
-                          geometry: route.geometry,
-                          steps: route.legs?.[0]?.steps || [],
-                          waypoints: routeResult.waypoints || [],
-                          summary: {
-                            distance: route.distance,
-                            duration: route.duration,
-                            profile: "driving",
-                          },
-                        },
-                        createdAt: new Date().toISOString(),
-                        test: false,
-                      };
-
-                      console.log("🗺️ ルート情報取得完了:", {
-                        distance: `${distanceKm}km`,
-                        duration: `${durationMin}分`,
-                        coordinatesCount: route.geometry?.coordinates?.length || 0,
-                      });
-                    } else {
-                      console.warn("⚠️ ルートが見つかりません");
-                    }
-                  } else {
-                    console.warn("⚠️ ルート計算エラー:", routeResponse.status);
-                  }
-                } catch (_routeError) {
-                  console.warn("⚠️ ルート計算に失敗、直線ルートを使用:", _routeError.name === 'AbortError' ? 'タイムアウト' : _routeError.message);
-                  // エラー時は直線ルートを作成
-                  routeData = {
-                    departure: {
-                      name: selectedDeparture.name || "出発地",
-                      coordinates: selectedDeparture.coordinates,
-                    },
-                    destination: {
-                      name: selectedLocation.name || "目的地",
-                      coordinates: selectedLocation.coordinates,
-                    },
-                    routeInfo: {
-                      distanceKm: 0,
-                      durationMin: 0,
-                      arrivalTime: new Date().toISOString(),
-                    },
-                    polyline: {
-                      geometry: {
-                        type: "LineString",
-                        coordinates: [
-                          [selectedDeparture.coordinates[1], selectedDeparture.coordinates[0]],
-                          [selectedLocation.coordinates[1], selectedLocation.coordinates[0]]
-                        ],
-                      },
-                      steps: [],
-                      waypoints: [],
-                      summary: {
-                        distance: 0,
-                        duration: 0,
-                        profile: "driving",
-                      },
-                    },
-                    createdAt: new Date().toISOString(),
-                    test: true,
-                  };
-                  console.log("🗺️ 直線ルートで作成");
-                }
-              }
-
-              // ルートデータ構築完了
-
-              const _roomData = {
-                name: String(roomName || "").trim(),
-                createdAt: serverTimestamp(),
-                ownerUid: currentUser.uid,
-                ownerName: currentUser.displayName || "",
-                ownerPhotoURL: currentUser.photoURL || "",
-                members,
-                testMode: false, // 通話機能を有効にする
-                // ルート情報を含める
-                routeData: routeData,
-                hasRoute: !!routeData, // ルート情報があるかどうかのフラグ
-              };
-
-              try {
-                // Daily.coルーム作成とFirebase保存を同時実行
-
-                // Daily.coルーム作成
-                createdRoomId = await createRoomWithInvitesAndRoute(
-                  String(roomName || "").trim(),
-							selectedFriends || [],
-                  selectedLocation,
-                  selectedDeparture
-                );
-
-                // testModeをfalseに変更して通話機能を有効にする
-                const testModeRef = ref(rtdb, `rooms/${createdRoomId}/testMode`);
-                await set(testModeRef, false);
-
-                // Firebaseにルート情報を追加保存
-                if (routeData) {
-                  const routeRef = ref(rtdb, `rooms/${createdRoomId}/routeData`);
-                  await set(routeRef, routeData);
-
-                  // hasRouteフラグを追加
-                  const hasRouteRef = ref(rtdb, `rooms/${createdRoomId}/hasRoute`);
-                  await set(hasRouteRef, true);
-                }
-              } catch (writeError) {
-                console.error("❌ ルーム作成エラー:", writeError.message);
-                throw writeError;
-              }
-
-              // 保存後にFirebaseから実際のデータを確認
-              const actualRoomId = createdRoomId || roomId;
-              const savedRoomRef = ref(rtdb, `rooms/${actualRoomId}`);
-              const savedSnapshot = await get(savedRoomRef);
-              const savedData = savedSnapshot.val();
-
-              console.log("✅ 通話機能付きルーム作成完了:", actualRoomId);
-
-              const routeMessage = routeData
-                ? `\n\n🗺️ ルート情報: ${routeData.routeInfo?.distanceKm || 0}km, ${routeData.routeInfo?.durationMin || 0}分`
-                : "\n\n⚠️ ルート情報なし";
-
-							alert(
-                `通話機能付きルーム「${String(roomName || "").trim()}」を作成しました！\nルームID: ${actualRoomId}${routeMessage}\n\n🎤 通話機能が有効になっています！\n📞 Daily.coルームURL: ${savedData?.dailyRoom?.url || "作成中..."}`
-							);
-
-							// ホーム画面に遷移
-							navigate("/dashboard");
-						} catch (error) {
-              console.error("❌ ルーム作成エラー:", error.message);
+              navigate("/dashboard");
+            } catch (error) {
+              console.error("ルーム作成エラー:", error);
               alert(`ルーム作成に失敗しました: ${error.message}`);
-						}
+            } finally {
+              setIsCreating(false);
+            }
 					}}
 					icon="🚀"
 				>
-					音声付きでルーム作成を決定
+					{isCreating ? "作成中..." : "音声付きでルーム作成を決定"}
 				</Button>
 
 				{/* 音声なしでルーム作成ボタン（テスト用） */}
@@ -383,8 +194,10 @@ const Confirmation = () => {
 					variant="warning"
 					size="lg"
 					className="w-full shadow-lg"
+					disabled={isCreating}
 					onClick={async () => {
-						console.log("🔥 音声なしルーム作成開始");
+						if (isCreating) return;
+
 						const currentUser = auth.currentUser;
 						if (!currentUser || !currentUser.uid) {
 							alert("ログインが必要です。");
@@ -396,9 +209,9 @@ const Confirmation = () => {
 							return;
 						}
 
-						try {
-							console.log("🔥 Firebase側のみでルーム作成:", roomName);
+						setIsCreating(true);
 
+						try {
 							// ルームID作成
 							const roomRef = push(ref(rtdb, "rooms"));
 							const roomId = roomRef.key;
@@ -562,13 +375,15 @@ const Confirmation = () => {
 							// ホーム画面に遷移
 							navigate("/dashboard");
 						} catch (error) {
-							console.error("❌ ルーム作成エラー:", error);
+							console.error("ルーム作成エラー:", error);
 							alert(`ルーム作成に失敗しました: ${error.message}`);
+						} finally {
+							setIsCreating(false);
 						}
 					}}
 					icon="🔥"
 				>
-					音声なしでルーム作成
+					{isCreating ? "作成中..." : "音声なしでルーム作成"}
 				</Button>
 				
 

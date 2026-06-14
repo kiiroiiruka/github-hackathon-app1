@@ -1,6 +1,6 @@
 import { useAtom } from "jotai";
 import { Icon } from "leaflet";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import { useLocation, useNavigate } from "react-router-dom";
 import { isLoggedInAtom, userUidAtom } from "../../../atom/userAtom";
@@ -42,8 +42,9 @@ const RouteScreen = () => {
   const [routeInfo, setRouteInfo] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
-  const routeCalculatedRef = useRef(false); // ルート計算完了フラグ
-  const routeKeyRef = useRef(null); // ルート用の安定したkey
+  const routeCalculatedRef = useRef(false);
+  const routeKeyRef = useRef(null);
+  const savedHistoryRef = useRef(new Set());
   const [mapCenter, setMapCenter] = useState(null); // 🆕 地図の中心位置を制御
 
   // 出発地アイコン（車マーク + START）
@@ -170,19 +171,25 @@ const RouteScreen = () => {
     // デフォルト出発地は設定しない（GPS自動取得に任せる）
   }, [location.state]);
 
-  // 🆕 出発地・目的地を検索履歴として自動保存
+  // 出発地・目的地を検索履歴として自動保存（同一座標は1回のみ）
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
 
-    // 出発地を履歴に保存
     if (departure && departureName) {
-      addSearchHistory(currentUser.uid, departureName, departure);
+      const key = `dep:${departureName}:${departure[0]},${departure[1]}`;
+      if (!savedHistoryRef.current.has(key)) {
+        savedHistoryRef.current.add(key);
+        addSearchHistory(currentUser.uid, departureName, departure);
+      }
     }
 
-    // 目的地を履歴に保存
     if (destination && destinationName) {
-      addSearchHistory(currentUser.uid, destinationName, destination);
+      const key = `dest:${destinationName}:${destination[0]},${destination[1]}`;
+      if (!savedHistoryRef.current.has(key)) {
+        savedHistoryRef.current.add(key);
+        addSearchHistory(currentUser.uid, destinationName, destination);
+      }
     }
   }, [departure, destination, departureName, destinationName]);
 
@@ -197,6 +204,13 @@ const RouteScreen = () => {
       }
     }
   }, [departure, destination]);
+
+  const handleRouteInfo = useCallback((info) => {
+    if (!routeCalculatedRef.current) {
+      setRouteInfo(info);
+      routeCalculatedRef.current = true;
+    }
+  }, []);
 
   // ルート保存関数
   const handleSaveRoute = async () => {
@@ -445,19 +459,10 @@ const RouteScreen = () => {
                 {/* ルート描画 */}
                 {destination && departure && (
                   <RoutingControl
-                    key={routeKeyRef.current} // 安定したkeyで不必要な再マウントを防ぐ
+                    key={routeKeyRef.current}
                     position={departure}
                     destination={destination}
-                    onRouteInfo={(info) => {
-                      if (!routeCalculatedRef.current) {
-                        console.log("距離:", info.distanceKm, "km");
-                        console.log("所要時間:", info.durationMin, "分");
-                        console.log("到着予定:", info.arrivalTime.toLocaleTimeString());
-                        setRouteInfo(info); // ルート情報を保存
-                        routeCalculatedRef.current = true; // ルート計算完了フラグを設定
-                        console.log("ルート計算完了 - このルートを保持します");
-                      }
-                    }}
+                    onRouteInfo={handleRouteInfo}
                   />
                 )}
               </MapContainer>

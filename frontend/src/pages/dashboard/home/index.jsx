@@ -1,5 +1,5 @@
 import { onValue, ref, update } from "firebase/database";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -18,6 +18,11 @@ const HomeScreen = () => {
   });
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState("");
+  const selectedRoomRef = useRef(selectedRoom);
+
+  useEffect(() => {
+    selectedRoomRef.current = selectedRoom;
+  }, [selectedRoom]);
 
   useEffect(() => {
     const currentUser = auth.currentUser;
@@ -60,7 +65,10 @@ const HomeScreen = () => {
             setOwnedRooms(owned);
 
             // 選択中のルームが存在しない場合はクリア
-            if (selectedRoom && !list.find((room) => room.roomId === selectedRoom.roomId)) {
+            if (
+              selectedRoomRef.current &&
+              !list.find((room) => room.roomId === selectedRoomRef.current.roomId)
+            ) {
               setSelectedRoom(null);
               localStorage.removeItem("selectedRoom");
             }
@@ -86,7 +94,7 @@ const HomeScreen = () => {
         unsubscribe();
       }
     };
-  }, [selectedRoom]);
+  }, []);
 
   const handleAccept = async (roomId) => {
     const currentUser = auth.currentUser;
