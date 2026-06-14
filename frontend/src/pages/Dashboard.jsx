@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import FooterTab from "../components/layout/FooterTab";
 import HeaderComponent2 from "../components/Header/Header2";
 import { useIsLoggedIn } from "../hooks/useUser";
 import { useUserUid } from "../hooks/useUserUid";
+import { showDevButtons } from "@/utils/env";
 import AppInformation from "./AppInformation/AppInformation";
 import CarNavigation from "./CarNavigation";
 import CarNavigationAdvanced from "./CarNavigationAdvanced";
@@ -243,7 +244,10 @@ const Dashboard = () => {
           <Route path="memo/creatememo" element={<CreateMemo />} />
           <Route path="policy" element={<UserPolicy />} />
           <Route path="app-info" element={<AppInformation />} />
-          <Route path="development" element={<DevelopmentPage />} />
+          <Route
+            path="development"
+            element={showDevButtons() ? <DevelopmentPage /> : <Navigate to="/dashboard" replace />}
+          />
         </Routes>
       </main>
       <FooterTab value={tab} onChange={handleTabChange} tabs={TABS} />

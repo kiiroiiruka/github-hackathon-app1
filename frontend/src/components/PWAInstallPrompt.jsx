@@ -1,8 +1,11 @@
+import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
+import { isLoggedInAtom } from "../atom/userAtom";
 
 const PWAInstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [isLoggedIn] = useAtom(isLoggedInAtom);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
@@ -44,7 +47,7 @@ const PWAInstallPrompt = () => {
     setShowInstallPrompt(false);
   };
 
-  if (!showInstallPrompt) return null;
+  if (!isLoggedIn || !showInstallPrompt) return null;
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-4">

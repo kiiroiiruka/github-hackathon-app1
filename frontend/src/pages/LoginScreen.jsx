@@ -58,34 +58,31 @@ function LoginScreen() {
           <img src={carIcon} alt="DriveLink" className="w-full h-full object-cover" />
         </div>
 
-        {/* Google login button - elegant modern style */}
+        {/* Google login button */}
         <button
           onClick={handleLogin}
           type="button"
           disabled={isLoading}
           className={clsx(
-            "relative w-full max-w-[280px]", // position & width
-            "flex items-center justify-center", // layout - 中央配置
-            "gap-2.5 px-6 py-4", // spacing - バランス調整
-            "text-[24px] leading-none font-semibold", // typography - やや小さく
-            "bg-gradient-to-r from-blue-600 to-indigo-600", // gradient background
-            "text-white", // white text
-            "rounded-2xl", // rounded corners
-            "shadow-lg shadow-blue-500/30", // colored shadow
-            "transform transition-all duration-200", // animation
-            "hover:shadow-xl hover:shadow-blue-500/40 hover:scale-[1.02]", // hover effect
-            "active:scale-[0.98]", // active effect
-            isLoading && "opacity-70 cursor-not-allowed" // disabled state
+            "relative w-full max-w-[280px]",
+            "flex items-center justify-center",
+            "gap-2.5 px-6 py-4",
+            "text-[18px] leading-snug font-semibold",
+            "bg-white text-gray-700",
+            "rounded-2xl",
+            "shadow-md ring-1 ring-gray-300",
+            "transform transition-all duration-200",
+            "hover:shadow-lg hover:scale-[1.02]",
+            "active:scale-[0.98]",
+            isLoading && "opacity-70 cursor-not-allowed"
           )}
           aria-busy={isLoading}
         >
-          <span className="flex-shrink-0">{isLoading ? "処理中..." : "ログインする"}</span>
-          <span className="inline-flex items-center justify-center w-7 h-7 flex-shrink-0">
-            {/* Google G logo as SVG */}
+          <span className="inline-flex items-center justify-center w-6 h-6 flex-shrink-0">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 48 48"
-              className="w-7 h-7"
+              className="w-6 h-6"
               aria-hidden="true"
               focusable="false"
             >
@@ -108,7 +105,14 @@ function LoginScreen() {
               />
             </svg>
           </span>
+          <span className="flex-shrink-0">
+            {isLoading ? "処理中..." : "Googleアカウントでログイン"}
+          </span>
         </button>
+
+        <p className="text-xs text-gray-500 text-center max-w-[280px] leading-relaxed">
+          ログインは Google の認証画面で行われます。DriveLink がパスワードを直接お伺いすることはありません。
+        </p>
 
         {/* Policy button - subtle style for white background */}
         <button
